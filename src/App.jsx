@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "./supabase";
+
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
+
+const STREAMS=[
+  {id:1,title:"Ranked Grind to Diamond",streamer:"NightOwlX",game:"Valorant",viewers:12840,emoji:"🦉",color:"#7c3aed",bg:"135deg,#1a0a2e,#2d1b69"},
+  {id:2,title:"Korean BBQ Night — Chill IRL",streamer:"SaraKitchen",game:"IRL",viewers:4230,emoji:"👩‍🍳",color:"#e94560",bg:"135deg,#2e0a1a,#69141b"},
+  {id:3,title:"FIFA 26 Ultimate Team",streamer:"GoalKingFC",game:"FIFA 26",viewers:8910,emoji:"⚽",color:"#0ea5e9",bg:"135deg,#0a1a2e,#0e3a5a"},
+  {id:4,title:"Minecraft Hardcore Day 847",streamer:"CraftedLore",game:"Minecraft",viewers:6120,emoji:"⛏️",color:"#22c55e",bg:"135deg,#0a1e10,#0d3a1a"},
+  {id:5,title:"Lo-Fi Beats + Chill Gaming",streamer:"LoFiDrift",game:"Music",viewers:21400,emoji:"🎵",color:"#f0c040",bg:"135deg,#1e1a0a,#3a2e0d"},
+  {id:6,title:"Just Chatting — Story Time",streamer:"TalkWithKai",game:"Just Chatting",viewers:3340,emoji:"💬",color:"#ec4899",bg:"135deg,#2e0a1e,#5a1442"},
+];
+
+const CATS=["All","Gaming","IRL","Music","Just Chatting","Sports","Food","Art"];
+
 const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--ink:#080816;--ink2:#0d0d20;--ink3:#12122a;--ink4:#1a1a35;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);--purple:#7c3aed;--red:#ff2d55;--orange:#ff9500;--green:#00f5a0;--gold:#ffc800;--blue:#4d9fff;--txt:#ffffff;--muted:rgba(255,255,255,.45);--card:rgba(255,255,255,.03)}
@@ -10,6 +24,7 @@ button,input{font-family:'Outfit',sans-serif}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .nav{position:fixed;top:0;left:0;right:0;z-index:200;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 36px;background:rgba(8,8,22,.9);backdrop-filter:blur(24px);border-bottom:1px solid var(--line)}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;cursor:pointer;background:linear-gradient(90deg,var(--purple),var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .nav-c{display:flex;gap:2px}
@@ -139,26 +154,10 @@ button,input{font-family:'Outfit',sans-serif}
 .panel-hd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
 .panel-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.5px}
 .toast{position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,rgba(0,245,160,.14),rgba(0,245,160,.06));border:1px solid rgba(0,245,160,.25);border-radius:12px;padding:13px 18px;font-size:14px;font-weight:600;color:var(--green);z-index:9999;display:flex;align-items:center;gap:8px;animation:toastIn .3s ease}
+.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto}
+.error-msg{background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.3);color:var(--red);border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:14px}
+.success-msg{background:rgba(0,245,160,.1);border:1px solid rgba(0,245,160,.3);color:var(--green);border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:14px}
 `;
-
-const STREAMS=[
-  {id:1,title:"Ranked Grind to Diamond",streamer:"NightOwlX",game:"Valorant",viewers:12840,emoji:"🦉",color:"#7c3aed",bg:"135deg,#1a0a2e,#2d1b69"},
-  {id:2,title:"Korean BBQ Night — Chill IRL",streamer:"SaraKitchen",game:"IRL",viewers:4230,emoji:"👩‍🍳",color:"#e94560",bg:"135deg,#2e0a1a,#69141b"},
-  {id:3,title:"FIFA 26 Ultimate Team",streamer:"GoalKingFC",game:"FIFA 26",viewers:8910,emoji:"⚽",color:"#0ea5e9",bg:"135deg,#0a1a2e,#0e3a5a"},
-  {id:4,title:"Minecraft Hardcore Day 847",streamer:"CraftedLore",game:"Minecraft",viewers:6120,emoji:"⛏️",color:"#22c55e",bg:"135deg,#0a1e10,#0d3a1a"},
-  {id:5,title:"Lo-Fi Beats + Chill Gaming",streamer:"LoFiDrift",game:"Music",viewers:21400,emoji:"🎵",color:"#f0c040",bg:"135deg,#1e1a0a,#3a2e0d"},
-  {id:6,title:"Just Chatting — Story Time",streamer:"TalkWithKai",game:"Just Chatting",viewers:3340,emoji:"💬",color:"#ec4899",bg:"135deg,#2e0a1e,#5a1442"},
-];
-
-const CHAT_INIT=[
-  {a:"BladeRunner99",t:"LETS GOOO 🔥",c:"#7c3aed"},
-  {a:"StarGazer",t:"been watching 2hrs, just hit 800 coins 🪙",c:"#22c55e"},
-  {a:"NightOwlX",t:"stack those coins fam!",c:"#ff2d55",s:true},
-  {a:"ProGamer2K",t:"sent a trophy 🏆",c:"#7c3aed",sc:true,amt:"5,000 coins"},
-  {a:"MoonWatcher",t:"no other platform pays you to watch fr",c:"#ec4899"},
-];
-
-const CATS=["All","Gaming","IRL","Music","Just Chatting","Sports","Food","Art"];
 
 export default function App(){
   const [page,setPage]=useState("land");
@@ -166,19 +165,116 @@ export default function App(){
   const [role,setRole]=useState("viewer");
   const [cat,setCat]=useState("All");
   const [stream,setStream]=useState(STREAMS[0]);
-  const [coins,setCoins]=useState(14820);
+  const [coins,setCoins]=useState(0);
   const [sess,setSess]=useState(0);
-  const [chat,setChat]=useState(CHAT_INIT);
+  const [chat,setChat]=useState([]);
   const [msg,setMsg]=useState("");
   const [following,setFollowing]=useState(false);
   const [toast,setToast]=useState(null);
+  const [user,setUser]=useState(null);
+  const [profile,setProfile]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [authError,setAuthError]=useState("");
+  const [authMode,setAuthMode]=useState("signup");
+  const [formData,setFormData]=useState({fullName:"",email:"",password:""});
   const chatRef=useRef(null);
+
+  // Check if user is already logged in
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      if(session){
+        setUser(session.user);
+        fetchProfile(session.user.id);
+        setPage("disc");
+      }
+    });
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+      if(session){
+        setUser(session.user);
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setCoins(0);
+      }
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  const fetchProfile=async(userId)=>{
+    const {data}=await supabase.from("profiles").select("*").eq("id",userId).single();
+    if(data){
+      setProfile(data);
+      setCoins(data.coins||0);
+      setMode(data.role||"viewer");
+    }
+  };
+
+  const updateCoins=async(newCoins)=>{
+    setCoins(newCoins);
+    if(user){
+      await supabase.from("profiles").update({coins:newCoins}).eq("id",user.id);
+    }
+  };
+
+  // Sign up
+  const handleSignUp=async()=>{
+    if(!formData.fullName||!formData.email||!formData.password){
+      setAuthError("Please fill in all fields");return;
+    }
+    setLoading(true);setAuthError("");
+    const {data,error}=await supabase.auth.signUp({
+      email:formData.email,
+      password:formData.password,
+    });
+    if(error){setAuthError(error.message);setLoading(false);return;}
+    if(data.user){
+      await supabase.from("profiles").insert({
+        id:data.user.id,
+        full_name:formData.fullName,
+        username:formData.email.split("@")[0],
+        role:role,
+        coins:1000,
+      });
+      setCoins(1000);
+      notify("Welcome to STEM! 🎉 You got 1,000 bonus coins!");
+      setMode(role);
+      go(role==="streamer"?"dash":"disc");
+    }
+    setLoading(false);
+  };
+
+  // Log in
+  const handleLogin=async()=>{
+    if(!formData.email||!formData.password){
+      setAuthError("Please enter your email and password");return;
+    }
+    setLoading(true);setAuthError("");
+    const {data,error}=await supabase.auth.signInWithPassword({
+      email:formData.email,
+      password:formData.password,
+    });
+    if(error){setAuthError(error.message);setLoading(false);return;}
+    notify("Welcome back! 🎉");
+    setLoading(false);
+  };
+
+  // Log out
+  const handleLogout=async()=>{
+    await supabase.auth.signOut();
+    setPage("land");
+    notify("Logged out successfully");
+  };
 
   useEffect(()=>{
     if(page!=="stream")return;
-    const t=setInterval(()=>{setCoins(c=>c+1);setSess(s=>s+1);},900);
+    const t=setInterval(async()=>{
+      setSess(s=>s+1);
+      const newCoins=coins+1;
+      await updateCoins(newCoins);
+    },900);
     return()=>clearInterval(t);
-  },[page]);
+  },[page,coins]);
 
   useEffect(()=>{
     if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;
@@ -186,15 +282,35 @@ export default function App(){
 
   const notify=m=>{setToast(m);setTimeout(()=>setToast(null),2600);};
   const go=(p,s=null)=>{if(s)setStream(s);if(p==="stream")setSess(0);setPage(p);window.scrollTo(0,0);};
-  const sendChat=()=>{if(!msg.trim())return;setChat(l=>[...l,{a:"You",t:msg.trim(),c:"#ff2d55"}]);setCoins(c=>c+10);setMsg("");notify("+10 coins!");};
-  const sendGift=(name,cost)=>{const c=parseInt(cost.replace(/,/g,""));if(coins<c){notify("Not enough coins!");return;}setCoins(v=>v-c);setChat(l=>[...l,{a:"You",t:`Sent ${name}! 🎁`,c:"#ffc800",sc:true,amt:`${cost} coins`}]);notify(`${name} sent!`);};
+
+  const sendChat=async()=>{
+    if(!msg.trim())return;
+    const newMsg={a:profile?.username||"You",t:msg.trim(),c:"#ff2d55"};
+    setChat(l=>[...l,newMsg]);
+    const newCoins=coins+10;
+    await updateCoins(newCoins);
+    setMsg("");
+    notify("+10 coins!");
+  };
+
+  const sendGift=async(name,cost)=>{
+    const c=parseInt(cost.replace(/,/g,""));
+    if(coins<c){notify("Not enough coins!");return;}
+    const newCoins=coins-c;
+    await updateCoins(newCoins);
+    setChat(l=>[...l,{a:profile?.username||"You",t:`Sent ${name}! 🎁`,c:"#ffc800",sc:true,amt:`${cost} coins`}]);
+    notify(`${name} sent!`);
+  };
+
   const isApp=["disc","stream","wallet","dash"].includes(page);
+  const initials=profile?.full_name?.split(" ").map(n=>n[0]).join("").toUpperCase()||"?";
 
   return(<>
     <style>{FONTS}</style><style>{CSS}</style>
 
+    {/* NAV */}
     <nav className="nav">
-      <div className="logo" onClick={()=>go("land")}>STEM</div>
+      <div className="logo" onClick={()=>go(user?"disc":"land")}>STEM</div>
       {isApp?(
         <div className="nav-c">
           {(mode==="viewer"?[["disc","Discover"],["stream","Live"],["wallet","Wallet"]]:[["disc","Discover"],["dash","Dashboard"]]).map(([p,l])=>(
@@ -215,15 +331,16 @@ export default function App(){
             <button className={`mode-btn ${mode==="streamer"?"on":""}`} onClick={()=>{setMode("streamer");if(page==="stream")go("dash");}}>🎙 Streamer</button>
           </div>
           <div className="coin-badge" onClick={()=>go("wallet")}>🪙 {coins.toLocaleString()}</div>
-          <div className="av">BJ</div>
+          <div className="av" title="Logout" onClick={handleLogout}>{initials}</div>
         </>}
         {!isApp&&<>
-          <button className="btn-o" style={{padding:"8px 18px",fontSize:13}} onClick={()=>go("auth")}>Log in</button>
-          <button className="btn-g" style={{padding:"9px 20px",fontSize:13}} onClick={()=>go("auth")}>Sign up free</button>
+          <button className="btn-o" style={{padding:"8px 18px",fontSize:13}} onClick={()=>{setAuthMode("login");go("auth");}}>Log in</button>
+          <button className="btn-g" style={{padding:"9px 20px",fontSize:13}} onClick={()=>{setAuthMode("signup");go("auth");}}>Sign up free</button>
         </>}
       </div>
     </nav>
 
+    {/* LANDING */}
     {page==="land"&&<div style={{paddingTop:62}}>
       <div className="hero">
         <div className="hero-mesh"/><div className="hero-grid"/><div className="hero-orb1"/><div className="hero-orb2"/>
@@ -232,8 +349,8 @@ export default function App(){
           <h1 className="hero-h"><span className="l1">WATCH LIVE.</span><span className="l2">GET PAID.</span></h1>
           <p className="hero-p">The first streaming platform to pay <strong>both streamers AND viewers</strong> in real money. Every ad. Every hour. Every clip.</p>
           <div className="hero-btns">
-            <button className="btn-g" style={{padding:"13px 28px",fontSize:15}} onClick={()=>go("auth")}>Start Earning Free →</button>
-            <button className="btn-o" style={{padding:"12px 28px",fontSize:15}} onClick={()=>{setRole("streamer");go("auth");}}>I am a Streamer</button>
+            <button className="btn-g" style={{padding:"13px 28px",fontSize:15}} onClick={()=>{setAuthMode("signup");go("auth");}}>Start Earning Free →</button>
+            <button className="btn-o" style={{padding:"12px 28px",fontSize:15}} onClick={()=>{setRole("streamer");setAuthMode("signup");go("auth");}}>I am a Streamer</button>
           </div>
           <div className="hero-stats">
             {[["2,841","Streams live"],["$48,210","Paid today"],["127K","Earning now"]].map(([v,l])=>(
@@ -244,39 +361,60 @@ export default function App(){
       </div>
     </div>}
 
+    {/* AUTH */}
     {page==="auth"&&<div className="page" style={{display:"flex",alignItems:"center",justifyContent:"center",padding:40,background:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(124,58,237,.1),transparent 70%)"}}>
       <div style={{background:"rgba(13,13,32,.96)",border:"1px solid var(--line2)",borderRadius:22,width:"100%",maxWidth:440,overflow:"hidden",backdropFilter:"blur(20px)"}}>
-        <div style={{padding:"30px 32px 22px",borderBottom:"1px solid var(--line)"}}>
+        <div style={{padding:"30px 32px 0",borderBottom:"1px solid var(--line)"}}>
           <div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:22,letterSpacing:2,background:"linear-gradient(90deg,var(--purple),var(--red))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>STEM</div>
-          <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Create your account</div>
-          <div style={{fontSize:13,color:"var(--muted)"}}>Start earning from day one — free forever.</div>
+          <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>{authMode==="signup"?"Create your account":"Welcome back"}</div>
+          <div style={{fontSize:13,color:"var(--muted)",paddingBottom:22}}>{authMode==="signup"?"Start earning from day one — free forever.":"Continue your earning streak."}</div>
+        </div>
+        {/* Tabs */}
+        <div style={{display:"flex",padding:"0 32px",borderBottom:"1px solid var(--line)"}}>
+          {["signup","login"].map(m=>(
+            <button key={m} onClick={()=>{setAuthMode(m);setAuthError("");}} style={{flex:1,background:"none",border:"none",borderBottom:authMode===m?"2px solid var(--red)":"2px solid transparent",color:authMode===m?"#fff":"var(--muted)",fontSize:14,fontWeight:600,padding:12,cursor:"pointer",transition:"all .2s"}}>
+              {m==="signup"?"Sign Up":"Log In"}
+            </button>
+          ))}
         </div>
         <div style={{padding:"26px 32px 30px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {[["viewer","👁","Viewer","Watch and earn"],["streamer","🎙","Streamer","Stream and earn more"]].map(([r,ic,ti,su])=>(
-              <div key={r} onClick={()=>setRole(r)} style={{background:role===r?"rgba(124,58,237,.1)":"var(--ink3)",border:role===r?"2px solid var(--purple)":"2px solid var(--line)",borderRadius:14,padding:18,textAlign:"center",cursor:"pointer"}}>
-                <div style={{fontSize:30,marginBottom:10}}>{ic}</div>
-                <div style={{fontSize:14,fontWeight:700,marginBottom:3}}>{ti}</div>
-                <div style={{fontSize:11,color:"var(--muted)"}}>{su}</div>
-              </div>
-            ))}
-          </div>
-          <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} placeholder="Full Name"/>
-          <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} type="email" placeholder="Email"/>
-          <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} type="password" placeholder="Password"/>
-          <button onClick={()=>{setMode(role);go(role==="streamer"?"dash":"disc");}} style={{width:"100%",background:"linear-gradient(135deg,var(--purple),var(--red))",color:"#fff",border:"none",borderRadius:12,padding:14,fontSize:15,fontWeight:700,cursor:"pointer"}}>
-            {role==="streamer"?"Start Streaming →":"Start Earning →"}
+          {authError&&<div className="error-msg">{authError}</div>}
+          {authMode==="signup"&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+              {[["viewer","👁","Viewer","Watch and earn"],["streamer","🎙","Streamer","Stream and earn more"]].map(([r,ic,ti,su])=>(
+                <div key={r} onClick={()=>setRole(r)} style={{background:role===r?"rgba(124,58,237,.1)":"var(--ink3)",border:role===r?"2px solid var(--purple)":"2px solid var(--line)",borderRadius:14,padding:18,textAlign:"center",cursor:"pointer",transition:"all .2s"}}>
+                  <div style={{fontSize:30,marginBottom:10}}>{ic}</div>
+                  <div style={{fontSize:14,fontWeight:700,marginBottom:3}}>{ti}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>{su}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {authMode==="signup"&&(
+            <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} placeholder="Full Name" value={formData.fullName} onChange={e=>setFormData({...formData,fullName:e.target.value})}/>
+          )}
+          <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} type="email" placeholder="Email address" value={formData.email} onChange={e=>setFormData({...formData,email:e.target.value})}/>
+          <input style={{width:"100%",background:"var(--ink3)",border:"1px solid var(--line2)",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",marginBottom:14}} type="password" placeholder="Password" value={formData.password} onChange={e=>setFormData({...formData,password:e.target.value})}/>
+          <button onClick={authMode==="signup"?handleSignUp:handleLogin} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,var(--purple),var(--red))",color:"#fff",border:"none",borderRadius:12,padding:14,fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?.7:1}}>
+            {loading?<div className="spinner"/>:authMode==="signup"?(role==="streamer"?"Start Streaming →":"Start Earning →"):"Log In →"}
           </button>
+          <div style={{textAlign:"center",marginTop:16,fontSize:13,color:"var(--muted)"}}>
+            {authMode==="signup"?"Already have an account? ":"New to STEM? "}
+            <button onClick={()=>{setAuthMode(authMode==="signup"?"login":"signup");setAuthError("");}} style={{background:"none",border:"none",color:"var(--red)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+              {authMode==="signup"?"Log in":"Sign up free"}
+            </button>
+          </div>
         </div>
       </div>
     </div>}
 
+    {/* DISCOVER */}
     {page==="disc"&&<div className="disc-page page">
       <div className="disc-hero">
         <h1><span>Watch Live.</span> Earn Real Money.</h1>
-        <p>Every stream earns you coins. Every coin converts to real cash.</p>
+        <p>Welcome back {profile?.full_name?.split(" ")[0]||""}! Every stream earns you coins. Every coin converts to real cash.</p>
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          {[["🔴","2,841","live"],["🪙","127K","earning"],["💸","$48K","paid today"]].map(([icon,v,l])=>(
+          {[["🔴","2,841","live"],["🪙",coins.toLocaleString(),"your coins"],["💸","$48K","paid today"]].map(([icon,v,l])=>(
             <div key={l} style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.06)",border:"1px solid var(--line2)",borderRadius:12,padding:"10px 18px"}}>
               <span style={{fontSize:18}}>{icon}</span>
               <div><div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:20}}>{v}</div><div style={{fontSize:11,color:"var(--muted)"}}>{l}</div></div>
@@ -305,6 +443,7 @@ export default function App(){
       ))}</div>
     </div>}
 
+    {/* STREAM */}
     {page==="stream"&&<div className="slayout" style={{paddingTop:62}}>
       <div className="sleft">
         <div className="splayer">
@@ -319,7 +458,7 @@ export default function App(){
         <div className="sbelow">
           <div className="stitle">{stream.title}</div>
           <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-            <button className={`abtn ${following?"flwing":"flw"}`} onClick={()=>{setFollowing(f=>!f);if(!following){setCoins(c=>c+50);notify("+50 coins!");}}}>
+            <button className={`abtn ${following?"flwing":"flw"}`} onClick={()=>{setFollowing(f=>!f);if(!following){updateCoins(coins+50);notify("+50 coins!");}}}>
               {following?"✓ Following":"+ Follow"}
             </button>
             <button className="abtn" onClick={()=>notify("Link copied!")}>🔗 Share</button>
@@ -353,13 +492,16 @@ export default function App(){
       </div>
       <div className="chat-panel">
         <div className="chat-hd"><span className="chat-hd-title">Live Chat</span><span style={{fontSize:11,color:"var(--muted)"}}>{stream.viewers.toLocaleString()}</span></div>
-        <div className="chat-msgs" ref={chatRef}>{chat.map((m,i)=>(
-          <div key={i} className={`cmsg ${m.sc?"sc":""}`}>
-            {m.sc&&<div style={{fontSize:10,color:"var(--gold)",fontWeight:700,marginBottom:3}}>🪙 {m.amt}</div>}
-            <div className="cmsg-a" style={{color:m.c}}>{m.s?"⭐ ":""}{m.a}</div>
-            <div className="cmsg-t">{m.t}</div>
-          </div>
-        ))}</div>
+        <div className="chat-msgs" ref={chatRef}>
+          {chat.length===0&&<div style={{fontSize:13,color:"var(--muted)",textAlign:"center",marginTop:20}}>Be the first to chat! Earn +10 coins per message 🪙</div>}
+          {chat.map((m,i)=>(
+            <div key={i} className={`cmsg ${m.sc?"sc":""}`}>
+              {m.sc&&<div style={{fontSize:10,color:"var(--gold)",fontWeight:700,marginBottom:3}}>🪙 {m.amt}</div>}
+              <div className="cmsg-a" style={{color:m.c}}>{m.s?"⭐ ":""}{m.a}</div>
+              <div className="cmsg-t">{m.t}</div>
+            </div>
+          ))}
+        </div>
         <div className="chat-foot">
           <div className="chat-tip">💚 +10 coins per message</div>
           <div className="chat-row">
@@ -370,12 +512,13 @@ export default function App(){
       </div>
     </div>}
 
+    {/* WALLET */}
     {page==="wallet"&&<div className="wallet-page page">
-      <div style={{marginBottom:30}}><div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:44,letterSpacing:1,marginBottom:4}}>My Wallet</div><div style={{fontSize:14,color:"var(--muted)"}}>Your coins, earnings, and withdrawals</div></div>
+      <div style={{marginBottom:30}}><div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:44,letterSpacing:1,marginBottom:4}}>My Wallet</div><div style={{fontSize:14,color:"var(--muted)"}}>Hey {profile?.full_name?.split(" ")[0]||""}! Here are your coins and earnings.</div></div>
       <div className="wcards">
-        <div className="wcard g"><div className="wcard-l">Withdrawable Balance</div><div className="wcard-v">$14.82</div><div className="wcard-sub">Need $5.18 more to withdraw</div><button className="wbtn" disabled>Withdraw ($20 min)</button></div>
-        <div className="wcard y"><div className="wcard-l">STEM Coins</div><div className="wcard-v">🪙 {coins.toLocaleString()}</div><div className="wcard-sub">1,000 coins = $1.00 · 2% fee</div><button className="wbtn" style={{background:"var(--gold)"}} onClick={()=>notify("Spend coins on gifts!")}>Spend Coins</button></div>
-        <div className="wcard p"><div className="wcard-l">Total Earned All Time</div><div className="wcard-v">$48.14</div><div className="wcard-sub">Watching, chatting, referrals</div><button className="wbtn" style={{background:"linear-gradient(135deg,var(--purple),var(--red))"}} onClick={()=>notify("Premium = 2x earnings!")}>Upgrade Premium</button></div>
+        <div className="wcard g"><div className="wcard-l">Withdrawable Balance</div><div className="wcard-v">${(coins/1000).toFixed(2)}</div><div className="wcard-sub">{coins.toLocaleString()} coins · Need {Math.max(0,20000-coins).toLocaleString()} more</div><button className="wbtn" disabled={coins<20000}>{coins>=20000?"Withdraw Now":"Withdraw ($20 min)"}</button></div>
+        <div className="wcard y"><div className="wcard-l">STEM Coins</div><div className="wcard-v">🪙 {coins.toLocaleString()}</div><div className="wcard-sub">1,000 coins = $1.00 · 2% fee on withdrawal</div><button className="wbtn" style={{background:"var(--gold)"}} onClick={()=>notify("Spend coins on gifts in a stream!")}>Spend Coins</button></div>
+        <div className="wcard p"><div className="wcard-l">Total Earned All Time</div><div className="wcard-v">${(profile?.total_earned||0).toFixed(2)}</div><div className="wcard-sub">From watching, chatting, and referrals</div><button className="wbtn" style={{background:"linear-gradient(135deg,var(--purple),var(--red))"}} onClick={()=>notify("Premium = 2x earnings — coming soon!")}>Upgrade Premium</button></div>
       </div>
       <div style={{background:"linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))",border:"1px solid rgba(124,58,237,.2)",borderRadius:16,padding:"20px 24px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
         <div style={{fontSize:28}}>💡</div>
@@ -384,10 +527,11 @@ export default function App(){
       </div>
     </div>}
 
+    {/* DASHBOARD */}
     {page==="dash"&&<div className="dash-page page">
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:28,flexWrap:"wrap",gap:16}}>
-        <div><div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:44,letterSpacing:1,marginBottom:4}}>Streamer Dashboard</div><div style={{fontSize:14,color:"var(--muted)"}}>Your revenue, analytics, and growth tools</div></div>
-        <button style={{background:"linear-gradient(135deg,var(--red),#ff6b35)",color:"#fff",border:"none",borderRadius:12,padding:"13px 26px",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>notify("Go Live coming soon!")}>
+        <div><div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:44,letterSpacing:1,marginBottom:4}}>Streamer Dashboard</div><div style={{fontSize:14,color:"var(--muted)"}}>Welcome {profile?.full_name?.split(" ")[0]||""}! Your revenue and analytics.</div></div>
+        <button style={{background:"linear-gradient(135deg,var(--red),#ff6b35)",color:"#fff",border:"none",borderRadius:12,padding:"13px 26px",fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>notify("Go Live feature coming soon!")}>
           <span style={{width:8,height:8,background:"#fff",borderRadius:"50%",animation:"blink 1.6s infinite"}}/>Go Live
         </button>
       </div>
@@ -397,39 +541,32 @@ export default function App(){
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:20}}>
-        <div>
-          <div className="panel">
-            <div className="panel-hd"><span className="panel-title">Revenue Breakdown</span><span style={{fontSize:12,color:"var(--muted)"}}>This month</span></div>
-            <div style={{padding:20}}>
-              {[["Ad Revenue (40% share)","$337",40,"linear-gradient(90deg,var(--red),#ff6b35)"],["Subscriptions (70% share)","$218",26,"linear-gradient(90deg,var(--green),#00c8a0)"],["Virtual Gifts (85% share)","$180",21,"linear-gradient(90deg,var(--gold),var(--orange))"],["Brand Sponsored","$107",13,"linear-gradient(90deg,var(--blue),var(--purple))"]].map(([l,v,p,c])=>(
-                <div key={l} style={{marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><span style={{fontSize:13,color:"var(--muted)"}}>{l}</span><span style={{fontSize:13,fontWeight:700}}>{v}</span></div>
-                  <div style={{background:"var(--ink4)",borderRadius:4,height:6,overflow:"hidden"}}><div style={{width:`${p}%`,height:"100%",borderRadius:4,background:c}}/></div>
-                </div>
-              ))}
-            </div>
+        <div className="panel">
+          <div className="panel-hd"><span className="panel-title">Revenue Breakdown</span><span style={{fontSize:12,color:"var(--muted)"}}>This month</span></div>
+          <div style={{padding:20}}>
+            {[["Ad Revenue (40% share)","$337",40,"linear-gradient(90deg,var(--red),#ff6b35)"],["Subscriptions (70% share)","$218",26,"linear-gradient(90deg,var(--green),#00c8a0)"],["Virtual Gifts (85% share)","$180",21,"linear-gradient(90deg,var(--gold),var(--orange))"],["Brand Sponsored","$107",13,"linear-gradient(90deg,var(--blue),var(--purple))"]].map(([l,v,p,c])=>(
+              <div key={l} style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><span style={{fontSize:13,color:"var(--muted)"}}>{l}</span><span style={{fontSize:13,fontWeight:700}}>{v}</span></div>
+                <div style={{background:"var(--ink4)",borderRadius:4,height:6,overflow:"hidden"}}><div style={{width:`${p}%`,height:"100%",borderRadius:4,background:c}}/></div>
+              </div>
+            ))}
           </div>
         </div>
-        <div>
-          <div className="panel">
-            <div className="panel-hd"><span className="panel-title">Ad Revenue Split</span></div>
-            <div style={{padding:20}}>
-              <div style={{display:"flex",height:12,borderRadius:6,overflow:"hidden",gap:2,marginBottom:16}}>
-                <div style={{flex:40,background:"var(--green)",borderRadius:4}}/>
-                <div style={{flex:40,background:"var(--red)",borderRadius:4}}/>
-                <div style={{flex:20,background:"rgba(255,255,255,.2)",borderRadius:4}}/>
-              </div>
-              {[["var(--green)","You (streamer)","40%"],["var(--red)","STEM platform","40%"],["rgba(255,255,255,.4)","Your viewers","20%"]].map(([c,l,v])=>(
-                <div key={l} style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
-                  <div style={{width:10,height:10,borderRadius:3,background:c,flexShrink:0}}/>
-                  <span style={{fontSize:13,color:"var(--muted)",flex:1}}>{l}</span>
-                  <span style={{fontSize:13,fontWeight:700,color:c}}>{v}</span>
-                </div>
-              ))}
-              <div style={{marginTop:14,background:"rgba(0,245,160,.04)",border:"1px solid rgba(0,245,160,.1)",borderRadius:10,padding:"12px 14px",fontSize:12,color:"var(--muted)",lineHeight:1.55}}>
-                💡 Paying viewers 20% keeps them watching longer — more watch time = more revenue for you.
-              </div>
+        <div className="panel">
+          <div className="panel-hd"><span className="panel-title">Ad Split</span></div>
+          <div style={{padding:20}}>
+            <div style={{display:"flex",height:12,borderRadius:6,overflow:"hidden",gap:2,marginBottom:16}}>
+              <div style={{flex:40,background:"var(--green)",borderRadius:4}}/>
+              <div style={{flex:40,background:"var(--red)",borderRadius:4}}/>
+              <div style={{flex:20,background:"rgba(255,255,255,.2)",borderRadius:4}}/>
             </div>
+            {[["var(--green)","You (streamer)","40%"],["var(--red)","STEM platform","40%"],["rgba(255,255,255,.4)","Your viewers","20%"]].map(([c,l,v])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
+                <div style={{width:10,height:10,borderRadius:3,background:c,flexShrink:0}}/>
+                <span style={{fontSize:13,color:"var(--muted)",flex:1}}>{l}</span>
+                <span style={{fontSize:13,fontWeight:700,color:c}}>{v}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
