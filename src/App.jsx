@@ -25,15 +25,15 @@ button,input,textarea{font-family:'Outfit',sans-serif}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.nav{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:rgba(8,8,22,.95);backdrop-filter:blur(24px);border-bottom:1px solid var(--line)}
+.nav{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:rgba(8,8,22,.95);backdrop-filter:blur(24px);border-bottom:1px solid var(--line)}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;cursor:pointer;background:linear-gradient(90deg,var(--purple),var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0}
 .nav-c{display:flex;gap:2px;overflow-x:auto}
 .nl{background:none;border:none;color:var(--muted);font-size:13px;font-weight:500;padding:6px 12px;border-radius:20px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
 .nl:hover,.nl.on{color:var(--txt);background:rgba(255,255,255,.08)}
 .nav-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.coin-badge{display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(255,200,0,.12),rgba(255,200,0,.04));border:1px solid rgba(255,200,0,.22);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;white-space:nowrap}
+.coin-badge{display:flex;align-items:center;gap:4px;background:linear-gradient(135deg,rgba(255,200,0,.12),rgba(255,200,0,.04));border:1px solid rgba(255,200,0,.22);border-radius:20px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--gold);cursor:pointer;white-space:nowrap}
 .mode-toggle{display:flex;background:var(--ink3);border:1px solid var(--line2);border-radius:20px;padding:2px}
-.mode-btn{background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;padding:4px 10px;border-radius:16px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.mode-btn{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;padding:4px 8px;border-radius:16px;cursor:pointer;transition:all .2s;white-space:nowrap}
 .mode-btn.on{background:linear-gradient(135deg,var(--purple),var(--red));color:#fff}
 .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--red));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0}
 .btn-g{background:linear-gradient(135deg,var(--purple),var(--red));color:#fff;border:none;border-radius:20px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:all .25s;box-shadow:0 4px 15px rgba(124,58,237,.25);white-space:nowrap}
@@ -66,7 +66,7 @@ button,input,textarea{font-family:'Outfit',sans-serif}
 .hstat:last-child{border-right:none;padding-right:0}
 .hstat-v{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.5px;background:linear-gradient(90deg,#fff,rgba(255,255,255,.65));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hstat-l{font-size:11px;color:var(--muted);margin-top:2px}
-.disc-page{padding:20px 16px;padding-bottom:80px}
+.disc-page{padding:20px 16px;padding-bottom:80px;max-width:1400px;margin:0 auto}
 .disc-hero{background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08));border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:20px;position:relative;overflow:hidden}
 .disc-hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,6vw,48px);letter-spacing:1px;margin-bottom:6px;line-height:1}
 .disc-hero h1 span{background:linear-gradient(90deg,var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -199,7 +199,7 @@ button,input,textarea{font-family:'Outfit',sans-serif}
   .bottom-nav{display:none !important}
   .disc-page{padding:32px 40px}
   .disc-hero{padding:44px}
-  .sg{grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
+  .sg{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
   .slayout{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 62px);flex-direction:unset;padding-bottom:0}
   .sleft{display:flex;flex-direction:column;overflow:hidden}
   .splayer{aspect-ratio:16/9}
