@@ -71,6 +71,10 @@ button,input,textarea{font-family:'Outfit',sans-serif}
 .disc-hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,6vw,48px);letter-spacing:1px;margin-bottom:6px;line-height:1}
 .disc-hero h1 span{background:linear-gradient(90deg,var(--purple),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .disc-hero p{font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.search-bar{display:flex;gap:8px;margin-bottom:16px}
+.search-input{flex:1;background:var(--ink3);border:1px solid var(--line2);border-radius:12px;padding:10px 14px;color:#fff;font-size:14px;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:rgba(124,58,237,.5)}
+.search-input::placeholder{color:var(--muted)}
 .dpills{display:flex;gap:8px;flex-wrap:wrap}
 .dpill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid var(--line2);border-radius:10px;padding:8px 12px}
 .dpill-icon{font-size:16px}
@@ -166,11 +170,19 @@ button,input,textarea{font-family:'Outfit',sans-serif}
 .auth-wrap{min-height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;padding:20px 16px;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(124,58,237,.1),transparent 70%)}
 .auth-box{background:rgba(13,13,32,.96);border:1px solid var(--line2);border-radius:20px;width:100%;max-width:440px;overflow:hidden;backdrop-filter:blur(20px)}
 .profile-page{padding:20px 16px;padding-bottom:80px;max-width:600px}
-.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--red));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;margin:0 auto 16px;cursor:pointer;position:relative}
-.profile-avatar-edit{position:absolute;bottom:0;right:0;background:var(--ink3);border:2px solid var(--line2);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--red));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;margin:0 auto 16px}
 .profile-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
 .profile-stat-v{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green)}
 .profile-stat-l{font-size:11px;color:var(--muted);margin-top:2px}
+.leaderboard-page{padding:20px 16px;padding-bottom:80px}
+.lb-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);transition:background .15s}
+.lb-row:hover{background:rgba(255,255,255,.02)}
+.lb-row:last-child{border-bottom:none}
+.lb-rank{font-family:'Bebas Neue',sans-serif;font-size:22px;width:32px;text-align:center;flex-shrink:0}
+.lb-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--red));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+.lb-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.lb-role{font-size:11px;color:var(--muted)}
+.lb-coins{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);margin-left:auto;flex-shrink:0}
 .fi{width:100%;background:var(--ink3);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;color:#fff;font-size:14px;outline:none;margin-bottom:12px;transition:border-color .2s}
 .fi:focus{border-color:rgba(124,58,237,.5)}
 .toast{position:fixed;bottom:72px;right:16px;left:16px;background:linear-gradient(135deg,rgba(0,245,160,.14),rgba(0,245,160,.06));border:1px solid rgba(0,245,160,.25);border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;color:var(--green);z-index:9999;display:flex;align-items:center;gap:8px;animation:toastIn .3s ease;text-align:center;justify-content:center}
@@ -201,6 +213,7 @@ button,input,textarea{font-family:'Outfit',sans-serif}
   .toast{left:auto;right:28px;bottom:28px;text-align:left;justify-content:flex-start}
   .auth-wrap{padding:40px}
   .profile-page{padding:32px 44px;margin:0 auto}
+  .leaderboard-page{padding:32px 44px;max-width:700px}
 }
 @media(max-width:767px){
   .bottom-nav{display:block}
@@ -215,6 +228,7 @@ export default function App(){
   const [mode,setMode]=useState("viewer");
   const [role,setRole]=useState("viewer");
   const [cat,setCat]=useState("All");
+  const [search,setSearch]=useState("");
   const [stream,setStream]=useState(STREAMS[0]);
   const [coins,setCoins]=useState(0);
   const [sess,setSess]=useState(0);
@@ -228,13 +242,13 @@ export default function App(){
   const [authError,setAuthError]=useState("");
   const [authMode,setAuthMode]=useState("signup");
   const [formData,setFormData]=useState({fullName:"",email:"",password:""});
-  const [editProfile,setEditProfile]=useState({fullName:"",username:""});
+  const [editProfile,setEditProfile]=useState({fullName:"",username:"",bio:""});
   const [profileMsg,setProfileMsg]=useState("");
   const [savingProfile,setSavingProfile]=useState(false);
+  const [leaderboard,setLeaderboard]=useState([]);
+  const [loadingLb,setLoadingLb]=useState(false);
   const chatRef=useRef(null);
-  const chatChannelRef=useRef(null);
 
-  // Auth listener
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session){setUser(session.user);fetchProfile(session.user.id);setPage("disc");}
@@ -249,11 +263,16 @@ export default function App(){
   const fetchProfile=async(userId)=>{
     const {data}=await supabase.from("profiles").select("*").eq("id",userId).single();
     if(data){
-      setProfile(data);
-      setCoins(data.coins||0);
-      setMode(data.role||"viewer");
-      setEditProfile({fullName:data.full_name||"",username:data.username||""});
+      setProfile(data);setCoins(data.coins||0);setMode(data.role||"viewer");
+      setEditProfile({fullName:data.full_name||"",username:data.username||"",bio:data.bio||""});
     }
+  };
+
+  const fetchLeaderboard=async()=>{
+    setLoadingLb(true);
+    const {data}=await supabase.from("profiles").select("id,full_name,username,role,coins").order("coins",{ascending:false}).limit(20);
+    if(data)setLeaderboard(data);
+    setLoadingLb(false);
   };
 
   const updateCoins=async(newCoins)=>{
@@ -261,30 +280,25 @@ export default function App(){
     if(user){await supabase.from("profiles").update({coins:newCoins}).eq("id",user.id);}
   };
 
-  // Real-time chat setup
+  // Real-time chat
   useEffect(()=>{
     if(page!=="stream")return;
-    // Load existing messages
     const loadMessages=async()=>{
-      const {data}=await supabase.from("messages")
-        .select("*").eq("stream_id",stream.id)
-        .order("created_at",{ascending:true}).limit(50);
+      const {data}=await supabase.from("messages").select("*").eq("stream_id",stream.id).order("created_at",{ascending:true}).limit(50);
       if(data)setChat(data.map(m=>({a:m.username,t:m.content,c:m.color||"#ff2d55",sc:m.is_superchat,amt:m.coins_spent?`${m.coins_spent.toLocaleString()} coins`:null})));
     };
     loadMessages();
-    // Subscribe to new messages
     const channel=supabase.channel(`stream-${stream.id}`)
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`stream_id=eq.${stream.id}`},(payload)=>{
         const m=payload.new;
         setChat(l=>[...l,{a:m.username,t:m.content,c:m.color||"#ff2d55",sc:m.is_superchat,amt:m.coins_spent?`${m.coins_spent.toLocaleString()} coins`:null}]);
       }).subscribe();
-    chatChannelRef.current=channel;
     return()=>{supabase.removeChannel(channel);};
   },[page,stream.id]);
 
   useEffect(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},[chat]);
 
-  // Coin earning while watching
+  // Coin earning
   useEffect(()=>{
     if(page!=="stream")return;
     const t=setInterval(()=>{
@@ -298,6 +312,11 @@ export default function App(){
     return()=>clearInterval(t);
   },[page,user]);
 
+  // Load leaderboard when page changes
+  useEffect(()=>{
+    if(page==="leaderboard")fetchLeaderboard();
+  },[page]);
+
   const handleSignUp=async()=>{
     if(!formData.fullName||!formData.email||!formData.password){setAuthError("Please fill in all fields");return;}
     setLoading(true);setAuthError("");
@@ -306,12 +325,12 @@ export default function App(){
     if(data.user){
       const username=formData.fullName.toLowerCase().replace(/\s+/g,"")+Math.floor(Math.random()*999);
       const {error:pe}=await supabase.from("profiles").insert({
-        id:data.user.id,full_name:formData.fullName,username,role,coins:1000,total_earned:0,
+        id:data.user.id,full_name:formData.fullName,username,role,coins:1000,total_earned:0,bio:"",follower_count:0,
       });
       if(!pe){
         setProfile({id:data.user.id,full_name:formData.fullName,username,role,coins:1000});
         setCoins(1000);setMode(role);
-        setEditProfile({fullName:formData.fullName,username});
+        setEditProfile({fullName:formData.fullName,username,bio:""});
         notify("Welcome to STEM! You got 1,000 bonus coins!");
         go(role==="streamer"?"dash":"disc");
       }
@@ -332,8 +351,7 @@ export default function App(){
     if(!formData.email){setAuthError("Enter your email address first");return;}
     setLoading(true);
     const {error}=await supabase.auth.resetPasswordForEmail(formData.email,{redirectTo:"https://www.stemapp.online/reset-password"});
-    if(error){setAuthError(error.message);}
-    else{notify("Password reset email sent! Check your inbox");}
+    if(error){setAuthError(error.message);}else{notify("Password reset email sent!");}
     setLoading(false);
   };
 
@@ -347,27 +365,32 @@ export default function App(){
     if(!editProfile.fullName||!editProfile.username){setProfileMsg("Please fill in all fields");return;}
     setSavingProfile(true);setProfileMsg("");
     const {error}=await supabase.from("profiles").update({
-      full_name:editProfile.fullName,username:editProfile.username,
+      full_name:editProfile.fullName,username:editProfile.username,bio:editProfile.bio,
     }).eq("id",user.id);
     if(error){setProfileMsg(error.message);}
-    else{
-      setProfile(p=>({...p,full_name:editProfile.fullName,username:editProfile.username}));
-      setProfileMsg("success");
-      notify("Profile updated!");
-    }
+    else{setProfile(p=>({...p,full_name:editProfile.fullName,username:editProfile.username,bio:editProfile.bio}));setProfileMsg("success");notify("Profile updated!");}
     setSavingProfile(false);
+  };
+
+  const handleFollow=async()=>{
+    if(!user){notify("Sign in to follow streamers!");return;}
+    if(following){
+      setFollowing(false);notify("Unfollowed");
+    } else {
+      setFollowing(true);
+      const nc=coins+50;await updateCoins(nc);
+      notify("+50 coins for following!");
+    }
   };
 
   const sendChat=async()=>{
     if(!msg.trim()||!user||!profile)return;
-    const newMsg={
+    await supabase.from("messages").insert({
       stream_id:stream.id,user_id:user.id,
       username:profile.full_name?.split(" ")[0]||profile.username||"User",
       content:msg.trim(),color:"#ff2d55",is_superchat:false,coins_spent:0,
-    };
-    await supabase.from("messages").insert(newMsg);
-    const nc=coins+10;
-    await updateCoins(nc);
+    });
+    const nc=coins+10;await updateCoins(nc);
     setMsg("");notify("+10 coins!");
   };
 
@@ -375,8 +398,7 @@ export default function App(){
     const c=parseInt(cost.replace(/,/g,""));
     if(coins<c){notify("Not enough coins!");return;}
     if(!user||!profile)return;
-    const nc=coins-c;
-    await updateCoins(nc);
+    const nc=coins-c;await updateCoins(nc);
     await supabase.from("messages").insert({
       stream_id:stream.id,user_id:user.id,
       username:profile.full_name?.split(" ")[0]||profile.username||"User",
@@ -388,7 +410,13 @@ export default function App(){
   const notify=m=>{setToast(m);setTimeout(()=>setToast(null),2600);};
   const go=(p,s=null)=>{if(s)setStream(s);if(p==="stream")setSess(0);setPage(p);window.scrollTo(0,0);};
 
-  const isApp=["disc","stream","wallet","dash","profile"].includes(page);
+  const filteredStreams=STREAMS.filter(s=>{
+    const matchCat=cat==="All"||s.game===cat||s.game.includes(cat);
+    const matchSearch=search===""||s.title.toLowerCase().includes(search.toLowerCase())||s.streamer.toLowerCase().includes(search.toLowerCase())||s.game.toLowerCase().includes(search.toLowerCase());
+    return matchCat&&matchSearch;
+  });
+
+  const isApp=["disc","stream","wallet","dash","profile","leaderboard"].includes(page);
   const firstName=profile?.full_name?.split(" ")[0]||"";
   const initials=profile?.full_name?.split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2)||"?";
 
@@ -405,6 +433,9 @@ export default function App(){
     </>
   );
 
+  const rankColor=(i)=>i===0?"var(--gold)":i===1?"rgba(255,255,255,.6)":i===2?"#cd7f32":"var(--muted)";
+  const rankEmoji=(i)=>i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}`;
+
   return(<>
     <style>{FONTS}</style><style>{CSS}</style>
 
@@ -414,8 +445,8 @@ export default function App(){
       {isApp&&(
         <div className="nav-c">
           {(mode==="viewer"
-            ?[["disc","Discover"],["stream","Live"],["wallet","Wallet"],["profile","Profile"]]
-            :[["disc","Discover"],["dash","Dashboard"],["profile","Profile"]]
+            ?[["disc","Discover"],["leaderboard","Top Earners"],["wallet","Wallet"],["profile","Profile"]]
+            :[["disc","Discover"],["dash","Dashboard"],["leaderboard","Top Earners"],["profile","Profile"]]
           ).map(([p,l])=>(
             <button key={p} className={`nl ${page===p?"on":""}`} onClick={()=>go(p)}>{l}</button>
           ))}
@@ -428,7 +459,7 @@ export default function App(){
             <button className={`mode-btn ${mode==="streamer"?"on":""}`} onClick={()=>{setMode("streamer");if(page==="stream")go("dash");}}>🎙</button>
           </div>
           <div className="coin-badge" onClick={()=>go("wallet")}>🪙 {coins.toLocaleString()}</div>
-          <div className="av" onClick={()=>go("profile")} title="View profile">{initials}</div>
+          <div className="av" onClick={()=>go("profile")}>{initials}</div>
         </>}
         {!isApp&&<>
           <button className="btn-o" onClick={()=>{setAuthMode("login");go("auth");}}>Log in</button>
@@ -442,8 +473,8 @@ export default function App(){
       <div className="bottom-nav">
         <div className="bottom-nav-items">
           {(mode==="viewer"
-            ?[["disc","🔍","Discover"],["stream","📺","Live"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
-            :[["disc","🔍","Discover"],["dash","📊","Dashboard"],["profile","👤","Profile"]]
+            ?[["disc","🔍","Discover"],["leaderboard","🏆","Top"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
+            :[["disc","🔍","Discover"],["dash","📊","Dashboard"],["leaderboard","🏆","Top"],["profile","👤","Profile"]]
           ).map(([p,icon,l])=>(
             <button key={p} className={`bn-item ${page===p?"on":""}`} onClick={()=>go(p)}>
               <span className="bn-icon">{icon}</span>
@@ -535,25 +566,40 @@ export default function App(){
           ))}
         </div>
       </div>
+      {/* Search bar */}
+      <div className="search-bar">
+        <input className="search-input" placeholder="🔍 Search streams, games, streamers..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        {search&&<button onClick={()=>setSearch("")} style={{background:"var(--ink3)",border:"1px solid var(--line2)",color:"var(--muted)",borderRadius:10,padding:"0 14px",cursor:"pointer",fontSize:13}}>Clear</button>}
+      </div>
       <div className="cats">{CATS.map(c=><button key={c} className={`cat ${cat===c?"on":""}`} onClick={()=>setCat(c)}>{c}</button>)}</div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-        <span style={{fontFamily:"Bebas Neue,sans-serif",fontSize:18,letterSpacing:.5}}>🔴 Live Now</span>
-        <button style={{background:"none",border:"none",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>See all</button>
+        <span style={{fontFamily:"Bebas Neue,sans-serif",fontSize:18,letterSpacing:.5}}>
+          {search?`Results for "${search}"`:"🔴 Live Now"}
+        </span>
+        <span style={{fontSize:12,color:"var(--muted)"}}>{filteredStreams.length} streams</span>
       </div>
-      <div className="sg">{STREAMS.map(s=>(
-        <div key={s.id} className="sc" onClick={()=>go("stream",s)}>
-          <div className="sc-thumb">
-            <div className="sc-bg" style={{background:`linear-gradient(${s.bg})`}}/>
-            <div className="sc-ov"/><div className="sc-emoji">{s.emoji}</div>
-            <div className="sc-badges"><span className="lpip"><span className="lpip-dot"/>LIVE</span><span className="epip">+4/hr</span></div>
-            <div className="sc-viewers">👁 {s.viewers.toLocaleString()}</div>
-          </div>
-          <div className="sc-body">
-            <div className="sc-row"><div className="sc-av" style={{background:s.color}}>{s.emoji}</div><div><div className="sc-title">{s.title}</div><div className="sc-name">{s.streamer}</div></div></div>
-            <div style={{display:"flex",gap:4}}><span className="stag">{s.game}</span></div>
-          </div>
+      {filteredStreams.length===0?(
+        <div style={{textAlign:"center",padding:"60px 20px",color:"var(--muted)"}}>
+          <div style={{fontSize:40,marginBottom:12}}>🔍</div>
+          <div style={{fontSize:16,fontWeight:600,marginBottom:6}}>No streams found</div>
+          <div style={{fontSize:13}}>Try a different search or category</div>
         </div>
-      ))}</div>
+      ):(
+        <div className="sg">{filteredStreams.map(s=>(
+          <div key={s.id} className="sc" onClick={()=>go("stream",s)}>
+            <div className="sc-thumb">
+              <div className="sc-bg" style={{background:`linear-gradient(${s.bg})`}}/>
+              <div className="sc-ov"/><div className="sc-emoji">{s.emoji}</div>
+              <div className="sc-badges"><span className="lpip"><span className="lpip-dot"/>LIVE</span><span className="epip">+4/hr</span></div>
+              <div className="sc-viewers">👁 {s.viewers.toLocaleString()}</div>
+            </div>
+            <div className="sc-body">
+              <div className="sc-row"><div className="sc-av" style={{background:s.color}}>{s.emoji}</div><div><div className="sc-title">{s.title}</div><div className="sc-name">{s.streamer}</div></div></div>
+              <div style={{display:"flex",gap:4}}><span className="stag">{s.game}</span></div>
+            </div>
+          </div>
+        ))}</div>
+      )}
     </div>}
 
     {/* STREAM */}
@@ -571,10 +617,10 @@ export default function App(){
         <div className="sbelow">
           <div className="stitle">{stream.title}</div>
           <div className="sactions">
-            <button className={`abtn ${following?"flwing":"flw"}`} onClick={()=>{setFollowing(f=>!f);if(!following){updateCoins(coins+50);notify("+50 coins!");}}}>
-              {following?"Following":"+ Follow"}
+            <button className={`abtn ${following?"flwing":"flw"}`} onClick={handleFollow}>
+              {following?"✓ Following":"+ Follow"}
             </button>
-            <button className="abtn" onClick={()=>notify("Link copied!")}>Share</button>
+            <button className="abtn" onClick={()=>{navigator.clipboard?.writeText(window.location.href);notify("Link copied!");}}>Share</button>
             <button className="abtn" onClick={()=>notify("Subscribe coming soon!")}>Sub $4.99</button>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0",borderTop:"1px solid var(--line)",borderBottom:"1px solid var(--line)",marginBottom:14}}>
@@ -601,7 +647,6 @@ export default function App(){
               ))}
             </div>
           </div>
-          {/* Mobile chat */}
           <div className="chat-section">
             <div className="chat-hd"><span className="chat-hd-title">Live Chat</span><span style={{fontSize:11,color:"var(--muted)"}}>{stream.viewers.toLocaleString()}</span></div>
             <div className="chat-msgs" ref={chatRef}><ChatMessages/></div>
@@ -615,7 +660,6 @@ export default function App(){
           </div>
         </div>
       </div>
-      {/* Desktop chat */}
       <div className="chat-panel-desktop" style={{display:"none"}}>
         <div style={{padding:"14px 16px",borderBottom:"1px solid var(--line)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
           <span style={{fontFamily:"Bebas Neue,sans-serif",fontSize:18,letterSpacing:.5}}>Live Chat</span>
@@ -629,6 +673,50 @@ export default function App(){
             <button className="chat-send" onClick={sendChat}>↑</button>
           </div>
         </div>
+      </div>
+    </div>}
+
+    {/* LEADERBOARD */}
+    {page==="leaderboard"&&<div className="leaderboard-page page">
+      <div style={{marginBottom:24}}>
+        <div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:36,letterSpacing:1,marginBottom:4}}>Top Earners</div>
+        <div style={{fontSize:14,color:"var(--muted)"}}>The highest coin earners on STEM right now</div>
+      </div>
+      {/* Your rank */}
+      {profile&&(
+        <div style={{background:"linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))",border:"1px solid rgba(124,58,237,.2)",borderRadius:14,padding:"16px 20px",display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <div style={{fontSize:24}}>📊</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:2}}>Your ranking</div>
+            <div style={{fontSize:15,fontWeight:700}}>{firstName} — 🪙 {coins.toLocaleString()} coins</div>
+          </div>
+          <button className="btn-g" onClick={()=>go("stream",STREAMS[0])}>Earn More</button>
+        </div>
+      )}
+      <div className="panel">
+        <div className="panel-hd">
+          <span className="panel-title">🏆 Leaderboard</span>
+          <button onClick={fetchLeaderboard} style={{background:"none",border:"none",color:"var(--muted)",fontSize:12,cursor:"pointer"}}>Refresh</button>
+        </div>
+        {loadingLb?(
+          <div style={{padding:40,textAlign:"center"}}><div className="spinner" style={{margin:"0 auto"}}/></div>
+        ):(
+          leaderboard.length===0?(
+            <div style={{padding:40,textAlign:"center",color:"var(--muted)",fontSize:14}}>No data yet — start watching to earn coins!</div>
+          ):(
+            leaderboard.map((u,i)=>(
+              <div key={u.id} className="lb-row">
+                <div className="lb-rank" style={{color:rankColor(i)}}>{rankEmoji(i)}</div>
+                <div className="lb-av">{u.full_name?.charAt(0)||"?"}</div>
+                <div style={{flex:1}}>
+                  <div className="lb-name">{u.full_name||"Anonymous"}</div>
+                  <div className="lb-role">{u.role==="streamer"?"🎙 Streamer":"👁 Viewer"} · @{u.username}</div>
+                </div>
+                <div className="lb-coins">🪙 {(u.coins||0).toLocaleString()}</div>
+              </div>
+            ))
+          )
+        )}
       </div>
     </div>}
 
@@ -650,44 +738,40 @@ export default function App(){
       </div>
     </div>}
 
-    {/* PROFILE PAGE */}
+    {/* PROFILE */}
     {page==="profile"&&<div className="profile-page page">
       <div style={{fontFamily:"Bebas Neue,sans-serif",fontSize:36,letterSpacing:1,marginBottom:4}}>My Profile</div>
       <div style={{fontSize:14,color:"var(--muted)",marginBottom:28}}>Manage your account and view your stats</div>
-      {/* Avatar */}
       <div style={{textAlign:"center",marginBottom:28}}>
-        <div className="profile-avatar">
-          {initials}
-          <div className="profile-avatar-edit">✏️</div>
-        </div>
+        <div className="profile-avatar">{initials}</div>
         <div style={{fontSize:18,fontWeight:700,marginBottom:4}}>{profile?.full_name||"Your Name"}</div>
-        <div style={{fontSize:13,color:"var(--muted)"}}>@{profile?.username||"username"}</div>
-        <div style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:8,background:profile?.role==="streamer"?"rgba(124,58,237,.1)":"rgba(0,245,160,.1)",border:profile?.role==="streamer"?"1px solid rgba(124,58,237,.3)":"1px solid rgba(0,245,160,.3)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:600,color:profile?.role==="streamer"?"var(--purple)":"var(--green)"}}>
+        <div style={{fontSize:13,color:"var(--muted)",marginBottom:6}}>@{profile?.username||"username"}</div>
+        {profile?.bio&&<div style={{fontSize:13,color:"rgba(255,255,255,.6)",marginBottom:8,maxWidth:300,margin:"0 auto 8px"}}>{profile.bio}</div>}
+        <div style={{display:"inline-flex",alignItems:"center",gap:6,background:profile?.role==="streamer"?"rgba(124,58,237,.1)":"rgba(0,245,160,.1)",border:profile?.role==="streamer"?"1px solid rgba(124,58,237,.3)":"1px solid rgba(0,245,160,.3)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:600,color:profile?.role==="streamer"?"var(--purple)":"var(--green)"}}>
           {profile?.role==="streamer"?"🎙 Streamer":"👁 Viewer"}
         </div>
       </div>
-      {/* Stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:28}}>
         <div className="profile-stat"><div className="profile-stat-v">{coins.toLocaleString()}</div><div className="profile-stat-l">Coins</div></div>
         <div className="profile-stat"><div className="profile-stat-v">${(coins/1000).toFixed(2)}</div><div className="profile-stat-l">Value</div></div>
         <div className="profile-stat"><div className="profile-stat-v">${(profile?.total_earned||0).toFixed(2)}</div><div className="profile-stat-l">Earned</div></div>
       </div>
-      {/* Edit form */}
       <div className="panel">
         <div className="panel-hd"><span className="panel-title">Edit Profile</span></div>
         <div style={{padding:16}}>
-          {profileMsg==="success"&&<div className="success-msg">Profile updated successfully!</div>}
+          {profileMsg==="success"&&<div className="success-msg">Profile updated!</div>}
           {profileMsg&&profileMsg!=="success"&&<div className="error-msg">{profileMsg}</div>}
           <label style={{fontSize:11,fontWeight:700,letterSpacing:.6,color:"var(--muted)",textTransform:"uppercase",marginBottom:6,display:"block"}}>Full Name</label>
           <input className="fi" placeholder="Your full name" value={editProfile.fullName} onChange={e=>setEditProfile({...editProfile,fullName:e.target.value})}/>
           <label style={{fontSize:11,fontWeight:700,letterSpacing:.6,color:"var(--muted)",textTransform:"uppercase",marginBottom:6,display:"block"}}>Username</label>
           <input className="fi" placeholder="Your username" value={editProfile.username} onChange={e=>setEditProfile({...editProfile,username:e.target.value})}/>
+          <label style={{fontSize:11,fontWeight:700,letterSpacing:.6,color:"var(--muted)",textTransform:"uppercase",marginBottom:6,display:"block"}}>Bio</label>
+          <input className="fi" placeholder="Tell people about yourself..." value={editProfile.bio} onChange={e=>setEditProfile({...editProfile,bio:e.target.value})}/>
           <button onClick={handleSaveProfile} disabled={savingProfile} style={{width:"100%",background:"linear-gradient(135deg,var(--purple),var(--red))",color:"#fff",border:"none",borderRadius:12,padding:13,fontSize:15,fontWeight:700,cursor:savingProfile?"not-allowed":"pointer",opacity:savingProfile?0.7:1}}>
             {savingProfile?<div className="spinner"/>:"Save Changes"}
           </button>
         </div>
       </div>
-      {/* Account actions */}
       <div className="panel">
         <div className="panel-hd"><span className="panel-title">Account</span></div>
         <div style={{padding:16,display:"flex",flexDirection:"column",gap:10}}>
@@ -696,7 +780,7 @@ export default function App(){
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
             <div><div style={{fontSize:14,fontWeight:600}}>Account Type</div><div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{profile?.role==="streamer"?"Streamer":"Viewer"} account</div></div>
-            <button onClick={async()=>{await supabase.from("profiles").update({role:profile?.role==="streamer"?"viewer":"streamer"}).eq("id",user.id);await fetchProfile(user.id);notify("Account type updated!");}} style={{background:"var(--ink3)",border:"1px solid var(--line2)",color:"var(--txt)",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>Switch</button>
+            <button onClick={async()=>{const newRole=profile?.role==="streamer"?"viewer":"streamer";await supabase.from("profiles").update({role:newRole}).eq("id",user.id);await fetchProfile(user.id);notify("Account type updated!");}} style={{background:"var(--ink3)",border:"1px solid var(--line2)",color:"var(--txt)",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>Switch</button>
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
             <div><div style={{fontSize:14,fontWeight:600,color:"var(--red)"}}>Log Out</div><div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Sign out of your account</div></div>
