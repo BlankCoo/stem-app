@@ -446,7 +446,7 @@ export default function App(){
         <div className="nav-c">
           {(mode==="viewer"
             ?[["disc","Discover"],["leaderboard","Top Earners"],["wallet","Wallet"],["profile","Profile"]]
-            :[["disc","Discover"],["dash","Dashboard"],["leaderboard","Top Earners"],["profile","Profile"]]
+            :[["disc","Discover"],["dash","Dashboard"],["profile","Profile"]]
           ).map(([p,l])=>(
             <button key={p} className={`nl ${page===p?"on":""}`} onClick={()=>go(p)}>{l}</button>
           ))}
@@ -455,8 +455,8 @@ export default function App(){
       <div className="nav-r">
         {isApp&&<>
           <div className="mode-toggle">
-            <button className={`mode-btn ${mode==="viewer"?"on":""}`} onClick={()=>setMode("viewer")}>👁</button>
-            <button className={`mode-btn ${mode==="streamer"?"on":""}`} onClick={()=>{setMode("streamer");if(page==="stream")go("dash");}}>🎙</button>
+            <button className={`mode-btn ${mode==="viewer"?"on":""}`} onClick={async()=>{setMode("viewer");if(profile&&user){await supabase.from("profiles").update({role:"viewer"}).eq("id",user.id);setProfile(p=>({...p,role:"viewer"}));notify("Switched to Viewer mode!");}}} >👁</button>
+            <button className={`mode-btn ${mode==="streamer"?"on":""}`} onClick={async()=>{setMode("streamer");if(page==="stream")go("dash");if(profile&&user){await supabase.from("profiles").update({role:"streamer"}).eq("id",user.id);setProfile(p=>({...p,role:"streamer"}));notify("Switched to Streamer mode!");}}}>🎙</button>
           </div>
           <div className="coin-badge" onClick={()=>go("wallet")}>🪙 {coins.toLocaleString()}</div>
           <div className="av" onClick={()=>go("profile")}>{initials}</div>
@@ -474,7 +474,7 @@ export default function App(){
         <div className="bottom-nav-items">
           {(mode==="viewer"
             ?[["disc","🔍","Discover"],["leaderboard","🏆","Top"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
-            :[["disc","🔍","Discover"],["dash","📊","Dashboard"],["leaderboard","🏆","Top"],["profile","👤","Profile"]]
+            :[["disc","🔍","Discover"],["dash","📊","Dashboard"],["profile","👤","Profile"]]
           ).map(([p,icon,l])=>(
             <button key={p} className={`bn-item ${page===p?"on":""}`} onClick={()=>go(p)}>
               <span className="bn-icon">{icon}</span>
@@ -780,7 +780,7 @@ export default function App(){
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
             <div><div style={{fontSize:14,fontWeight:600}}>Account Type</div><div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{profile?.role==="streamer"?"Streamer":"Viewer"} account</div></div>
-            <button onClick={async()=>{const newRole=profile?.role==="streamer"?"viewer":"streamer";await supabase.from("profiles").update({role:newRole}).eq("id",user.id);await fetchProfile(user.id);notify("Account type updated!");}} style={{background:"var(--ink3)",border:"1px solid var(--line2)",color:"var(--txt)",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>Switch</button>
+            <button onClick={async()=>{const newRole=profile?.role==="streamer"?"viewer":"streamer";await supabase.from("profiles").update({role:newRole}).eq("id",user.id);setProfile(p=>({...p,role:newRole}));setMode(newRole);notify("Account type updated! You are now a "+newRole);}} style={{background:"var(--ink3)",border:"1px solid var(--line2)",color:"var(--txt)",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>Switch</button>
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
             <div><div style={{fontSize:14,fontWeight:600,color:"var(--red)"}}>Log Out</div><div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Sign out of your account</div></div>
