@@ -270,7 +270,8 @@ export default function App(){
 
   const fetchLeaderboard=async()=>{
     setLoadingLb(true);
-const {data}=await supabase.from("profiles").select("id,full_name,username,role,coins").eq("role","viewer").order("coins",{ascending:false}).limit(20);    if(data)setLeaderboard(data);
+    const {data}=await supabase.from("profiles").select("id,full_name,username,role,coins").eq("role","viewer").order("coins",{ascending:false}).limit(20);
+    if(data)setLeaderboard(data);
     setLoadingLb(false);
   };
 
