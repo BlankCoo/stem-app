@@ -282,6 +282,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingGoLive, setSavingGoLive] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
 
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
@@ -551,7 +552,7 @@ export default function App() {
   };
 
   const handleFollow = async () => {
-    if (!user) { notify("Sign in to follow streamers!"); return; }
+    if (!requireAuth()) return;
     setLoadingFollow(true);
     try {
       if (stream?.isRealStream && stream?.user_id) {
@@ -592,7 +593,7 @@ export default function App() {
   };
 
   const sendChat = async () => {
-    if (!user || !profile) { notify("Sign in to chat!"); return; }
+    if (!requireAuth()) return;
     if (!msg.trim()) return;
     const nc = coinsRef.current + 10;
     await supabase.from("messages").insert({
@@ -606,9 +607,9 @@ export default function App() {
   };
 
   const sendGift = async (name, cost) => {
+    if (!requireAuth()) return;
     const c = parseInt(cost.replace(/,/g, ""));
     if (coinsRef.current < c) { notify("Not enough coins!"); return; }
-    if (!user || !profile) { notify("Sign in to send gifts!"); return; }
     const nc = coinsRef.current - c;
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
@@ -655,7 +656,23 @@ export default function App() {
   };
 
   const notify = (m) => { setToast(m); setTimeout(() => setToast(null), 2600); };
-  const go = (p, s = null) => { if (s) setStream(s); if (p === "stream") setSess(0); setPage(p); window.scrollTo(0, 0); };
+
+  // Pages that require an account
+  const PROTECTED = ["wallet", "dash", "profile", "leaderboard"];
+
+  const go = (p, s = null) => {
+    if (!user && PROTECTED.includes(p)) { setAuthMode("signup"); setPage("auth"); return; }
+    if (s) setStream(s);
+    if (p === "stream") setSess(0);
+    setPage(p);
+    window.scrollTo(0, 0);
+  };
+
+  // Shows the signup popup for in-stream gated actions (chat, gifts, follow)
+  const requireAuth = () => {
+    if (!user) { setShowSignupPrompt(true); return false; }
+    return true;
+  };
 
   const formatDbStream = (s) => {
     const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
@@ -712,19 +729,23 @@ export default function App() {
 
     {/* NAV */}
     <nav className="nav">
-      <div className="logo" onClick={() => go(user ? "disc" : "land")}>STEM</div>
-      {isApp && (
-        <div className="nav-c">
-          {(mode === "viewer"
+      <div className="logo" onClick={() => go("disc")}>STEM</div>
+      <div className="nav-c">
+        {user ? (
+          // Logged-in nav links
+          (mode === "viewer"
             ? [["disc", "Discover"], ["leaderboard", "Top Earners"], ["wallet", "Wallet"], ["profile", "Profile"]]
             : [["disc", "Discover"], ["dash", "Dashboard"], ["profile", "Profile"]]
           ).map(([p, l]) => (
             <button key={p} className={`nl ${page === p ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          // Guest nav — just Discover
+          <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Discover</button>
+        )}
+      </div>
       <div className="nav-r">
-        {isApp && <>
+        {user && isApp && <>
           <div className="mode-toggle">
             <button className={`mode-btn ${mode === "viewer" ? "on" : ""}`} onClick={() => switchMode("viewer")}>👁</button>
             <button className={`mode-btn ${mode === "streamer" ? "on" : ""}`} onClick={() => switchMode("streamer")}>🎙</button>
@@ -732,15 +753,15 @@ export default function App() {
           <div className="coin-badge" onClick={() => go("wallet")}>🪙 {coins.toLocaleString()}</div>
           <div className="av" onClick={() => go("profile")}>{initials}</div>
         </>}
-        {!isApp && <>
+        {!user && <>
           <button className="btn-o" onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
           <button className="btn-g" onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign up</button>
         </>}
       </div>
     </nav>
 
-    {/* MOBILE BOTTOM NAV */}
-    {isApp && (
+    {/* MOBILE BOTTOM NAV — logged-in only */}
+    {isApp && user && (
       <div className="bottom-nav">
         <div className="bottom-nav-items">
           {(mode === "viewer"
@@ -766,7 +787,10 @@ export default function App() {
           <p className="hero-p">The first streaming platform to pay <strong>both streamers AND viewers</strong> in real money. Every ad. Every hour. Every clip.</p>
           <div className="hero-btns">
             <button className="btn-g" style={{ padding: "12px 24px", fontSize: 15 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Start Earning Free</button>
-            <button className="btn-o" style={{ padding: "11px 24px", fontSize: 15 }} onClick={() => { setRole("streamer"); setAuthMode("signup"); go("auth"); }}>I am a Streamer</button>
+            <button className="btn-o" style={{ padding: "11px 24px", fontSize: 15 }} onClick={() => go("disc")}>Browse Streams →</button>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => { setRole("streamer"); setAuthMode("signup"); go("auth"); }}>I am a Streamer</button>
           </div>
           <div className="hero-stats">
             {[["2,841", "Streams live"], ["$48K", "Paid today"], ["127K", "Earning"]].map(([v, l]) => (
@@ -828,11 +852,24 @@ export default function App() {
 
     {/* DISCOVER */}
     {page === "disc" && <div className="disc-page page">
+      {/* Guest banner — Twitch/Kick style: watch free, sign up to earn */}
+      {!user && (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg,rgba(124,58,237,.14),rgba(255,45,85,.10))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 14, padding: "14px 18px", marginBottom: 18, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>🪙 Watch streams and earn real money</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Create a free account to earn coins while watching, chat, and withdraw cash.</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button className="btn-o" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
+            <button className="btn-g" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
+          </div>
+        </div>
+      )}
       <div className="disc-hero">
-        <h1><span>Watch Live.</span> Earn Real Money.</h1>
+        <h1><span>Watch Live.</span> {user ? "Earn Real Money." : "Stream for Free."}</h1>
         <p>{firstName ? `Welcome back ${firstName}! ` : ""}Every stream earns you coins. Every coin converts to real cash.</p>
         <div className="dpills">
-          {[["🔴", String(liveStreams.length + DEMO_STREAMS.length), "live now"], ["🪙", coins.toLocaleString(), "your coins"], ["💸", "$48K", "paid today"]].map(([icon, v, l]) => (
+          {[["🔴", String(liveStreams.length + DEMO_STREAMS.length), "live now"], user ? ["🪙", coins.toLocaleString(), "your coins"] : ["🪙", "FREE", "to join"], ["💸", "$48K", "paid today"]].map(([icon, v, l]) => (
             <div key={l} className="dpill"><span className="dpill-icon">{icon}</span><div><div className="dpill-v">{v}</div><div className="dpill-l">{l}</div></div></div>
           ))}
         </div>
@@ -913,18 +950,29 @@ export default function App() {
             <div style={{ width: 38, height: 38, borderRadius: 10, background: stream.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{stream.emoji}</div>
             <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{stream.streamer}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{stream.game} · 24,810 followers</div></div>
           </div>
-          <div className="earn-box">
-            <div className="ebox-title">Session Earnings</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div><div className="ebig">+{sess}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>coins this session</div></div>
-              <div style={{ textAlign: "right" }}><div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>🪙 {coins.toLocaleString()}</div><div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>total balance</div></div>
+          {user ? (
+            <div className="earn-box">
+              <div className="ebox-title">Session Earnings</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div><div className="ebig">+{sess}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>coins this session</div></div>
+                <div style={{ textAlign: "right" }}><div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>🪙 {coins.toLocaleString()}</div><div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>total balance</div></div>
+              </div>
+              <div className="ecells">
+                <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
+                <div className="ecell"><div className="ecell-v" style={{ color: "var(--gold)" }}>+10</div><div className="ecell-l">Per chat</div></div>
+                <div className="ecell"><div className="ecell-v">20K</div><div className="ecell-l">To withdraw</div></div>
+              </div>
             </div>
-            <div className="ecells">
-              <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
-              <div className="ecell"><div className="ecell-v" style={{ color: "var(--gold)" }}>+10</div><div className="ecell-l">Per chat</div></div>
-              <div className="ecell"><div className="ecell-v">20K</div><div className="ecell-l">To withdraw</div></div>
+          ) : (
+            <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.10),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 14, padding: 16, marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontSize: 32 }}>🪙</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Earn coins while you watch</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Free account gets you +4 coins/hr, +10 per chat, real cash withdrawals.</div>
+                <button className="btn-g" style={{ padding: "8px 18px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free — Start Earning</button>
+              </div>
             </div>
-          </div>
+          )}
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Send a gift</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -938,18 +986,20 @@ export default function App() {
             <div className="chat-hd"><span className="chat-hd-title">Live Chat</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{stream.viewers.toLocaleString()}</span></div>
             <div className="chat-msgs" ref={chatRef}><ChatMessages /></div>
             <div className="chat-foot">
-              {user && <div className="chat-tip">+10 coins per message</div>}
-              <div className="chat-row">
-                <input
-                  className="chat-in"
-                  placeholder={user ? "Say something..." : "Sign in to chat and earn coins"}
-                  value={msg}
-                  onChange={e => setMsg(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && sendChat()}
-                  disabled={!user}
-                />
-                <button className="chat-send" onClick={sendChat} disabled={!user}>↑</button>
-              </div>
+              {user ? (
+                <>
+                  <div className="chat-tip">+10 coins per message</div>
+                  <div className="chat-row">
+                    <input className="chat-in" placeholder="Say something..." value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
+                    <button className="chat-send" onClick={sendChat}>↑</button>
+                  </div>
+                </>
+              ) : (
+                <button onClick={() => setShowSignupPrompt(true)} style={{ width: "100%", background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 10, padding: "11px 14px", color: "rgba(255,255,255,.7)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>Join to chat and earn coins</span>
+                  <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign up →</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -962,18 +1012,20 @@ export default function App() {
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }} ref={chatRef2}><ChatMessages /></div>
         <div style={{ padding: 12, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
-          {user && <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 600, marginBottom: 6 }}>+10 coins per message</div>}
-          <div className="chat-row">
-            <input
-              className="chat-in"
-              placeholder={user ? "Say something..." : "Sign in to chat and earn coins"}
-              value={msg}
-              onChange={e => setMsg(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && sendChat()}
-              disabled={!user}
-            />
-            <button className="chat-send" onClick={sendChat} disabled={!user}>↑</button>
-          </div>
+          {user ? (
+            <>
+              <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 600, marginBottom: 6 }}>+10 coins per message</div>
+              <div className="chat-row">
+                <input className="chat-in" placeholder="Say something..." value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
+                <button className="chat-send" onClick={sendChat}>↑</button>
+              </div>
+            </>
+          ) : (
+            <button onClick={() => setShowSignupPrompt(true)} style={{ width: "100%", background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 10, padding: "11px 14px", color: "rgba(255,255,255,.7)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>Join to chat and earn coins</span>
+              <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign up →</span>
+            </button>
+          )}
         </div>
       </div>
     </div>}
@@ -1209,6 +1261,26 @@ export default function App() {
               {savingGoLive ? <div className="spinner" /> : <><span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live Now</>}
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* SIGNUP PROMPT — shown when guest tries to chat, gift, or follow */}
+    {showSignupPrompt && (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSignupPrompt(false)}>
+        <div className="modal-box" style={{ maxWidth: 360, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🪙</div>
+          <div className="modal-title" style={{ fontSize: 26 }}>Join STEM Free</div>
+          <div className="modal-sub" style={{ marginBottom: 22 }}>Sign up to join the chat, earn coins while watching, send gifts, and withdraw real cash.</div>
+          <button className="btn-g" style={{ width: "100%", padding: "13px 0", fontSize: 15, marginBottom: 10, borderRadius: 12, border: "none" }} onClick={() => { setShowSignupPrompt(false); setAuthMode("signup"); go("auth"); }}>
+            Sign Up Free — Start Earning
+          </button>
+          <button className="btn-o" style={{ width: "100%", padding: "11px 0", fontSize: 14, borderRadius: 12 }} onClick={() => { setShowSignupPrompt(false); setAuthMode("login"); go("auth"); }}>
+            Already have an account? Log in
+          </button>
+          <button onClick={() => setShowSignupPrompt(false)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", marginTop: 14 }}>
+            Continue watching without account
+          </button>
         </div>
       </div>
     )}
