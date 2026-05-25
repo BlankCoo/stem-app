@@ -583,6 +583,11 @@ export default function App() {
   const logTransaction = async (type, amount, description) => {
     if (!user) return;
     await supabase.from("transactions").insert({ user_id: user.id, type, amount, description });
+    if (amount > 0) {
+      const newEarned = (profile?.total_earned || 0) + amount / 1000;
+      supabase.from("profiles").update({ total_earned: newEarned }).eq("id", user.id);
+      setProfile(p => p ? { ...p, total_earned: newEarned } : p);
+    }
   };
 
   const fetchTransactions = async () => {
@@ -1158,6 +1163,7 @@ export default function App() {
             logTransaction("follow", earned, `Followed ${stream.streamer}`);
             notify(`+${earned} coins for following!`);
             showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "❤️", stream.streamer);
+            supabase.rpc("increment_follower_count", { profile_id: stream.user_id });
           }
         }
       } else {
