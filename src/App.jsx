@@ -1314,50 +1314,8 @@ export default function App() {
         ))}
       </div>
 
-      {/* Revenue Earnings Calculator */}
+      {/* Revenue Breakdown + Ad Split */}
       <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Earnings Calculator</span><span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700 }}>Estimate your income</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
-            {[["50 viewers", "$2.40/hr", "Small stream"], ["500 viewers", "$24/hr", "Growing"], ["5,000 viewers", "$240/hr", "Established"]].map(([v, earn, l]) => (
-              <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{v}</div>
-                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, color: "var(--green)" }}>{earn}</div>
-                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center" }}>Ad revenue split: 40% you · 40% STEM · 20% your viewers</div>
-        </div>
-      </div>
-
-      {/* STEM vs Twitch/Kick */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Why Creators Choose STEM</span></div>
-        <div style={{ padding: "8px 16px 16px" }}>
-          {[
-            ["✅", "Earn from your very first stream", "No 50-follower or 500-hour minimum like Twitch"],
-            ["✅", "Your viewers earn too", "Viewers get paid to watch — they stay longer, engage more"],
-            ["✅", "40% ad revenue share", "Twitch pays 50% only to Partners. STEM pays everyone 40%"],
-            ["✅", "Real RTMP streaming via OBS", "Use the same pro setup as any Twitch/Kick streamer"],
-            ["🔜", "Clip-to-Earn", "Viewers earn bonus coins when their clips go viral — you earn too"],
-            ["🔜", "Prediction Markets", "Viewers bet coins on in-stream outcomes — more engagement"],
-            ["🔜", "Viewer Bounties", "Set coin rewards for challenges — 'first to raid gets 500 coins'"],
-            ["🔜", "Co-streaming + Revenue Split", "Stream with a partner and split earnings automatically"],
-          ].map(([status, title, desc]) => (
-            <div key={title} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
-              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{status}</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: status === "🔜" ? "var(--muted)" : "#fff" }}>{title}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Revenue Breakdown */}
-      <div className="panel">
         <div className="panel-hd"><span className="panel-title">Revenue Breakdown</span><span style={{ fontSize: 12, color: "var(--muted)" }}>This month</span></div>
         <div style={{ padding: 16 }}>
           {[["Ad Revenue", "$337", 40, "linear-gradient(90deg,var(--red),#ff6b35)"], ["Subscriptions", "$218", 26, "linear-gradient(90deg,var(--green),#00c8a0)"], ["Gifts", "$180", 21, "linear-gradient(90deg,var(--gold),var(--orange))"], ["Brand Deals", "$107", 13, "linear-gradient(90deg,var(--blue),var(--purple))"]].map(([l, v, p, c]) => (
@@ -1366,6 +1324,40 @@ export default function App() {
               <div style={{ background: "var(--ink4)", borderRadius: 4, height: 6, overflow: "hidden" }}><div style={{ width: `${p}%`, height: "100%", borderRadius: 4, background: c }} /></div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Ad Revenue Split */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd"><span className="panel-title">Ad Revenue Split</span></div>
+        <div style={{ padding: 16 }}>
+          <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 14 }}>
+            <div style={{ flex: 40, background: "var(--green)", borderRadius: 4 }} />
+            <div style={{ flex: 40, background: "var(--red)", borderRadius: 4 }} />
+            <div style={{ flex: 20, background: "rgba(255,255,255,.2)", borderRadius: 4 }} />
+          </div>
+          {[["var(--green)", "You (streamer)", "40%"], ["var(--red)", "STEM platform", "40%"], ["rgba(255,255,255,.4)", "Your viewers", "20%"]].map(([c, l, v]) => (
+            <div key={l} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: 3, background: c, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>{l}</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Audience Overview */}
+      <div className="panel">
+        <div className="panel-hd"><span className="panel-title">Audience Overview</span><span style={{ fontSize: 12, color: "var(--muted)" }}>Last 30 days</span></div>
+        <div style={{ padding: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[["Avg. Watch Time", "24 min", "var(--blue)"], ["Return Viewers", "68%", "var(--green)"], ["Peak Concurrent", "3,840", "var(--gold)"], ["New Followers", "1,204", "var(--purple)"]].map(([l, v, c]) => (
+              <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6, fontWeight: 600, letterSpacing: .4, textTransform: "uppercase" }}>{l}</div>
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, color: c }}>{v}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>}
