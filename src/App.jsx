@@ -614,9 +614,9 @@ export default function App() {
     setUploadingEmote(true);
     const ext = file.name.split(".").pop().toLowerCase();
     const path = `${user.id}/${clean}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("Emotes").upload(path, file, { upsert: true, contentType: file.type });
+    const { error: upErr } = await supabase.storage.from("emotes").upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) { notify("Upload failed: " + upErr.message); setUploadingEmote(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from("Emotes").getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from("emotes").getPublicUrl(path);
     const { error } = await supabase.from("emotes").upsert({ user_id: user.id, name: clean, image_url: publicUrl }, { onConflict: "user_id,name" });
     if (!error) { notify(`:${clean}: uploaded!`); setEmoteName(""); if (emoteFileRef.current) emoteFileRef.current.value = ""; fetchMyEmotes(); }
     else notify("Error saving emote: " + error.message);
@@ -624,8 +624,8 @@ export default function App() {
   };
 
   const deleteEmote = async (emote) => {
-    const parts = emote.image_url.split("/object/public/Emotes/");
-    if (parts[1]) await supabase.storage.from("Emotes").remove([parts[1]]);
+    const parts = emote.image_url.split("/object/public/emotes/");
+    if (parts[1]) await supabase.storage.from("emotes").remove([parts[1]]);
     await supabase.from("emotes").delete().eq("id", emote.id);
     setMyEmotes(m => m.filter(e => e.id !== emote.id));
     notify("Emote removed");
