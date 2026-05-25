@@ -332,11 +332,19 @@ export default function App() {
   const [clipTitle, setClipTitle] = useState("");
   const [savingClip, setSavingClip] = useState(false);
 
+  // Emotes
+  const [streamEmotes, setStreamEmotes] = useState([]);
+  const [myEmotes, setMyEmotes] = useState([]);
+  const [showEmotePicker, setShowEmotePicker] = useState(false);
+  const [uploadingEmote, setUploadingEmote] = useState(false);
+  const [emoteName, setEmoteName] = useState("");
+
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
   const coinsRef = useRef(0);
   const sessRef = useRef(0);
   const prevLiveIdsRef = useRef(new Set());
+  const emoteFileRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
@@ -362,7 +370,7 @@ export default function App() {
         setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
         setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
-        setShowScheduleModal(false); setShowGoLive(false); setPage("land");
+        setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false); setPage("land");
       }
     });
 
@@ -523,13 +531,14 @@ export default function App() {
   // --- CHANNEL PAGE ---
   const viewChannel = async (userId) => {
     if (!userId) return;
-    const [profRes, streamsRes, followersRes, liveRes, schedRes, clipsRes] = await Promise.all([
+    const [profRes, streamsRes, followersRes, liveRes, schedRes, clipsRes, emotesRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
       supabase.from("follows").select("id", { count: "exact" }).eq("following_id", userId),
       supabase.from("streams").select("id,title").eq("user_id", userId).eq("status", "live").maybeSingle(),
       supabase.from("stream_schedule").select("*").eq("user_id", userId).gte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(5),
       supabase.from("clips").select("*, profiles(full_name,username)").eq("streamer_id", userId).order("created_at", { ascending: false }).limit(12),
+      supabase.from("emotes").select("*").eq("user_id", userId).order("name"),
     ]);
     if (profRes.data) {
       setChannelUser(profRes.data);
@@ -538,6 +547,7 @@ export default function App() {
       setChannelIsLive(!!liveRes.data);
       setChannelSchedule(schedRes.data || []);
       setChannelClips(clipsRes.data || []);
+      setStreamEmotes(emotesRes.data || []);
       setPage("channel");
       window.scrollTo(0, 0);
     }
@@ -583,6 +593,58 @@ export default function App() {
     }
     setSavingClip(false);
   };
+
+  // ── Emotes ──────────────────────────────────────────────
+  const fetchStreamEmotes = async (userId) => {
+    const { data } = await supabase.from("emotes").select("*").eq("user_id", userId).order("name");
+    if (data) setStreamEmotes(data);
+  };
+
+  const fetchMyEmotes = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("emotes").select("*").eq("user_id", user.id).order("name");
+    if (data) setMyEmotes(data);
+  };
+
+  const uploadEmote = async () => {
+    const file = emoteFileRef.current?.files?.[0];
+    const clean = emoteName.trim().replace(/[^a-zA-Z0-9_]/g, "");
+    if (!file || !clean) { notify("Choose an image and enter an emote name"); return; }
+    if (file.size > 512 * 1024) { notify("Image must be under 512 KB"); return; }
+    setUploadingEmote(true);
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = `${user.id}/${clean}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("emotes").upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) { notify("Upload failed: " + upErr.message); setUploadingEmote(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from("emotes").getPublicUrl(path);
+    const { error } = await supabase.from("emotes").upsert({ user_id: user.id, name: clean, image_url: publicUrl }, { onConflict: "user_id,name" });
+    if (!error) { notify(`:${clean}: uploaded!`); setEmoteName(""); if (emoteFileRef.current) emoteFileRef.current.value = ""; fetchMyEmotes(); }
+    else notify("Error saving emote: " + error.message);
+    setUploadingEmote(false);
+  };
+
+  const deleteEmote = async (emote) => {
+    const parts = emote.image_url.split("/object/public/emotes/");
+    if (parts[1]) await supabase.storage.from("emotes").remove([parts[1]]);
+    await supabase.from("emotes").delete().eq("id", emote.id);
+    setMyEmotes(m => m.filter(e => e.id !== emote.id));
+    notify("Emote removed");
+  };
+
+  // Parses :emotename: tokens in a message string into text + <img> elements
+  const parseMessage = (text) => {
+    if (!streamEmotes.length || !text) return text;
+    const parts = text.split(/(:[a-zA-Z0-9_]+:)/g);
+    return parts.map((part, i) => {
+      const m = part.match(/^:([a-zA-Z0-9_]+):$/);
+      if (m) {
+        const emote = streamEmotes.find(e => e.name === m[1]);
+        if (emote) return <img key={i} src={emote.image_url} alt={part} title={part} style={{ height: 24, width: 24, verticalAlign: "middle", display: "inline-block", objectFit: "contain", borderRadius: 3, marginInline: 2 }} />;
+      }
+      return part;
+    });
+  };
+  // ────────────────────────────────────────────────────────
 
   // Coin earning — tick speed scales with streak (faster ticks = more coins/sec)
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
@@ -706,10 +768,10 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); }
     if (page === "disc") fetchUpcomingSchedule();
     if (page === "wallet" && user) fetchTransactions();
-    if (page === "stream" && stream?.id) fetchStreamClips(stream.id);
+    if (page === "stream" && stream?.id) { fetchStreamClips(stream.id); if (stream.user_id) fetchStreamEmotes(stream.user_id); }
   }, [page, user]);
 
   const handleSignUp = async () => {
@@ -998,7 +1060,7 @@ export default function App() {
         <div key={i} className={`cmsg ${m.sc ? "sc" : ""}`}>
           {m.sc && <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>}
           <div className="cmsg-a" style={{ color: m.c }}>{m.a}</div>
-          <div className="cmsg-t">{m.t}</div>
+          <div className="cmsg-t">{parseMessage(m.t)}</div>
         </div>
       ))}
     </>
@@ -1404,8 +1466,19 @@ export default function App() {
               {user ? (
                 <>
                   <div className="chat-tip">+10 coins per message</div>
+                  {/* Emote picker */}
+                  {showEmotePicker && streamEmotes.length > 0 && (
+                    <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
+                      {streamEmotes.map(e => (
+                        <img key={e.id} src={e.image_url} alt={`:${e.name}:`} title={`:${e.name}:`} onClick={() => setMsg(m => m + `:${e.name}: `)} style={{ width: 32, height: 32, objectFit: "contain", cursor: "pointer", borderRadius: 4, padding: 2 }} onMouseEnter={ev => ev.currentTarget.style.background = "rgba(255,255,255,.1)"} onMouseLeave={ev => ev.currentTarget.style.background = "transparent"} />
+                      ))}
+                    </div>
+                  )}
                   <div className="chat-row">
-                    <input className="chat-in" placeholder="Say something..." value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
+                    {streamEmotes.length > 0 && (
+                      <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
+                    )}
+                    <input className="chat-in" placeholder={streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
                     <button className="chat-send" onClick={sendChat}>↑</button>
                   </div>
                 </>
@@ -1430,8 +1503,18 @@ export default function App() {
           {user ? (
             <>
               <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 600, marginBottom: 6 }}>+10 coins per message</div>
+              {showEmotePicker && streamEmotes.length > 0 && (
+                <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
+                  {streamEmotes.map(e => (
+                    <img key={e.id} src={e.image_url} alt={`:${e.name}:`} title={`:${e.name}:`} onClick={() => setMsg(m => m + `:${e.name}: `)} style={{ width: 32, height: 32, objectFit: "contain", cursor: "pointer", borderRadius: 4, padding: 2 }} onMouseEnter={ev => ev.currentTarget.style.background = "rgba(255,255,255,.1)"} onMouseLeave={ev => ev.currentTarget.style.background = "transparent"} />
+                  ))}
+                </div>
+              )}
               <div className="chat-row">
-                <input className="chat-in" placeholder="Say something..." value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
+                {streamEmotes.length > 0 && (
+                  <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
+                )}
+                <input className="chat-in" placeholder={streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
                 <button className="chat-send" onClick={sendChat}>↑</button>
               </div>
             </>
@@ -1808,6 +1891,53 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Channel Emotes */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">😄 Channel Emotes</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{myEmotes.length}/50 emotes</span>
+        </div>
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>
+            Upload emotes your viewers can use in your chat. Type <code style={{ background: "var(--ink4)", padding: "1px 5px", borderRadius: 4 }}>:emotename:</code> to use them.
+          </div>
+          {/* Upload form */}
+          <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Emote Name</label>
+                <input className="fi" style={{ margin: 0 }} placeholder="e.g. stemFire" value={emoteName} onChange={e => setEmoteName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))} />
+                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>Letters, numbers, underscore only</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Image (PNG/GIF, max 512KB)</label>
+                <input ref={emoteFileRef} type="file" accept="image/png,image/gif,image/webp" style={{ fontSize: 12, color: "var(--muted)", width: "100%" }} />
+              </div>
+              <button onClick={uploadEmote} disabled={uploadingEmote} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: uploadingEmote ? "not-allowed" : "pointer", opacity: uploadingEmote ? 0.7 : 1, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                {uploadingEmote ? <div className="spinner" /> : "Upload"}
+              </button>
+            </div>
+          </div>
+          {/* Existing emotes grid */}
+          {myEmotes.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>😄</div>
+              <div style={{ fontSize: 13 }}>No emotes yet — upload your first one above.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {myEmotes.map(e => (
+                <div key={e.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80, position: "relative" }}>
+                  <img src={e.image_url} alt={e.name} style={{ width: 48, height: 48, objectFit: "contain", borderRadius: 4 }} />
+                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
+                  <button onClick={() => deleteEmote(e)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(255,45,85,.15)", border: "none", color: "var(--red)", borderRadius: 4, width: 18, height: 18, fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>}
 
     {/* CHANNEL PAGE */}
@@ -1932,6 +2062,21 @@ export default function App() {
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No streams yet</div>
           <div style={{ fontSize: 13 }}>Check back when this creator goes live.</div>
+        </div>
+      )}
+
+      {/* Channel emotes showcase */}
+      {streamEmotes.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>😄 Channel Emotes</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {streamEmotes.map(e => (
+              <div key={e.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} title={`:${e.name}:`}>
+                <img src={e.image_url} alt={e.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>}
