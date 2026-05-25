@@ -332,6 +332,13 @@ export default function App() {
   const [clipTitle, setClipTitle] = useState("");
   const [savingClip, setSavingClip] = useState(false);
 
+  // Withdrawals
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawPaypal, setWithdrawPaypal] = useState("");
+  const [withdrawCoins, setWithdrawCoins] = useState(20000);
+  const [processingWithdraw, setProcessingWithdraw] = useState(false);
+  const [withdrawHistory, setWithdrawHistory] = useState([]);
+
   // Emotes
   const [streamEmotes, setStreamEmotes] = useState([]);
   const [myEmotes, setMyEmotes] = useState([]);
@@ -370,7 +377,8 @@ export default function App() {
         setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
         setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
-        setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false); setPage("land");
+        setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false);
+        setShowWithdrawModal(false); setWithdrawHistory([]); setPage("land");
       }
     });
 
@@ -594,6 +602,42 @@ export default function App() {
     setSavingClip(false);
   };
 
+  // ── Withdrawals ─────────────────────────────────────────
+  const fetchWithdrawHistory = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("withdrawal_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
+    if (data) setWithdrawHistory(data);
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawPaypal.includes("@")) { notify("Enter a valid PayPal email"); return; }
+    if (withdrawCoins < 20000) { notify("Minimum withdrawal is 20,000 coins ($20)"); return; }
+    if (withdrawCoins > coins) { notify("Insufficient coins"); return; }
+    setProcessingWithdraw(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ amountCoins: withdrawCoins, paypalEmail: withdrawPaypal }),
+      });
+      const result = await res.json();
+      if (!res.ok) { notify(result.error || "Withdrawal failed"); return; }
+      const newCoins = coins - withdrawCoins;
+      setCoins(newCoins); coinsRef.current = newCoins;
+      setShowWithdrawModal(false);
+      setWithdrawPaypal("");
+      setWithdrawCoins(20000);
+      notify(result.message || `Withdrawal submitted!`);
+      fetchWithdrawHistory();
+      fetchTransactions();
+    } catch (err) {
+      notify("Network error — please try again");
+    }
+    setProcessingWithdraw(false);
+  };
+  // ────────────────────────────────────────────────────────
+
   // ── Emotes ──────────────────────────────────────────────
   const fetchStreamEmotes = async (userId) => {
     const { data: prof } = await supabase.from("profiles").select("emotes_enabled").eq("id", userId).maybeSingle();
@@ -772,7 +816,7 @@ export default function App() {
     if (page === "leaderboard") fetchLeaderboard();
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); }
     if (page === "disc") fetchUpcomingSchedule();
-    if (page === "wallet" && user) fetchTransactions();
+    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
     if (page === "stream" && stream?.id) { fetchStreamClips(stream.id); if (stream.user_id) fetchStreamEmotes(stream.user_id); }
   }, [page, user]);
 
@@ -1609,7 +1653,7 @@ export default function App() {
           <div className="wcard-l">Withdrawable Balance</div>
           <div className="wcard-v">${(coins / 1000).toFixed(2)}</div>
           <div className="wcard-sub">{coins.toLocaleString()} coins · {Math.max(0, 20000 - coins).toLocaleString()} more needed</div>
-          <button className="wbtn" disabled={coins < 20000} onClick={() => coins >= 20000 && notify("Withdrawal coming soon!")}>
+          <button className="wbtn" disabled={coins < 20000} onClick={() => coins >= 20000 && setShowWithdrawModal(true)}>
             {coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
           </button>
         </div>
@@ -1676,8 +1720,9 @@ export default function App() {
         ) : (
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {transactions.map(t => {
-              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗" };
-              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)" };
+              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗", withdrawal: "💸" };
+              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)", withdrawal: "var(--red)" };
+              const isOut = t.type === "withdrawal";
               return (
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
                   <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
@@ -1685,7 +1730,40 @@ export default function App() {
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>+{t.amount.toLocaleString()} 🪙</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{t.amount.toLocaleString()} 🪙</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Withdrawal History */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">💸 Withdrawal History</span>
+          <button onClick={fetchWithdrawHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+        </div>
+        {withdrawHistory.length === 0 ? (
+          <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>💸</div>
+            No withdrawals yet — reach 20,000 coins ($20) to cash out.
+          </div>
+        ) : (
+          <div>
+            {withdrawHistory.map(w => {
+              const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
+              const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
+              return (
+                <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderBottom: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 20 }}>💸</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>${Number(w.net_usd).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>({w.amount_coins.toLocaleString()} coins)</span></div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{w.paypal_email} · {new Date(w.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: sc[w.status] || "var(--muted)", background: `${sc[w.status] || "rgba(255,255,255,.1)"}18`, border: `1px solid ${sc[w.status] || "var(--line)"}44`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
+                    {sl[w.status] || w.status}
+                  </span>
                 </div>
               );
             })}
@@ -2158,6 +2236,66 @@ export default function App() {
             <button onClick={() => setShowScheduleModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
             <button onClick={handleAddSchedule} disabled={savingSchedule} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingSchedule ? "not-allowed" : "pointer", opacity: savingSchedule ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               {savingSchedule ? <div className="spinner" /> : "Schedule Stream"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* WITHDRAW MODAL */}
+    {showWithdrawModal && (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowWithdrawModal(false)}>
+        <div className="modal-box">
+          <div className="modal-title">💸 Withdraw Earnings</div>
+          <div className="modal-sub">Funds sent to your PayPal within 24 hours.</div>
+
+          {/* Quick amounts */}
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8, display: "block" }}>Amount</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {[20000, 50000, 100000].filter(a => a <= coins).map(a => (
+              <button key={a} onClick={() => setWithdrawCoins(a)} style={{ flex: 1, background: withdrawCoins === a ? "rgba(0,245,160,.1)" : "var(--ink3)", border: withdrawCoins === a ? "1px solid var(--green)" : "1px solid var(--line)", borderRadius: 10, padding: "10px 4px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: withdrawCoins === a ? "var(--green)" : "#fff", transition: "all .15s" }}>
+                ${a / 1000}
+              </button>
+            ))}
+            <button onClick={() => setWithdrawCoins(Math.floor(coins / 1000) * 1000)} style={{ flex: 1, background: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "rgba(0,245,160,.1)" : "var(--ink3)", border: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "1px solid var(--green)" : "1px solid var(--line)", borderRadius: 10, padding: "10px 4px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "var(--green)" : "#fff", transition: "all .15s" }}>
+              All
+            </button>
+          </div>
+          <input type="number" className="fi" placeholder="Custom coins (min 20,000)" value={withdrawCoins} min={20000} max={coins} onChange={e => setWithdrawCoins(Math.max(0, parseInt(e.target.value) || 0))} />
+
+          {/* Fee breakdown */}
+          <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>Gross ({withdrawCoins.toLocaleString()} coins)</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>${(withdrawCoins / 1000).toFixed(2)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>Platform fee (2%)</span>
+              <span style={{ fontSize: 13, color: "var(--red)" }}>-${((withdrawCoins / 1000) * 0.02).toFixed(2)}</span>
+            </div>
+            <div style={{ height: 1, background: "var(--line2)", marginBottom: 8 }} />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>You receive</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "var(--green)" }}>${((withdrawCoins / 1000) * 0.98).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* PayPal email */}
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>PayPal Email</label>
+          <input className="fi" type="email" placeholder="your@paypal.com" value={withdrawPaypal} onChange={e => setWithdrawPaypal(e.target.value)} onKeyDown={e => e.key === "Enter" && handleWithdraw()} />
+
+          {withdrawCoins < 20000 && withdrawCoins > 0 && (
+            <div style={{ fontSize: 12, color: "var(--orange)", marginBottom: 10 }}>Minimum withdrawal is 20,000 coins ($20)</div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button onClick={() => setShowWithdrawModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+            <button
+              onClick={handleWithdraw}
+              disabled={processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins}
+              style={{ flex: 2, background: "linear-gradient(135deg,#00f5a0,#00c8a0)", color: "#000", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 800, cursor: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? "not-allowed" : "pointer", opacity: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              {processingWithdraw ? <div className="spinner" /> : `Withdraw $${((withdrawCoins / 1000) * 0.98).toFixed(2)}`}
             </button>
           </div>
         </div>
