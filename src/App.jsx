@@ -547,7 +547,7 @@ export default function App() {
       setChannelIsLive(!!liveRes.data);
       setChannelSchedule(schedRes.data || []);
       setChannelClips(clipsRes.data || []);
-      setStreamEmotes(emotesRes.data || []);
+      setStreamEmotes(profRes.data.emotes_enabled !== false ? (emotesRes.data || []) : []);
       setPage("channel");
       window.scrollTo(0, 0);
     }
@@ -596,6 +596,8 @@ export default function App() {
 
   // ── Emotes ──────────────────────────────────────────────
   const fetchStreamEmotes = async (userId) => {
+    const { data: prof } = await supabase.from("profiles").select("emotes_enabled").eq("id", userId).maybeSingle();
+    if (prof?.emotes_enabled === false) { setStreamEmotes([]); return; }
     const { data } = await supabase.from("emotes").select("*").eq("user_id", userId).order("name");
     if (data) setStreamEmotes(data);
   };
@@ -1896,9 +1898,27 @@ export default function App() {
       <div className="panel" style={{ marginTop: 16 }}>
         <div className="panel-hd">
           <span className="panel-title">😄 Channel Emotes</span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{myEmotes.length}/50 emotes</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>{myEmotes.length}/50</span>
+            <button
+              onClick={async () => {
+                const next = !(profile?.emotes_enabled ?? true);
+                await supabase.from("profiles").update({ emotes_enabled: next }).eq("id", user.id);
+                setProfile(p => ({ ...p, emotes_enabled: next }));
+                notify(next ? "Emotes enabled for your channel" : "Emotes disabled for your channel");
+              }}
+              style={{ background: (profile?.emotes_enabled ?? true) ? "rgba(0,245,160,.12)" : "var(--ink4)", border: (profile?.emotes_enabled ?? true) ? "1px solid rgba(0,245,160,.3)" : "1px solid var(--line2)", color: (profile?.emotes_enabled ?? true) ? "var(--green)" : "var(--muted)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .2s" }}
+            >
+              {(profile?.emotes_enabled ?? true) ? "ON" : "OFF"}
+            </button>
+          </div>
         </div>
         <div style={{ padding: 16 }}>
+          {!(profile?.emotes_enabled ?? true) && (
+            <div style={{ background: "rgba(255,149,0,.08)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--orange)" }}>
+              Emotes are currently disabled — viewers cannot use your emotes in chat. Toggle ON to enable them.
+            </div>
+          )}
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>
             Upload emotes your viewers can use in your chat. Type <code style={{ background: "var(--ink4)", padding: "1px 5px", borderRadius: 4 }}>:emotename:</code> to use them.
           </div>
