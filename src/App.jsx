@@ -284,6 +284,12 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .poll-opt{width:100%;background:var(--ink3);border:1px solid var(--line);color:#fff;border-radius:10px;padding:9px 14px;font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;text-align:left;margin-bottom:6px;transition:all .15s;position:relative;overflow:hidden;display:block}
 .poll-opt:hover{background:var(--ink4)}.poll-opt.voted{border-color:rgba(124,58,237,.6);background:rgba(124,58,237,.12)}
 .poll-bar{position:absolute;inset:0;background:rgba(124,58,237,.2);transition:width .5s ease;pointer-events:none;border-radius:10px}
+.pred-card{background:linear-gradient(135deg,rgba(77,159,255,.08),rgba(124,58,237,.06));border:1px solid rgba(77,159,255,.22);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.pred-opt{flex:1;background:var(--ink3);border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px 10px 8px;font-family:'Outfit',sans-serif;font-size:12px;text-align:center;position:relative;overflow:hidden;min-width:0}
+.pred-opt.a-side{border-color:rgba(0,245,160,.25)}.pred-opt.b-side{border-color:rgba(255,45,85,.25)}
+.pred-opt.sel-a{background:rgba(0,245,160,.1);border-color:rgba(0,245,160,.55)}
+.pred-opt.sel-b{background:rgba(255,45,85,.1);border-color:rgba(255,45,85,.55)}
+.pred-fill{position:absolute;top:0;left:0;bottom:0;pointer-events:none;border-radius:10px;transition:width .6s ease}
 .gifters-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .gifter-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.22);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--gold)}
 .clips-page{padding:20px 16px;padding-bottom:80px;max-width:900px;margin:0 auto}
@@ -444,6 +450,17 @@ export default function App() {
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollForm, setPollForm] = useState({ question: "", options: ["", ""] });
   const pollChRef = useRef(null);
+
+  // Predictions
+  const [activePrediction, setActivePrediction] = useState(null);
+  const [predEntries, setPredEntries] = useState([]);
+  const [myPredBet, setMyPredBet] = useState(null);
+  const [predBetAmount, setPredBetAmount] = useState(100);
+  const [predCountdown, setPredCountdown] = useState(0);
+  const [showCreatePred, setShowCreatePred] = useState(false);
+  const [predForm, setPredForm] = useState({ title: "", optionA: "Yes", optionB: "No", duration: 120 });
+  const [placingBet, setPlacingBet] = useState(false);
+  const predChRef = useRef(null);
 
   // Top gifters this session
   const [topGifters, setTopGifters] = useState({});
@@ -972,6 +989,100 @@ export default function App() {
     pollChRef.current?.send({ type: "broadcast", event: "poll_end", payload: {} });
   };
 
+  // ── Predictions ──────────────────────────────────────────
+  const fetchActivePrediction = async (streamId) => {
+    const { data } = await supabase.from("predictions").select("*")
+      .eq("stream_id", streamId).in("status", ["open", "locked"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    setActivePrediction(data || null);
+    if (data) {
+      const { data: entries } = await supabase.from("prediction_entries").select("*").eq("prediction_id", data.id);
+      const e = entries || [];
+      setPredEntries(e);
+      if (user) setMyPredBet(e.find(x => x.user_id === user.id) || null);
+    } else {
+      setPredEntries([]); setMyPredBet(null);
+    }
+  };
+
+  const createPrediction = async () => {
+    if (!predForm.title.trim()) { notify("Enter a prediction question"); return; }
+    if (!predForm.optionA.trim() || !predForm.optionB.trim()) { notify("Fill in both options"); return; }
+    const endsAt = new Date(Date.now() + predForm.duration * 1000).toISOString();
+    const { data, error } = await supabase.from("predictions").insert({
+      stream_id: stream.id, streamer_id: user.id,
+      title: predForm.title.trim(), option_a: predForm.optionA.trim(), option_b: predForm.optionB.trim(),
+      duration_secs: predForm.duration, ends_at: endsAt, status: "open",
+    }).select().single();
+    if (error) { notify("Failed to create prediction"); return; }
+    setActivePrediction(data); setPredEntries([]); setMyPredBet(null);
+    setShowCreatePred(false); setPredForm({ title: "", optionA: "Yes", optionB: "No", duration: 120 });
+    predChRef.current?.send({ type: "broadcast", event: "pred_new", payload: { prediction: data } });
+    notify("Prediction started!");
+  };
+
+  const placeBet = async (option) => {
+    if (!requireAuth()) return;
+    if (myPredBet) { notify("You already placed a bet"); return; }
+    if (!activePrediction || activePrediction.status !== "open") { notify("Betting is closed"); return; }
+    if (activePrediction.ends_at && new Date(activePrediction.ends_at) < new Date()) { notify("Betting time has ended"); return; }
+    const amount = Math.floor(Number(predBetAmount)) || 0;
+    if (amount < 10) { notify("Minimum bet is 10 coins"); return; }
+    if (amount > coinsRef.current) { notify("Not enough coins"); return; }
+    setPlacingBet(true);
+    const nc = coinsRef.current - amount;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    const { data: entry, error } = await supabase.from("prediction_entries").insert({
+      prediction_id: activePrediction.id, user_id: user.id, option, coins: amount,
+    }).select().single();
+    if (error) {
+      const rc = coinsRef.current + amount;
+      setCoins(rc); coinsRef.current = rc;
+      await supabase.from("profiles").update({ coins: rc }).eq("id", user.id);
+      notify("Failed to place bet — coins refunded"); setPlacingBet(false); return;
+    }
+    const newEntries = [...predEntries, entry];
+    setPredEntries(newEntries); setMyPredBet(entry);
+    predChRef.current?.send({ type: "broadcast", event: "pred_entry", payload: { entry } });
+    notify(`Bet placed! ${amount.toLocaleString()} coins on ${option === "a" ? activePrediction.option_a : activePrediction.option_b}`);
+    setPlacingBet(false);
+  };
+
+  const lockPrediction = async () => {
+    const { data } = await supabase.from("predictions").update({ status: "locked" }).eq("id", activePrediction.id).select().single();
+    if (data) {
+      setActivePrediction(data);
+      predChRef.current?.send({ type: "broadcast", event: "pred_lock", payload: {} });
+      notify("Bets locked — pick a winner");
+    }
+  };
+
+  const resolvePrediction = async (winOption) => {
+    const { error } = await supabase.rpc("resolve_prediction", { p_prediction_id: activePrediction.id, p_winning_option: winOption });
+    if (error) { notify("Failed to resolve: " + error.message); return; }
+    const winLabel = winOption === "a" ? activePrediction.option_a : activePrediction.option_b;
+    const winners = predEntries.filter(e => e.option === winOption);
+    predChRef.current?.send({ type: "broadcast", event: "pred_resolved", payload: { winning_option: winOption, win_label: winLabel } });
+    const { data: prof } = await supabase.from("profiles").select("coins").eq("id", user.id).single();
+    if (prof) { setCoins(prof.coins); coinsRef.current = prof.coins; }
+    setActivePrediction(p => ({ ...p, status: "resolved", winning_option: winOption }));
+    notify(`${winLabel} wins! Coins paid to ${winners.length} winner${winners.length !== 1 ? "s" : ""}`);
+    setTimeout(() => { setActivePrediction(null); setPredEntries([]); setMyPredBet(null); }, 7000);
+  };
+
+  const cancelPrediction = async () => {
+    const { error } = await supabase.rpc("cancel_prediction", { p_prediction_id: activePrediction.id });
+    if (error) { notify("Failed to cancel"); return; }
+    predChRef.current?.send({ type: "broadcast", event: "pred_cancelled", payload: {} });
+    if (user) {
+      const { data: prof } = await supabase.from("profiles").select("coins").eq("id", user.id).single();
+      if (prof) { setCoins(prof.coins); coinsRef.current = prof.coins; }
+    }
+    notify("Prediction cancelled — all bets refunded");
+    setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
+  };
+  // ────────────────────────────────────────────────────────
+
   // ── Clips gallery ─────────────────────────────────────────
   const fetchAllClips = async () => {
     setLoadingClips(true);
@@ -1158,6 +1269,56 @@ export default function App() {
     return () => { supabase.removeChannel(ch); pollChRef.current = null; };
   }, [page, stream?.id]);
 
+  // Prediction countdown
+  useEffect(() => {
+    if (!activePrediction || activePrediction.status !== "open" || !activePrediction.ends_at) {
+      setPredCountdown(0); return;
+    }
+    const tick = () => {
+      const rem = Math.max(0, Math.round((new Date(activePrediction.ends_at) - Date.now()) / 1000));
+      setPredCountdown(rem);
+      if (rem === 0) setActivePrediction(p => p && p.status === "open" ? { ...p, status: "locked" } : p);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [activePrediction?.id, activePrediction?.status, activePrediction?.ends_at]);
+
+  // Prediction broadcast channel
+  useEffect(() => {
+    if (page !== "stream" || !stream?.id) { predChRef.current = null; return; }
+    const streamId = stream.id;
+    const ch = supabase.channel(`preds-${streamId}`)
+      .on("broadcast", { event: "pred_new" }, ({ payload }) => {
+        setActivePrediction(payload.prediction); setPredEntries([]); setMyPredBet(null);
+      })
+      .on("broadcast", { event: "pred_entry" }, ({ payload }) => {
+        setPredEntries(cur => cur.find(e => e.id === payload.entry.id) ? cur : [...cur, payload.entry]);
+      })
+      .on("broadcast", { event: "pred_lock" }, () => {
+        setActivePrediction(p => p ? { ...p, status: "locked" } : p);
+      })
+      .on("broadcast", { event: "pred_resolved" }, ({ payload }) => {
+        setActivePrediction(p => p ? { ...p, status: "resolved", winning_option: payload.winning_option } : p);
+        notify(`Prediction: ${payload.win_label} wins!`);
+        if (user) supabase.from("profiles").select("coins").eq("id", user.id).single().then(({ data }) => {
+          if (data) { setCoins(data.coins); coinsRef.current = data.coins; }
+        });
+        setTimeout(() => { setActivePrediction(null); setPredEntries([]); setMyPredBet(null); }, 7000);
+      })
+      .on("broadcast", { event: "pred_cancelled" }, () => {
+        notify("Prediction cancelled — coins refunded");
+        if (user) supabase.from("profiles").select("coins").eq("id", user.id).single().then(({ data }) => {
+          if (data) { setCoins(data.coins); coinsRef.current = data.coins; }
+        });
+        setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
+      })
+      .subscribe();
+    predChRef.current = ch;
+    fetchActivePrediction(streamId);
+    return () => { supabase.removeChannel(ch); predChRef.current = null; };
+  }, [page, stream?.id]);
+
   // Load moderation state when entering a stream as the streamer
   useEffect(() => {
     if (page === "stream" && stream?.isRealStream && user?.id === stream?.user_id) {
@@ -1253,7 +1414,7 @@ export default function App() {
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
       if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); }
-      setTopGifters({}); setActivePoll(null); setPollVoted(null);
+      setTopGifters({}); setActivePoll(null); setPollVoted(null); setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
     }
     if (page === "clips") fetchAllClips();
     if (page === "channel" && channelUser?.id) fetchPastStreams(channelUser.id);
@@ -2058,6 +2219,112 @@ export default function App() {
             </div>
           )}
 
+          {/* Active prediction */}
+          {activePrediction && (() => {
+            const totalA = predEntries.filter(e => e.option === "a").reduce((s, e) => s + e.coins, 0);
+            const totalB = predEntries.filter(e => e.option === "b").reduce((s, e) => s + e.coins, 0);
+            const totalPot = totalA + totalB;
+            const pctA = totalPot ? Math.round(totalA / totalPot * 100) : 50;
+            const pctB = 100 - pctA;
+            const canBet = activePrediction.status === "open" && predCountdown > 0 && !myPredBet && user?.id !== activePrediction.streamer_id;
+            const isOwner = user?.id === activePrediction.streamer_id;
+            const potentialPayout = myPredBet && totalPot > 0
+              ? Math.round(myPredBet.coins * totalPot / (myPredBet.option === "a" ? totalA : totalB))
+              : 0;
+            const STATUS_COLOR = { open: "var(--green)", locked: "var(--orange)", resolved: "var(--blue)", cancelled: "var(--muted)" };
+            const STATUS_LABEL = { open: "OPEN", locked: "LOCKED", resolved: "RESOLVED", cancelled: "CANCELLED" };
+            return (
+              <div className="pred-card">
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>🔮 {activePrediction.title}</div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                    {activePrediction.status === "open" && predCountdown > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: predCountdown < 30 ? "var(--red)" : "var(--blue)", fontVariantNumeric: "tabular-nums" }}>
+                        {Math.floor(predCountdown / 60)}:{String(predCountdown % 60).padStart(2, "0")}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 9, fontWeight: 800, color: STATUS_COLOR[activePrediction.status], background: `${STATUS_COLOR[activePrediction.status]}18`, border: `1px solid ${STATUS_COLOR[activePrediction.status]}44`, borderRadius: 6, padding: "2px 7px", letterSpacing: .5 }}>
+                      {STATUS_LABEL[activePrediction.status]}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option bars */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {[["a", activePrediction.option_a, totalA, pctA, "var(--green)", "rgba(0,245,160,.15)", "a-side", "sel-a"],
+                    ["b", activePrediction.option_b, totalB, pctB, "var(--red)",   "rgba(255,45,85,.15)",  "b-side", "sel-b"]].map(([opt, label, total, pct, color, fill, side, selClass]) => (
+                    <div key={opt} className={`pred-opt ${side} ${myPredBet?.option === opt ? selClass : ""} ${activePrediction.status === "resolved" && activePrediction.winning_option === opt ? selClass : ""}`} style={{ cursor: "default" }}>
+                      <div className="pred-fill" style={{ width: `${pct}%`, background: fill }} />
+                      <div style={{ position: "relative" }}>
+                        <div style={{ fontWeight: 800, fontSize: 13, color }}>{pct}%</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, marginTop: 1 }}>{label}</div>
+                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{total.toLocaleString()} 🪙</div>
+                        {activePrediction.status === "resolved" && activePrediction.winning_option === opt && (
+                          <div style={{ fontSize: 10, color, fontWeight: 700, marginTop: 2 }}>✓ Winner</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bet input */}
+                {canBet && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                      <input type="number" min={10} value={predBetAmount} onChange={e => setPredBetAmount(e.target.value)}
+                        style={{ flex: 1, background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 13, fontFamily: "Outfit,sans-serif" }} />
+                      {[50, 100, 500].map(v => (
+                        <button key={v} onClick={() => setPredBetAmount(v)} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "0 8px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}>{v}</button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => placeBet("a")} disabled={placingBet} style={{ flex: 1, background: "rgba(0,245,160,.15)", border: "1px solid rgba(0,245,160,.4)", color: "var(--green)", borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bet {activePrediction.option_a}</button>
+                      <button onClick={() => placeBet("b")} disabled={placingBet} style={{ flex: 1, background: "rgba(255,45,85,.12)", border: "1px solid rgba(255,45,85,.4)", color: "var(--red)", borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bet {activePrediction.option_b}</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* My bet status */}
+                {myPredBet && activePrediction.status !== "resolved" && (
+                  <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12 }}>
+                    <span style={{ color: "var(--muted)" }}>Your bet: </span>
+                    <span style={{ fontWeight: 700 }}>{myPredBet.coins.toLocaleString()} 🪙 on {myPredBet.option === "a" ? activePrediction.option_a : activePrediction.option_b}</span>
+                    {totalPot > 0 && (myPredBet.option === "a" ? totalA : totalB) > 0 && (
+                      <span style={{ color: "var(--muted)", marginLeft: 6 }}>· ~{potentialPayout.toLocaleString()} 🪙 if win</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Resolution result */}
+                {activePrediction.status === "resolved" && myPredBet && (
+                  <div style={{ borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12, background: myPredBet.option === activePrediction.winning_option ? "rgba(0,245,160,.08)" : "rgba(255,45,85,.08)", border: `1px solid ${myPredBet.option === activePrediction.winning_option ? "rgba(0,245,160,.25)" : "rgba(255,45,85,.25)"}`, color: myPredBet.option === activePrediction.winning_option ? "var(--green)" : "var(--red)", fontWeight: 700 }}>
+                    {myPredBet.option === activePrediction.winning_option ? `🎉 You won! Coins have been paid out.` : `You lost ${myPredBet.coins.toLocaleString()} 🪙`}
+                  </div>
+                )}
+
+                {/* Streamer controls */}
+                {isOwner && activePrediction.status !== "resolved" && activePrediction.status !== "cancelled" && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                    {activePrediction.status === "open" && (
+                      <button onClick={lockPrediction} style={{ background: "rgba(255,149,0,.12)", border: "1px solid rgba(255,149,0,.3)", color: "var(--orange)", borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🔒 Lock Bets</button>
+                    )}
+                    {(activePrediction.status === "locked" || activePrediction.status === "open") && (
+                      <>
+                        <button onClick={() => resolvePrediction("a")} style={{ flex: 1, background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{activePrediction.option_a} Wins</button>
+                        <button onClick={() => resolvePrediction("b")} style={{ flex: 1, background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{activePrediction.option_b} Wins</button>
+                      </>
+                    )}
+                    <button onClick={cancelPrediction} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>Cancel</button>
+                  </div>
+                )}
+
+                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
+                  {totalPot.toLocaleString()} 🪙 total · {predEntries.length} bet{predEntries.length !== 1 ? "s" : ""}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Active poll */}
           {activePoll && (() => {
             const totalVotes = Object.values(activePoll.votes).reduce((s,v) => s+v, 0);
@@ -2093,6 +2360,28 @@ export default function App() {
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={createPoll} className="btn-g" style={{ flex: 1, padding: "8px 0", fontSize: 13 }}>Launch Poll</button>
                 <button onClick={() => setShowPollCreator(false)} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Prediction creator (streamer only) */}
+          {user?.id === stream?.user_id && !activePrediction && showCreatePred && (
+            <div style={{ background: "var(--ink3)", border: "1px solid rgba(77,159,255,.25)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🔮 Create Prediction</div>
+              <input className="fi" style={{ margin: "0 0 8px", fontSize: 13 }} placeholder="Will I win this round?" value={predForm.title} onChange={e => setPredForm(f => ({ ...f, title: e.target.value }))} />
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Option A" value={predForm.optionA} onChange={e => setPredForm(f => ({ ...f, optionA: e.target.value }))} />
+                <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Option B" value={predForm.optionB} onChange={e => setPredForm(f => ({ ...f, optionB: e.target.value }))} />
+              </div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>Duration:</span>
+                {[[60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([s, l]) => (
+                  <button key={s} onClick={() => setPredForm(f => ({ ...f, duration: s }))} style={{ flex: 1, background: predForm.duration === s ? "rgba(77,159,255,.15)" : "var(--ink4)", border: predForm.duration === s ? "1px solid rgba(77,159,255,.4)" : "1px solid var(--line2)", color: predForm.duration === s ? "var(--blue)" : "var(--muted)", borderRadius: 8, padding: "6px 0", fontSize: 12, fontWeight: predForm.duration === s ? 700 : 400, cursor: "pointer" }}>{l}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={createPrediction} className="btn-g" style={{ flex: 1, padding: "8px 0", fontSize: 13 }}>Start Prediction</button>
+                <button onClick={() => setShowCreatePred(false)} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>Cancel</button>
               </div>
             </div>
           )}
@@ -2151,6 +2440,9 @@ export default function App() {
               <div style={{ display: "flex", align: "center", gap: 8 }}>
                 {isStreamOwner && !activePoll && (
                   <button onClick={() => setShowPollCreator(p => !p)} style={{ background: showPollCreator ? "rgba(124,58,237,.2)" : "var(--ink3)", border: "1px solid var(--line2)", color: showPollCreator ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "3px 8px", cursor: "pointer", fontWeight: 700 }}>📊 Poll</button>
+                )}
+                {isStreamOwner && !activePrediction && (
+                  <button onClick={() => setShowCreatePred(p => !p)} style={{ background: showCreatePred ? "rgba(77,159,255,.2)" : "var(--ink3)", border: "1px solid var(--line2)", color: showCreatePred ? "var(--blue)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "3px 8px", cursor: "pointer", fontWeight: 700 }}>🔮 Predict</button>
                 )}
                 {isStreamOwner && (
                   <div style={{ display: "flex", gap: 6 }}>
