@@ -383,6 +383,12 @@ export default function App() {
   const [clipTitle, setClipTitle] = useState("");
   const [savingClip, setSavingClip] = useState(false);
 
+  // Gift subs
+  const [showGiftSubModal, setShowGiftSubModal] = useState(false);
+  const [giftSubUsername, setGiftSubUsername] = useState("");
+  const [giftSubQty, setGiftSubQty] = useState(1);
+  const [giftingSubTo, setGiftingSubTo] = useState(false);
+
   // Withdrawals
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawPaypal, setWithdrawPaypal] = useState("");
@@ -957,6 +963,52 @@ export default function App() {
     setIsSubscribed(true);
     notify(`Subscribed to ${stream.streamer}! ⭐`);
     setSubscribing(false);
+  };
+
+  const handleGiftSub = async () => {
+    if (!requireAuth()) return;
+    if (!stream?.user_id) { notify("Gift subs only work on real streams"); return; }
+    if (stream.user_id === user.id) { notify("You can't gift subs on your own stream"); return; }
+    const cost = giftSubQty * 1000;
+    if (coinsRef.current < cost) { notify(`Need ${cost.toLocaleString()} coins to gift ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""}`); return; }
+    setGiftingSubTo(true);
+
+    let recipientId = null;
+    let recipientName = null;
+    if (giftSubUsername.trim()) {
+      const uname = giftSubUsername.trim().replace(/^@/, "");
+      const { data: recipient } = await supabase.from("profiles").select("id,full_name,username").eq("username", uname).maybeSingle();
+      if (!recipient) { notify("User not found"); setGiftingSubTo(false); return; }
+      if (recipient.id === user.id) { notify("You can't gift a sub to yourself"); setGiftingSubTo(false); return; }
+      recipientId = recipient.id;
+      recipientName = recipient.full_name?.split(" ")[0] || recipient.username;
+    }
+
+    const nc = coinsRef.current - cost;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+
+    if (recipientId) {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000 * giftSubQty).toISOString();
+      await supabase.from("subscriptions").upsert(
+        { subscriber_id: recipientId, streamer_id: stream.user_id, expires_at: expiresAt },
+        { onConflict: "subscriber_id,streamer_id" }
+      );
+    }
+
+    const gifterName = profile?.full_name?.split(" ")[0] || profile?.username || "Someone";
+    const targetText = recipientName ? `to ${recipientName}` : "to the community";
+    await supabase.from("messages").insert({
+      stream_id: stream.id, user_id: user.id, username: gifterName,
+      content: `gifted ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""} ${targetText}! 🎁`,
+      color: "#a855f7", is_superchat: true, coins_spent: cost,
+    });
+
+    logTransaction("gift_sent", -cost, `Gifted ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""} in ${stream.title}`);
+    addHype(cost);
+    notify(`${giftSubQty > 1 ? `${giftSubQty} subs` : "Sub"} gifted! 🎁`);
+    setShowGiftSubModal(false); setGiftSubUsername(""); setGiftSubQty(1);
+    setGiftingSubTo(false);
   };
 
   // ── Top gifters ──────────────────────────────────────────
@@ -1727,7 +1779,10 @@ export default function App() {
         <div key={i} className={`cmsg ${m.sc ? "sc" : ""} mod-msg-wrap`} style={{ display: "block" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
             <div style={{ flex: 1 }}>
-              {m.sc && <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>}
+              {m.sc && (m.t?.startsWith("gifted") && m.t?.includes("sub")
+                ? <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, marginBottom: 3 }}>🎁 GIFT SUBS · {m.amt}</div>
+                : <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>
+              )}
               {m.badge && <span style={{ fontSize: 12, marginRight: 3 }}>{m.badge}</span>}
               <span className="cmsg-a" style={{ color: m.c, cursor: m.uid ? "pointer" : "default" }}
                 onClick={() => m.uid && viewVProfile(m.uid)}>{m.a}</span>
@@ -2409,6 +2464,12 @@ export default function App() {
                 <div key={n} className="gift" onClick={() => sendGift(n, c, e)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
               ))}
             </div>
+            {/* Gift subs */}
+            {stream?.user_id && stream.user_id !== user?.id && user && (
+              <button onClick={() => setShowGiftSubModal(true)} style={{ width: "100%", marginTop: 8, background: "linear-gradient(135deg,rgba(168,85,247,.12),rgba(124,58,237,.07))", border: "1px solid rgba(168,85,247,.28)", color: "#a855f7", borderRadius: 10, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                🎁 Gift a Sub <span style={{ color: "rgba(168,85,247,.6)", fontWeight: 400 }}>· 1,000 🪙 each</span>
+              </button>
+            )}
             {/* Quick reactions — free, just for fun */}
             <div className="react-bar">
               {["👍","❤️","😂","😮","🔥"].map(e => (
@@ -3533,6 +3594,36 @@ export default function App() {
         </div>
       )}
     </div>}
+
+    {/* GIFT SUB MODAL */}
+    {showGiftSubModal && (
+      <div className="modal-overlay" onClick={() => setShowGiftSubModal(false)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
+          <div className="modal-title">🎁 Gift a Subscription</div>
+          <div className="modal-sub" style={{ marginBottom: 20 }}>Gift a sub to a viewer — they get 30 days free in this channel!</div>
+          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: .6, display: "block", marginBottom: 6 }}>Recipient username</label>
+          <input className="fi" placeholder="@username — blank = community gift" value={giftSubUsername} onChange={e => setGiftSubUsername(e.target.value)} style={{ margin: "0 0 18px" }} />
+          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: .6, display: "block", marginBottom: 8 }}>Quantity</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 22 }}>
+            {[[1, "1,000"], [3, "3,000"], [5, "5,000"]].map(([qty, cost]) => (
+              <button key={qty} onClick={() => setGiftSubQty(qty)} style={{ flex: 1, background: giftSubQty === qty ? "rgba(168,85,247,.15)" : "var(--ink3)", border: `1px solid ${giftSubQty === qty ? "rgba(168,85,247,.5)" : "var(--line)"}`, color: giftSubQty === qty ? "#a855f7" : "var(--muted)", borderRadius: 12, padding: "12px 0", cursor: "pointer", transition: "all .15s" }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: giftSubQty === qty ? "#a855f7" : "#fff" }}>{qty}</div>
+                <div style={{ fontSize: 10, marginTop: 3, color: "var(--muted)" }}>{cost} 🪙</div>
+              </button>
+            ))}
+          </div>
+          <button onClick={handleGiftSub} disabled={giftingSubTo || coinsRef.current < giftSubQty * 1000} className="btn-g" style={{ width: "100%", padding: 14, fontSize: 15, opacity: coinsRef.current < giftSubQty * 1000 ? .5 : 1 }}>
+            {giftingSubTo ? "Gifting…" : `Gift ${giftSubQty} Sub${giftSubQty > 1 ? "s" : ""} · ${(giftSubQty * 1000).toLocaleString()} 🪙`}
+          </button>
+          {coinsRef.current < giftSubQty * 1000 && (
+            <div style={{ textAlign: "center", fontSize: 12, color: "var(--red)", marginTop: 8 }}>
+              Need {(giftSubQty * 1000 - coinsRef.current).toLocaleString()} more coins
+            </div>
+          )}
+          <button onClick={() => setShowGiftSubModal(false)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", padding: 8 }}>Cancel</button>
+        </div>
+      </div>
+    )}
 
     {/* CLIP MODAL */}
     {showClipModal && (
