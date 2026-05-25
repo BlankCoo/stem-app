@@ -1251,39 +1251,112 @@ export default function App() {
 
     {/* DASHBOARD */}
     {page === "dash" && <div className="dash-page page">
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 3 }}>Dashboard</div>
-          <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "Streamer"}! Your stats this month.</div>
-        </div>
-        {isStreaming ? (
-          <button className="btn-red" onClick={handleEndStream} style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 22px" }}>
-            <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
-          </button>
-        ) : (
-          <button className="btn-g" style={{ background: "linear-gradient(135deg,var(--red),#ff6b35)", boxShadow: "0 4px 15px rgba(255,45,85,.3)", display: "flex", alignItems: "center", gap: 7, padding: "11px 22px" }} onClick={() => { setGoLiveStep(1); setShowGoLive(true); }}>
-            <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live
-          </button>
-        )}
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 3 }}>Creator Dashboard</div>
+        <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "Streamer"}! Ready to go live and get paid?</div>
       </div>
 
-      {/* Live now banner */}
-      {isStreaming && (
-        <div className="live-banner" style={{ marginBottom: 20 }}>
-          <div className="live-dot" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>You are LIVE — "{goLiveForm.title}"</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>{goLiveForm.category} · Viewers can find you on the Discover page</div>
+      {/* GO LIVE HERO — dominant element */}
+      {isStreaming ? (
+        <div style={{ background: "linear-gradient(135deg,rgba(255,45,85,.15),rgba(255,107,53,.1))", border: "1px solid rgba(255,45,85,.4)", borderRadius: 20, padding: "22px 24px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,var(--red),#ff6b35)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 12, height: 12, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
+              <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, letterSpacing: .5, color: "var(--red)" }}>LIVE NOW</span>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>"{goLiveForm.title}"</span>
+            <span style={{ fontSize: 12, color: "var(--muted)", background: "rgba(255,255,255,.06)", borderRadius: 6, padding: "3px 8px" }}>{goLiveForm.category}</span>
           </div>
-          <button onClick={() => go("disc")} style={{ background: "none", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer" }}>View Stream</button>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18 }}>Your stream is live — viewers can find you on the Discover page. Open OBS and start streaming if you haven't already.</div>
+          {muxStreamKey && (
+            <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700, letterSpacing: .5, textTransform: "uppercase" }}>Stream Key</span>
+              <span style={{ fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,.6)", flex: 1, wordBreak: "break-all" }}>{muxStreamKey.slice(0, 24)}•••</span>
+              <button onClick={() => { navigator.clipboard?.writeText(muxStreamKey); notify("Stream key copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={() => go("disc")} className="btn-g" style={{ flex: 1, minWidth: 120 }}>View on Discover</button>
+            <button onClick={handleEndStream} className="btn-red" style={{ flex: 1, minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+              <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.10))", border: "2px dashed rgba(255,45,85,.35)", borderRadius: 20, padding: "32px 28px", marginBottom: 20, textAlign: "center", position: "relative", overflow: "hidden" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎙</div>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 32, letterSpacing: 1, marginBottom: 8 }}>Ready to Stream?</div>
+          <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24, maxWidth: 380, margin: "0 auto 24px" }}>
+            Go live in seconds. Your viewers earn coins while they watch — the more engaged your audience, the more everyone earns.
+          </div>
+          <button
+            onClick={() => { setGoLiveStep(1); setShowGoLive(true); }}
+            style={{ background: "linear-gradient(135deg,var(--red),#ff6b35)", color: "#fff", border: "none", borderRadius: 14, padding: "16px 40px", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 30px rgba(255,45,85,.4)", display: "inline-flex", alignItems: "center", gap: 10, letterSpacing: .3 }}
+          >
+            <span style={{ width: 10, height: 10, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />
+            Go Live Now
+          </button>
+          <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
+            {[["⚡", "Instant setup"], ["🪙", "Earn from stream 1"], ["📡", "Real RTMP via OBS"]].map(([icon, label]) => (
+              <div key={label} style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", gap: 5 }}>
+                <span>{icon}</span>{label}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="kpis">
-        {[["r", "Revenue", "$842", "up 24%"], ["g", "Avg Viewers", "1,284", "up 11%"], ["y", "Subscribers", "312", "28 new"], ["b", "Hours Live", "84h", "21 sessions"]].map(([col, l, v, ch]) => (
+      {/* KPIs */}
+      <div className="kpis" style={{ marginBottom: 16 }}>
+        {[["r", "Revenue", "$842", "↑ 24%"], ["g", "Avg Viewers", "1,284", "↑ 11%"], ["y", "Subscribers", "312", "28 new"], ["b", "Hours Live", "84h", "21 sessions"]].map(([col, l, v, ch]) => (
           <div key={l} className={`kpi ${col}`}><div className="kpi-l">{l}</div><div className="kpi-v">{v}</div><div className="kpi-ch">{ch}</div></div>
         ))}
       </div>
+
+      {/* Revenue Earnings Calculator */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd"><span className="panel-title">Earnings Calculator</span><span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700 }}>Estimate your income</span></div>
+        <div style={{ padding: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+            {[["50 viewers", "$2.40/hr", "Small stream"], ["500 viewers", "$24/hr", "Growing"], ["5,000 viewers", "$240/hr", "Established"]].map(([v, earn, l]) => (
+              <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{v}</div>
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, color: "var(--green)" }}>{earn}</div>
+                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center" }}>Ad revenue split: 40% you · 40% STEM · 20% your viewers</div>
+        </div>
+      </div>
+
+      {/* STEM vs Twitch/Kick */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd"><span className="panel-title">Why Creators Choose STEM</span></div>
+        <div style={{ padding: "8px 16px 16px" }}>
+          {[
+            ["✅", "Earn from your very first stream", "No 50-follower or 500-hour minimum like Twitch"],
+            ["✅", "Your viewers earn too", "Viewers get paid to watch — they stay longer, engage more"],
+            ["✅", "40% ad revenue share", "Twitch pays 50% only to Partners. STEM pays everyone 40%"],
+            ["✅", "Real RTMP streaming via OBS", "Use the same pro setup as any Twitch/Kick streamer"],
+            ["🔜", "Clip-to-Earn", "Viewers earn bonus coins when their clips go viral — you earn too"],
+            ["🔜", "Prediction Markets", "Viewers bet coins on in-stream outcomes — more engagement"],
+            ["🔜", "Viewer Bounties", "Set coin rewards for challenges — 'first to raid gets 500 coins'"],
+            ["🔜", "Co-streaming + Revenue Split", "Stream with a partner and split earnings automatically"],
+          ].map(([status, title, desc]) => (
+            <div key={title} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{status}</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, color: status === "🔜" ? "var(--muted)" : "#fff" }}>{title}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Breakdown */}
       <div className="panel">
         <div className="panel-hd"><span className="panel-title">Revenue Breakdown</span><span style={{ fontSize: 12, color: "var(--muted)" }}>This month</span></div>
         <div style={{ padding: 16 }}>
@@ -1291,23 +1364,6 @@ export default function App() {
             <div key={l} style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}><span style={{ fontSize: 13, color: "var(--muted)" }}>{l}</span><span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span></div>
               <div style={{ background: "var(--ink4)", borderRadius: 4, height: 6, overflow: "hidden" }}><div style={{ width: `${p}%`, height: "100%", borderRadius: 4, background: c }} /></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Ad Revenue Split</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 14 }}>
-            <div style={{ flex: 40, background: "var(--green)", borderRadius: 4 }} />
-            <div style={{ flex: 40, background: "var(--red)", borderRadius: 4 }} />
-            <div style={{ flex: 20, background: "rgba(255,255,255,.2)", borderRadius: 4 }} />
-          </div>
-          {[["var(--green)", "You (streamer)", "40%"], ["var(--red)", "STEM platform", "40%"], ["rgba(255,255,255,.4)", "Your viewers", "20%"]].map(([c, l, v]) => (
-            <div key={l} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <div style={{ width: 9, height: 9, borderRadius: 3, background: c, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>{l}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: c }}>{v}</span>
             </div>
           ))}
         </div>
