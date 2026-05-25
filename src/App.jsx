@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import MuxPlayer from "@mux/mux-player-react";
 import { supabase } from "./supabase";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
@@ -278,11 +279,17 @@ export default function App() {
 
   // Go Live state
   const [showGoLive, setShowGoLive] = useState(false);
+  const [goLiveStep, setGoLiveStep] = useState(1); // 1=form, 2=OBS setup
   const [goLiveForm, setGoLiveForm] = useState({ title: "", category: "Gaming" });
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingGoLive, setSavingGoLive] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+
+  // Mux state
+  const [muxStreamId, setMuxStreamId] = useState("");
+  const [muxStreamKey, setMuxStreamKey] = useState("");
+  const [muxPlaybackId, setMuxPlaybackId] = useState("");
 
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
@@ -374,6 +381,8 @@ export default function App() {
     if (data) {
       setIsStreaming(true);
       setGoLiveForm({ title: data.title, category: data.category });
+      setMuxStreamId(data.mux_stream_id || "");
+      setMuxPlaybackId(data.mux_playback_id || "");
     } else {
       setIsStreaming(false);
     }
@@ -624,23 +633,58 @@ export default function App() {
   const handleGoLive = async () => {
     if (!goLiveForm.title.trim()) { notify("Enter a stream title first!"); return; }
     setSavingGoLive(true);
-    const { error } = await supabase.from("streams").upsert({
-      user_id: user.id,
-      title: goLiveForm.title.trim(),
-      category: goLiveForm.category,
-      status: "live",
-      streamer_name: profile?.full_name || profile?.username || "Streamer",
-      viewer_count: 0,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
-    if (error) { notify("Error going live — check Supabase tables"); console.error(error); }
-    else { setIsStreaming(true); setShowGoLive(false); notify("You are LIVE! Viewers can see you now."); }
+    try {
+      // Create Mux live stream
+      const res = await fetch("/api/mux-create", { method: "POST" });
+      const muxData = await res.json();
+      if (!res.ok || muxData.error) throw new Error(muxData.error || "Failed to create Mux stream");
+
+      const { streamId, streamKey, playbackId, rtmpUrl } = muxData;
+
+      // Save stream to Supabase with Mux IDs
+      const { error } = await supabase.from("streams").upsert({
+        user_id: user.id,
+        title: goLiveForm.title.trim(),
+        category: goLiveForm.category,
+        status: "live",
+        streamer_name: profile?.full_name || profile?.username || "Streamer",
+        viewer_count: 0,
+        mux_stream_id: streamId,
+        mux_playback_id: playbackId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+
+      if (error) throw new Error(error.message);
+
+      setMuxStreamId(streamId);
+      setMuxStreamKey(streamKey);
+      setMuxPlaybackId(playbackId);
+      setIsStreaming(true);
+      setGoLiveStep(2);
+    } catch (err) {
+      notify(`Error: ${err.message}`);
+      console.error(err);
+    }
     setSavingGoLive(false);
   };
 
   const handleEndStream = async () => {
-    const { error } = await supabase.from("streams").update({ status: "offline", updated_at: new Date().toISOString() }).eq("user_id", user.id);
-    if (!error) { setIsStreaming(false); notify("Stream ended."); }
+    if (muxStreamId) {
+      await fetch("/api/mux-end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ muxStreamId }),
+      });
+    }
+    await supabase.from("streams").update({
+      status: "offline",
+      mux_stream_id: null,
+      mux_playback_id: null,
+      updated_at: new Date().toISOString(),
+    }).eq("user_id", user.id);
+    setIsStreaming(false);
+    setMuxStreamId(""); setMuxStreamKey(""); setMuxPlaybackId("");
+    notify("Stream ended.");
   };
 
   const switchMode = async (newMode) => {
@@ -687,6 +731,7 @@ export default function App() {
       color: meta.color,
       bg: meta.bg,
       isRealStream: true,
+      mux_playback_id: s.mux_playback_id || null,
     };
   };
 
@@ -929,13 +974,23 @@ export default function App() {
     {page === "stream" && stream && <div className="slayout" style={{ paddingTop: 56 }}>
       <div className="sleft">
         <div className="splayer">
-          <div className="splayer-inner" style={{ background: `linear-gradient(${stream.bg})` }}>
-            <div className="splayer-emoji">{stream.emoji}</div>
-            <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              <span className="lpip" style={{ fontSize: 12, padding: "5px 14px" }}><span className="lpip-dot" />LIVE — {stream.viewers.toLocaleString()}</span>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>Earning coins while you watch</span>
+          {stream.mux_playback_id ? (
+            <MuxPlayer
+              playbackId={stream.mux_playback_id}
+              streamType="live"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+              autoPlay
+              muted
+            />
+          ) : (
+            <div className="splayer-inner" style={{ background: `linear-gradient(${stream.bg})` }}>
+              <div className="splayer-emoji">{stream.emoji}</div>
+              <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <span className="lpip" style={{ fontSize: 12, padding: "5px 14px" }}><span className="lpip-dot" />LIVE — {stream.viewers.toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>Earning coins while you watch</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="sbelow">
           <div className="stitle">{stream.title}</div>
@@ -1179,7 +1234,7 @@ export default function App() {
             <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
           </button>
         ) : (
-          <button className="btn-g" style={{ background: "linear-gradient(135deg,var(--red),#ff6b35)", boxShadow: "0 4px 15px rgba(255,45,85,.3)", display: "flex", alignItems: "center", gap: 7, padding: "11px 22px" }} onClick={() => setShowGoLive(true)}>
+          <button className="btn-g" style={{ background: "linear-gradient(135deg,var(--red),#ff6b35)", boxShadow: "0 4px 15px rgba(255,45,85,.3)", display: "flex", alignItems: "center", gap: 7, padding: "11px 22px" }} onClick={() => { setGoLiveStep(1); setShowGoLive(true); }}>
             <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live
           </button>
         )}
@@ -1234,33 +1289,77 @@ export default function App() {
 
     {/* GO LIVE MODAL */}
     {showGoLive && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowGoLive(false)}>
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && goLiveStep === 1 && setShowGoLive(false)}>
         <div className="modal-box">
-          <div className="modal-title">Go Live</div>
-          <div className="modal-sub">Share your stream with the world — viewers will see you on Discover in real time.</div>
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Stream Title</label>
-          <input
-            className="fi"
-            placeholder="e.g. Ranked Grind to Diamond, Cooking Pasta Live..."
-            value={goLiveForm.title}
-            onChange={e => setGoLiveForm({ ...goLiveForm, title: e.target.value })}
-            onKeyDown={e => e.key === "Enter" && handleGoLive()}
-            autoFocus
-          />
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Category</label>
-          <select
-            className="select-fi"
-            value={goLiveForm.category}
-            onChange={e => setGoLiveForm({ ...goLiveForm, category: e.target.value })}
-          >
-            {STREAM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button onClick={() => setShowGoLive(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleGoLive} disabled={savingGoLive} style={{ flex: 2, background: "linear-gradient(135deg,var(--red),#ff6b35)", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingGoLive ? "not-allowed" : "pointer", opacity: savingGoLive ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {savingGoLive ? <div className="spinner" /> : <><span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live Now</>}
-            </button>
-          </div>
+          {goLiveStep === 1 ? (<>
+            <div className="modal-title">Go Live</div>
+            <div className="modal-sub">Share your stream with the world — viewers will see you on Discover in real time.</div>
+            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Stream Title</label>
+            <input
+              className="fi"
+              placeholder="e.g. Ranked Grind to Diamond, Cooking Pasta Live..."
+              value={goLiveForm.title}
+              onChange={e => setGoLiveForm({ ...goLiveForm, title: e.target.value })}
+              onKeyDown={e => e.key === "Enter" && handleGoLive()}
+              autoFocus
+            />
+            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Category</label>
+            <select
+              className="select-fi"
+              value={goLiveForm.category}
+              onChange={e => setGoLiveForm({ ...goLiveForm, category: e.target.value })}
+            >
+              {STREAM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button onClick={() => setShowGoLive(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleGoLive} disabled={savingGoLive} style={{ flex: 2, background: "linear-gradient(135deg,var(--red),#ff6b35)", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingGoLive ? "not-allowed" : "pointer", opacity: savingGoLive ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {savingGoLive ? <div className="spinner" /> : <><span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live Now</>}
+              </button>
+            </div>
+          </>) : (<>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+              <span style={{ width: 10, height: 10, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
+              <div className="modal-title" style={{ fontSize: 22, margin: 0 }}>You're Live!</div>
+            </div>
+            <div className="modal-sub" style={{ marginBottom: 18 }}>Configure OBS (or any encoder) with the details below, then start streaming.</div>
+
+            {/* RTMP URL */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .7, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>RTMP URL</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input readOnly value="rtmps://global-live.mux.com:443/app" className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
+                <button onClick={() => { navigator.clipboard?.writeText("rtmps://global-live.mux.com:443/app"); notify("RTMP URL copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
+              </div>
+            </div>
+
+            {/* Stream Key */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .7, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>Stream Key</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input readOnly value={muxStreamKey} className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
+                <button onClick={() => { navigator.clipboard?.writeText(muxStreamKey); notify("Stream key copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
+              </div>
+            </div>
+
+            {/* OBS steps */}
+            <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 12, color: "var(--muted)", lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, color: "#fff", marginBottom: 6 }}>OBS Setup</div>
+              1. Open OBS → Settings → Stream<br />
+              2. Service: <strong style={{ color: "#fff" }}>Custom</strong><br />
+              3. Paste the RTMP URL and Stream Key above<br />
+              4. Click OK, then <strong style={{ color: "#fff" }}>Start Streaming</strong>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setShowGoLive(false); setGoLiveStep(1); }} style={{ flex: 1, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                Close — I'm Streaming
+              </button>
+              <button onClick={async () => { await handleEndStream(); setShowGoLive(false); setGoLiveStep(1); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>
+                End Stream
+              </button>
+            </div>
+          </>)}
         </div>
       </div>
     )}
