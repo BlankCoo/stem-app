@@ -267,6 +267,19 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .mod-menu{position:absolute;right:0;top:100%;background:var(--ink2);border:1px solid var(--line2);border-radius:10px;z-index:60;width:150px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.6)}
 .mod-menu-btn{width:100%;background:none;border:none;padding:10px 14px;cursor:pointer;text-align:left;font-size:13px;font-family:'Outfit',sans-serif;transition:background .12s;display:block}
 .mod-menu-btn:hover{background:rgba(255,255,255,.05)}
+@keyframes alertSlide{0%{transform:translateY(-110%);opacity:0}8%{transform:translateY(0);opacity:1}80%{transform:translateY(0);opacity:1}100%{transform:translateY(-110%);opacity:0}}
+@keyframes hypePulse{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes trainScroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.stream-alert{position:absolute;top:0;left:0;right:0;z-index:25;background:linear-gradient(90deg,rgba(124,58,237,.94),rgba(255,45,85,.88));backdrop-filter:blur(10px);padding:11px 16px;display:flex;align-items:center;gap:10px;animation:alertSlide 4.2s ease forwards;pointer-events:none}
+.hype-wrap{margin-bottom:10px}
+.hype-bar{height:7px;background:var(--ink4);border-radius:4px;overflow:hidden;margin-bottom:5px}
+.hype-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--orange),var(--red));transition:width .5s ease}
+.hype-celebrate{background:linear-gradient(90deg,rgba(255,200,0,.18),rgba(255,149,0,.14));border:1px solid rgba(255,200,0,.4);border-radius:12px;padding:9px 14px;text-align:center;font-weight:800;font-size:15px;letter-spacing:.3px;animation:hypePulse .7s infinite;overflow:hidden;position:relative}
+.react-bar{display:flex;gap:5px;padding:8px 0 4px;border-top:1px solid var(--line);margin-top:4px}
+.react-btn{background:var(--ink3);border:1px solid var(--line);color:#fff;border-radius:20px;padding:4px 0;font-size:18px;cursor:pointer;transition:all .15s;flex:1;text-align:center}
+.react-btn:hover,.react-btn:active{background:var(--ink4);transform:scale(1.18)}
+.admin-page{padding:20px 16px;padding-bottom:80px;max-width:720px;margin:0 auto}
+.raid-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .slow-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,149,0,.1);border:1px solid rgba(255,149,0,.2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px}
 .fs-btn{position:absolute;bottom:10px;right:10px;z-index:20;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;backdrop-filter:blur(6px);transition:background .15s}
 .fs-btn:hover{background:rgba(0,0,0,.85)}
@@ -384,6 +397,26 @@ export default function App() {
   const [vProfile, setVProfile] = useState(null);
   const [vProfileTxns, setVProfileTxns] = useState([]);
   const [loadingVProfile, setLoadingVProfile] = useState(false);
+
+  // On-stream alerts overlay
+  const [streamAlert, setStreamAlert] = useState(null);
+  const streamAlertRef = useRef(null);
+
+  // Hype Train
+  const [hypeProgress, setHypeProgress] = useState(0);
+  const [hypeCelebrating, setHypeCelebrating] = useState(false);
+  const hypeGiftsRef = useRef([]);
+
+  // Raid system
+  const [showRaidModal, setShowRaidModal] = useState(false);
+  const [raidTargets, setRaidTargets] = useState([]);
+
+  // Admin panel
+  const [adminWithdrawals, setAdminWithdrawals] = useState([]);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+
+  // Real streamer stats
+  const [streamerStats, setStreamerStats] = useState({ streamCount: 0 });
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
@@ -729,6 +762,74 @@ export default function App() {
     setTimeout(() => setGiftAnims(a => a.filter(g => g.id !== id)), 2600);
   };
 
+  // ── On-stream alert overlay ──────────────────────────────
+  const showStreamAlert = (msg, emoji, sub = "") => {
+    setStreamAlert({ msg, emoji, sub });
+    if (streamAlertRef.current) clearTimeout(streamAlertRef.current);
+    streamAlertRef.current = setTimeout(() => setStreamAlert(null), 4200);
+  };
+
+  // ── Hype Train ───────────────────────────────────────────
+  const addHype = (coins) => {
+    const now = Date.now();
+    hypeGiftsRef.current = [...hypeGiftsRef.current.filter(g => now - g.time < 60000), { amount: coins, time: now }];
+    const total = hypeGiftsRef.current.reduce((s, g) => s + g.amount, 0);
+    const progress = Math.min(100, Math.round(total / 50)); // 5000 coins = 100%
+    setHypeProgress(progress);
+    if (progress >= 100) {
+      setHypeCelebrating(true);
+      setTimeout(() => { setHypeCelebrating(false); setHypeProgress(0); hypeGiftsRef.current = []; }, 5000);
+    }
+  };
+
+  // ── Real streamer stats ──────────────────────────────────
+  const fetchStreamerStats = async () => {
+    if (!user) return;
+    const { count } = await supabase.from("streams").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    setStreamerStats({ streamCount: count || 0 });
+  };
+
+  // ── Admin withdrawal management ──────────────────────────
+  const fetchAdminWithdrawals = async () => {
+    setLoadingAdmin(true);
+    const { data } = await supabase
+      .from("withdrawal_requests")
+      .select("*, profiles(username, full_name, coins)")
+      .order("created_at", { ascending: false });
+    setAdminWithdrawals(data || []);
+    setLoadingAdmin(false);
+  };
+
+  const approveWithdrawal = async (w) => {
+    await supabase.from("withdrawal_requests").update({ status: "paid" }).eq("id", w.id);
+    setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "paid" } : x));
+    notify("Withdrawal approved ✓");
+  };
+
+  const rejectWithdrawal = async (w) => {
+    await supabase.from("profiles").update({ coins: (w.profiles?.coins || 0) + w.amount_coins }).eq("id", w.user_id);
+    await supabase.from("withdrawal_requests").update({ status: "rejected" }).eq("id", w.id);
+    setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "rejected" } : x));
+    notify("Rejected — coins refunded");
+  };
+
+  // ── Raid system ──────────────────────────────────────────
+  const startRaid = async () => {
+    const { data } = await supabase.from("streams").select("id,title,streamer_name,viewer_count,mux_playback_id,category,user_id").eq("status", "live").neq("user_id", user?.id);
+    if (data && data.length > 0) { setRaidTargets(data); setShowRaidModal(true); }
+  };
+
+  const executeRaid = (target) => {
+    setShowRaidModal(false);
+    notify(`Raiding ${target.streamer_name}!`);
+    go("stream", {
+      id: target.id, title: target.title, streamer: target.streamer_name,
+      isRealStream: true, mux_playback_id: target.mux_playback_id,
+      user_id: target.user_id, viewers: target.viewer_count || 0,
+      game: target.category || "Live", bg: "135deg,#1a1a2e,#16213e", emoji: "🎙", color: "#7c3aed",
+    });
+  };
+
   // ── Viewer profiles ──────────────────────────────────────
   const viewVProfile = async (userId) => {
     if (!userId) return;
@@ -945,7 +1046,8 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerStats(); }
+    if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") fetchUpcomingSchedule();
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
     if (page === "stream" && stream?.id) { fetchStreamClips(stream.id); if (stream.user_id) fetchStreamEmotes(stream.user_id); }
@@ -1055,6 +1157,7 @@ export default function App() {
             supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
             logTransaction("follow", earned, `Followed ${stream.streamer}`);
             notify(`+${earned} coins for following!`);
+            showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "❤️", stream.streamer);
           }
         }
       } else {
@@ -1109,6 +1212,8 @@ export default function App() {
     logTransaction("gift_sent", -c, `Sent ${name} to ${stream.streamer}`);
     notify(`${name} sent!`);
     triggerGiftAnim(emoji, name);
+    showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} sent a ${name}!`, emoji, `${c.toLocaleString()} coins`);
+    addHype(c);
   };
 
   const handleGoLive = async () => {
@@ -1166,6 +1271,7 @@ export default function App() {
     setIsStreaming(false);
     setMuxStreamId(""); setMuxStreamKey(""); setMuxPlaybackId("");
     notify("Stream ended.");
+    startRaid();
   };
 
   const switchMode = async (newMode) => {
@@ -1285,7 +1391,7 @@ export default function App() {
             : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Profile"]]
           ).map(([p, l]) => (
             <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
-          ))
+          )).concat(user?.email === "blankcoojnr@gmail.com" ? [<button key="admin" className={`nl ${page === "admin" ? "on" : ""}`} style={{ color: "var(--red)" }} onClick={() => setPage("admin")}>⚙ Admin</button>] : [])
         ) : (
           <>
             <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Home</button>
@@ -1384,7 +1490,11 @@ export default function App() {
                   <span className="bn-label">{l}</span>
                 </button>
               );
-            })
+            }).concat(user?.email === "blankcoojnr@gmail.com" ? [
+              <button key="admin" className={`bn-item ${page === "admin" ? "on" : ""}`} onClick={() => setPage("admin")} style={{ color: page === "admin" ? "var(--red)" : "var(--muted)" }}>
+                <span className="bn-icon">⚙️</span><span className="bn-label">Admin</span>
+              </button>
+            ] : [])
           ) : (
             <>
               <button className={`bn-item ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>
@@ -1617,6 +1727,16 @@ export default function App() {
     {page === "stream" && stream && <div className="slayout" style={{ paddingTop: 56 }}>
       <div className="sleft">
         <div className="splayer">
+          {/* Stream alert overlay */}
+          {streamAlert && (
+            <div className="stream-alert">
+              <span style={{ fontSize: 28, flexShrink: 0 }}>{streamAlert.emoji}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{streamAlert.msg}</div>
+                {streamAlert.sub && <div style={{ fontSize: 11, color: "rgba(255,255,255,.7)", marginTop: 2 }}>{streamAlert.sub}</div>}
+              </div>
+            </div>
+          )}
           {/* Back button — always visible over the player */}
           <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
             ← Home
@@ -1707,11 +1827,33 @@ export default function App() {
               </div>
             </div>
           )}
+          {/* Hype Train */}
+          {hypeProgress > 0 && (
+            <div className="hype-wrap">
+              {hypeCelebrating ? (
+                <div className="hype-celebrate">🚂 HYPE TRAIN! Keep it going! 🔥</div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>🚂 Hype Train</span>
+                    <span style={{ fontSize: 11, color: "var(--muted)" }}>{hypeProgress}%</span>
+                  </div>
+                  <div className="hype-bar"><div className="hype-bar-fill" style={{ width: `${hypeProgress}%` }} /></div>
+                </>
+              )}
+            </div>
+          )}
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Send a gift</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {[["🌟", "Star", "1,000"], ["🏆", "Trophy", "5,000"], ["👑", "Crown", "10,000"], ["🚀", "Rocket", "2,500"]].map(([e, n, c]) => (
                 <div key={n} className="gift" onClick={() => sendGift(n, c, e)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
+              ))}
+            </div>
+            {/* Quick reactions — free, just for fun */}
+            <div className="react-bar">
+              {["👍","❤️","😂","😮","🔥"].map(e => (
+                <button key={e} className="react-btn" onClick={() => triggerGiftAnim(e, "")}>{e}</button>
               ))}
             </div>
           </div>
@@ -2149,9 +2291,14 @@ export default function App() {
         </div>
       )}
 
-      {/* KPIs */}
+      {/* KPIs — real data */}
       <div className="kpis" style={{ marginBottom: 16 }}>
-        {[["r", "Revenue", "$842", "↑ 24%"], ["g", "Avg Viewers", "1,284", "↑ 11%"], ["y", "Subscribers", "312", "28 new"], ["b", "Hours Live", "84h", "21 sessions"]].map(([col, l, v, ch]) => (
+        {[
+          ["r", "Balance", `$${(coins / 1000).toFixed(2)}`, `${coins.toLocaleString()} coins`],
+          ["g", "Followers", (profile?.follower_count || 0).toLocaleString(), "total followers"],
+          ["y", "Total Earned", `$${(profile?.total_earned || 0).toFixed(2)}`, "lifetime"],
+          ["b", "Streams", streamerStats.streamCount.toLocaleString(), "total broadcasts"],
+        ].map(([col, l, v, ch]) => (
           <div key={l} className={`kpi ${col}`}><div className="kpi-l">{l}</div><div className="kpi-v">{v}</div><div className="kpi-ch">{ch}</div></div>
         ))}
       </div>
@@ -2320,6 +2467,64 @@ export default function App() {
         </div>
       )}
     </div>}
+
+    {/* ADMIN PANEL */}
+    {page === "admin" && user?.email === "blankcoojnr@gmail.com" && (
+      <div className="admin-page page">
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Admin Panel</div>
+        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24 }}>Manage withdrawal requests</div>
+        <div className="panel">
+          <div className="panel-hd">
+            <span className="panel-title">💸 Withdrawal Requests</span>
+            <button onClick={fetchAdminWithdrawals} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+          </div>
+          {loadingAdmin ? (
+            <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+          ) : adminWithdrawals.length === 0 ? (
+            <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
+              <div style={{ fontSize: 13 }}>No withdrawal requests yet.</div>
+            </div>
+          ) : (
+            <div>
+              {adminWithdrawals.map(w => {
+                const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
+                const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
+                return (
+                  <div key={w.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>
+                          {w.profiles?.full_name || w.profiles?.username || "Unknown"}
+                          <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>@{w.profiles?.username}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 2 }}>{w.paypal_email}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                          {w.amount_coins?.toLocaleString()} coins → <strong style={{ color: "#fff" }}>${Number(w.net_usd).toFixed(2)}</strong>
+                          <span style={{ marginLeft: 6, opacity: .6 }}>(fee ${Number(w.fee_usd).toFixed(2)})</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{new Date(w.created_at).toLocaleString()}</div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: sc[w.status], background: `${sc[w.status]}18`, border: `1px solid ${sc[w.status]}44`, borderRadius: 20, padding: "3px 12px" }}>
+                          {sl[w.status] || w.status}
+                        </span>
+                        {w.status === "pending" && (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => approveWithdrawal(w)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                            <button onClick={() => rejectWithdrawal(w)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
 
     {/* VIEWER PROFILE PAGE */}
     {page === "vprofile" && (
@@ -2813,6 +3018,35 @@ export default function App() {
           <button onClick={() => setShowSignupPrompt(false)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", marginTop: 14 }}>
             Continue watching without account
           </button>
+        </div>
+      </div>
+    )}
+
+    {/* RAID MODAL */}
+    {showRaidModal && (
+      <div className="raid-overlay" onClick={() => setShowRaidModal(false)}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 20, padding: 24, width: "100%", maxWidth: 460 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, letterSpacing: 1, marginBottom: 6 }}>🚂 Raid a Channel</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>Send your viewers to another live stream.</div>
+          {raidTargets.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>😴</div>
+              <div style={{ fontSize: 13 }}>No other live streams right now.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              {raidTargets.map(t => (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{t.streamer_name}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.title} · {(t.viewer_count || 0).toLocaleString()} viewers</div>
+                  </div>
+                  <button onClick={() => executeRaid(t)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Raid →</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={() => setShowRaidModal(false)} style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 12, fontSize: 14, cursor: "pointer" }}>Skip Raid</button>
         </div>
       </div>
     )}
