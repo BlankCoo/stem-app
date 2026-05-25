@@ -945,7 +945,7 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); }
     if (page === "disc") fetchUpcomingSchedule();
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
     if (page === "stream" && stream?.id) { fetchStreamClips(stream.id); if (stream.user_id) fetchStreamEmotes(stream.user_id); }
@@ -1282,7 +1282,7 @@ export default function App() {
         {user ? (
           (mode === "viewer"
             ? [["disc", "Home"], ["leaderboard", "Top Earners"], ["wallet", "Wallet"], ["profile", "Profile"]]
-            : [["disc", "Home"], ["dash", "Dashboard"], ["profile", "Profile"]]
+            : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Profile"]]
           ).map(([p, l]) => (
             <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
           ))
@@ -1363,7 +1363,7 @@ export default function App() {
           {user ? (
             (mode === "viewer"
               ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["profile", "👤", "Me"]]
+              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
             ).map(([p, icon, l]) => {
               const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard");
               return (
@@ -1893,11 +1893,11 @@ export default function App() {
         <div style={{ fontSize: 36 }}>{streakDays >= 14 ? "🔥" : streakDays >= 7 ? "🔥" : streakDays >= 3 ? "🔥" : streakDays >= 1 ? "🌱" : "💤"}</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3, color: streakDays >= 3 ? "var(--orange)" : "#fff" }}>
-            {streakDays === 0 ? "No active streak" : `${streakDays}-day watch streak`}
+            {streakDays === 0 ? "No active streak" : `${streakDays}-day ${mode === "streamer" ? "stream" : "watch"} streak`}
           </div>
           <div style={{ fontSize: 12, color: "var(--muted)" }}>
-            {streakDays === 0 && "Watch a stream today to start your streak and earn bonus coins."}
-            {streakDays === 1 && "Watch tomorrow to keep your streak going!"}
+            {streakDays === 0 && (mode === "streamer" ? "Go live today to start your streak and earn bonus coins." : "Watch a stream today to start your streak and earn bonus coins.")}
+            {streakDays === 1 && (mode === "streamer" ? "Stream tomorrow to keep your streak going!" : "Watch tomorrow to keep your streak going!")}
             {streakDays === 2 && "One more day for a 1.25x coin bonus!"}
             {streakDays >= 3 && streakDays < 7 && `+${getStreakBonus(streakDays)}% coin speed active · ${7 - streakDays} days to 1.5x`}
             {streakDays >= 7 && streakDays < 14 && `+${getStreakBonus(streakDays)}% coin speed active · ${14 - streakDays} days to 2x`}
@@ -1922,12 +1922,12 @@ export default function App() {
           <div className="wcard-l">STEM Coins</div>
           <div className="wcard-v">🪙 {coins.toLocaleString()}</div>
           <div className="wcard-sub">1,000 coins = $1.00 · 2% fee</div>
-          <button className="wbtn" style={{ background: "var(--gold)" }} onClick={() => go("stream", DEMO_STREAMS[0])}>Earn Coins</button>
+          <button className="wbtn" style={{ background: "var(--gold)" }} onClick={() => mode === "streamer" ? go("dash") : go("stream", DEMO_STREAMS[0])}>{mode === "streamer" ? "Go Live" : "Earn Coins"}</button>
         </div>
         <div className="wcard p">
           <div className="wcard-l">Total Earned</div>
           <div className="wcard-v">${(profile?.total_earned || 0).toFixed(2)}</div>
-          <div className="wcard-sub">Watching, chatting, referrals</div>
+          <div className="wcard-sub">{mode === "streamer" ? "Streaming, gifts, referrals" : "Watching, chatting, referrals"}</div>
           <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))" }} onClick={() => notify("Premium 2x earnings coming soon!")}>Get Premium</button>
         </div>
       </div>
