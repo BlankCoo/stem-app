@@ -351,7 +351,12 @@ export default function App() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); }
-      else { setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode(""); }
+      else {
+        setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
+        setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
+        setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
+        setShowScheduleModal(false); setShowGoLive(false); setPage("land");
+      }
     });
 
     // Fetch and subscribe to live streams
@@ -736,15 +741,19 @@ export default function App() {
   const handleLogin = async () => {
     if (!formData.email || !formData.password) { setAuthError("Please enter your email and password"); return; }
     setLoading(true); setAuthError("");
-    const { data, error } = await supabase.auth.signInWithPassword({ email: formData.email, password: formData.password });
-    if (error) { setAuthError(error.message); setLoading(false); return; }
-    if (data.user) {
-      // Use the returned profile data directly — don't rely on stale mode state
-      const profileData = await fetchProfile(data.user.id);
-      notify("Welcome back!");
-      go(profileData?.role === "streamer" ? "dash" : "disc");
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: formData.email, password: formData.password });
+      if (error) { setAuthError(error.message); return; }
+      if (data.user) {
+        const profileData = await fetchProfile(data.user.id);
+        notify("Welcome back!");
+        go(profileData?.role === "streamer" ? "dash" : "disc");
+      }
+    } catch (err) {
+      setAuthError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleForgotPassword = async () => {
@@ -756,8 +765,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    setIsStreaming(false);
     await supabase.auth.signOut();
-    setPage("land"); setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setIsStreaming(false);
     notify("Logged out successfully");
   };
 
