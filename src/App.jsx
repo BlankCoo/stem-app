@@ -252,6 +252,26 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
   .chat-panel-desktop{display:none}
   .hero{padding:30px 16px;min-height:calc(100vh - 56px)}
 }
+@keyframes giftFloat{0%{opacity:1;transform:translateY(0) scale(1)}60%{opacity:1;transform:translateY(-180px) scale(1.3)}100%{opacity:0;transform:translateY(-340px) scale(0.9)}}
+.gift-anim-wrap{position:fixed;inset:0;pointer-events:none;z-index:8000;overflow:hidden}
+.gift-anim-item{position:absolute;bottom:90px;display:flex;flex-direction:column;align-items:center;gap:4px;animation:giftFloat 2.5s ease-out forwards}
+.gift-anim-emoji{font-size:52px;filter:drop-shadow(0 4px 20px rgba(255,200,0,.6))}
+.gift-anim-label{font-size:12px;font-weight:800;color:#fff;background:rgba(0,0,0,.7);border-radius:8px;padding:3px 10px;white-space:nowrap}
+.vprofile-page{padding:20px 16px;padding-bottom:80px;max-width:600px;margin:0 auto}
+.badge-chip{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;margin:3px}
+.trending-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:22px}
+.trending-card{background:linear-gradient(135deg,rgba(255,45,85,.1),rgba(124,58,237,.08));border:1px solid rgba(255,45,85,.25);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .22s;position:relative;padding:14px}
+.trending-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.trend-num{position:absolute;top:8px;right:10px;font-family:'Bebas Neue',sans-serif;font-size:34px;color:rgba(255,255,255,.08);line-height:1}
+.mod-msg-wrap{position:relative;display:flex;align-items:flex-start;gap:6px}
+.mod-menu{position:absolute;right:0;top:100%;background:var(--ink2);border:1px solid var(--line2);border-radius:10px;z-index:60;width:150px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.mod-menu-btn{width:100%;background:none;border:none;padding:10px 14px;cursor:pointer;text-align:left;font-size:13px;font-family:'Outfit',sans-serif;transition:background .12s;display:block}
+.mod-menu-btn:hover{background:rgba(255,255,255,.05)}
+.slow-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,149,0,.1);border:1px solid rgba(255,149,0,.2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px}
+.fs-btn{position:absolute;bottom:10px;right:10px;z-index:20;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;backdrop-filter:blur(6px);transition:background .15s}
+.fs-btn:hover{background:rgba(0,0,0,.85)}
+.viewer-count-pill{position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px)}
+@media(min-width:768px){.vprofile-page{padding:32px 44px}}
 `;
 
 export default function App() {
@@ -346,12 +366,31 @@ export default function App() {
   const [uploadingEmote, setUploadingEmote] = useState(false);
   const [emoteName, setEmoteName] = useState("");
 
+  // Gift animations
+  const [giftAnims, setGiftAnims] = useState([]);
+
+  // Real-time viewer count via presence
+  const [viewerCount, setViewerCount] = useState(0);
+
+  // Chat moderation
+  const [chatBans, setChatBans] = useState(new Set());
+  const [msgMenuId, setMsgMenuId] = useState(null);
+  const [slowModeSecs, setSlowModeSecs] = useState(0); // 0 = off
+  const [slowCooldown, setSlowCooldown] = useState(0); // seconds remaining
+  const [subOnly, setSubOnly] = useState(false);
+
+  // Viewer profile page
+  const [vProfile, setVProfile] = useState(null);
+  const [vProfileTxns, setVProfileTxns] = useState([]);
+  const [loadingVProfile, setLoadingVProfile] = useState(false);
+
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
   const coinsRef = useRef(0);
   const sessRef = useRef(0);
   const prevLiveIdsRef = useRef(new Set());
   const emoteFileRef = useRef(null);
+  const slowTimerRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
@@ -378,7 +417,9 @@ export default function App() {
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
         setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
         setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false);
-        setShowWithdrawModal(false); setWithdrawHistory([]); setPage("land");
+        setShowWithdrawModal(false); setWithdrawHistory([]);
+        setChatBans(new Set()); setSlowModeSecs(0); setSlowCooldown(0); setSubOnly(false);
+        setVProfile(null); setGiftAnims([]); setPage("land");
       }
     });
 
@@ -677,6 +718,66 @@ export default function App() {
     notify("Emote removed");
   };
 
+  // ── Gift animations ─────────────────────────────────────
+  const triggerGiftAnim = (emoji, name) => {
+    const id = Date.now() + Math.random();
+    const x = 15 + Math.random() * 70;
+    setGiftAnims(a => [...a, { id, emoji, name, x }]);
+    setTimeout(() => setGiftAnims(a => a.filter(g => g.id !== id)), 2600);
+  };
+
+  // ── Viewer profiles ──────────────────────────────────────
+  const viewVProfile = async (userId) => {
+    if (!userId) return;
+    setLoadingVProfile(true);
+    const [profRes, txnRes] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+    ]);
+    if (profRes.data) {
+      setVProfile(profRes.data);
+      setVProfileTxns(txnRes.data || []);
+      setPage("vprofile");
+      window.scrollTo(0, 0);
+    }
+    setLoadingVProfile(false);
+  };
+
+  // ── Chat moderation ──────────────────────────────────────
+  const banUser = async (bannedId, bannedName) => {
+    if (!user || !stream?.user_id || user.id !== stream.user_id) return;
+    setChatBans(b => new Set([...b, bannedId]));
+    await supabase.from("chat_bans").upsert({ streamer_id: user.id, banned_user_id: bannedId });
+    notify(`${bannedName} banned from chat`);
+    setMsgMenuId(null);
+  };
+
+  const unbanUser = async (bannedId) => {
+    if (!user) return;
+    setChatBans(b => { const n = new Set(b); n.delete(bannedId); return n; });
+    await supabase.from("chat_bans").delete().eq("streamer_id", user.id).eq("banned_user_id", bannedId);
+    notify("User unbanned");
+  };
+
+  const timeoutUser = (bannedId, bannedName, minutes) => {
+    setChatBans(b => new Set([...b, bannedId]));
+    setTimeout(() => setChatBans(b => { const n = new Set(b); n.delete(bannedId); return n; }), minutes * 60 * 1000);
+    notify(`${bannedName} timed out for ${minutes} min`);
+    setMsgMenuId(null);
+  };
+
+  const startSlowCooldown = () => {
+    if (!slowModeSecs) return;
+    setSlowCooldown(slowModeSecs);
+    if (slowTimerRef.current) clearInterval(slowTimerRef.current);
+    slowTimerRef.current = setInterval(() => {
+      setSlowCooldown(c => {
+        if (c <= 1) { clearInterval(slowTimerRef.current); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
   // Parses :emotename: tokens in a message string into text + <img> elements
   const parseMessage = (text) => {
     if (!streamEmotes.length || !text) return text;
@@ -736,6 +837,31 @@ export default function App() {
     return () => supabase.removeChannel(ch);
   }, [page, stream?.id, stream?.isRealStream]);
 
+  // Presence-based live viewer count
+  useEffect(() => {
+    if (page !== "stream" || !stream?.isRealStream) { setViewerCount(0); return; }
+    const key = user?.id || `guest-${Math.random().toString(36).slice(2)}`;
+    const presenceCh = supabase.channel(`pres-${stream.id}`, { config: { presence: { key } } })
+      .on("presence", { event: "sync" }, () => {
+        setViewerCount(Object.keys(presenceCh.presenceState()).length);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") await presenceCh.track({ joined: Date.now() });
+      });
+    return () => supabase.removeChannel(presenceCh);
+  }, [page, stream?.id, stream?.isRealStream]);
+
+  // Load moderation state when entering a stream as the streamer
+  useEffect(() => {
+    if (page === "stream" && stream?.isRealStream && user?.id === stream?.user_id) {
+      supabase.from("chat_bans").select("banned_user_id").eq("streamer_id", user.id).then(({ data }) => {
+        setChatBans(new Set((data || []).map(b => b.banned_user_id)));
+      });
+      setSlowModeSecs(stream.slow_mode || 0);
+      setSubOnly(stream.sub_only_chat || false);
+    }
+  }, [page, stream?.id]);
+
   // Check follow status whenever we enter a stream (reset first, then query DB)
   useEffect(() => {
     setFollowing(false);
@@ -790,6 +916,7 @@ export default function App() {
         c: m.color || "#ff2d55",
         sc: m.is_superchat,
         amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
+        uid: m.user_id,
       })));
     };
     loadMessages();
@@ -799,6 +926,7 @@ export default function App() {
         setChat(l => [...l, {
           a: m.username, t: m.content, c: m.color || "#ff2d55",
           sc: m.is_superchat, amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
+          uid: m.user_id,
         }]);
       })
       .subscribe();
@@ -945,6 +1073,8 @@ export default function App() {
   const sendChat = async () => {
     if (!requireAuth()) return;
     if (!msg.trim()) return;
+    if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
+    if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
     const nc = coinsRef.current + 10;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
@@ -955,9 +1085,10 @@ export default function App() {
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
     logTransaction("chat", 10, `Chatted in "${stream.title}"`);
     setMsg(""); notify("+10 coins!");
+    startSlowCooldown();
   };
 
-  const sendGift = async (name, cost) => {
+  const sendGift = async (name, cost, emoji = "🎁") => {
     if (!requireAuth()) return;
     const c = parseInt(cost.replace(/,/g, ""));
     if (coinsRef.current < c) { notify("Not enough coins!"); return; }
@@ -970,7 +1101,8 @@ export default function App() {
       content: `Sent a ${name}!`, color: "#ffc800", is_superchat: true, coins_spent: c,
     });
     logTransaction("gift_sent", -c, `Sent ${name} to ${stream.streamer}`);
-    notify(`${name} sent! 🎁`);
+    notify(`${name} sent!`);
+    triggerGiftAnim(emoji, name);
   };
 
   const handleGoLive = async () => {
@@ -1089,11 +1221,13 @@ export default function App() {
     return matchCat && matchSearch;
   });
 
-  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel"].includes(page);
+  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile"].includes(page);
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
   const rankEmoji = (i) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+
+  const isStreamOwner = user?.id === stream?.user_id;
 
   const ChatMessages = () => (
     <>
@@ -1102,11 +1236,31 @@ export default function App() {
           {user ? "Be first to chat! +10 coins per message" : "Sign in to chat and earn coins"}
         </div>
       )}
-      {chat.map((m, i) => (
-        <div key={i} className={`cmsg ${m.sc ? "sc" : ""}`}>
-          {m.sc && <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>}
-          <div className="cmsg-a" style={{ color: m.c }}>{m.a}</div>
-          <div className="cmsg-t">{parseMessage(m.t)}</div>
+      {chat.filter(m => !chatBans.has(m.uid)).map((m, i) => (
+        <div key={i} className={`cmsg ${m.sc ? "sc" : ""} mod-msg-wrap`} style={{ display: "block" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+            <div style={{ flex: 1 }}>
+              {m.sc && <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>}
+              <span className="cmsg-a" style={{ color: m.c, cursor: m.uid ? "pointer" : "default" }}
+                onClick={() => m.uid && viewVProfile(m.uid)}>{m.a}</span>
+              <span className="cmsg-t" style={{ marginLeft: 6 }}>{parseMessage(m.t)}</span>
+            </div>
+            {isStreamOwner && m.uid && m.uid !== user.id && (
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <button onClick={() => setMsgMenuId(msgMenuId === i ? null : i)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px" }}>⋮</button>
+                {msgMenuId === i && (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setMsgMenuId(null)} />
+                    <div className="mod-menu">
+                      <button className="mod-menu-btn" style={{ color: "var(--orange)" }} onClick={() => timeoutUser(m.uid, m.a, 5)}>Timeout 5 min</button>
+                      <button className="mod-menu-btn" style={{ color: "var(--orange)", borderTop: "1px solid var(--line)" }} onClick={() => timeoutUser(m.uid, m.a, 60)}>Timeout 1 hr</button>
+                      <button className="mod-menu-btn" style={{ color: "var(--red)", borderTop: "1px solid var(--line)" }} onClick={() => banUser(m.uid, m.a)}>Ban User</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       ))}
     </>
@@ -1362,9 +1516,34 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Trending section — top 3 by viewers when no filter active */}
+      {!search && cat === "All" && allStreams.length >= 3 && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>🔥 Trending Now</div>
+          <div className="trending-strip">
+            {[...allStreams].sort((a, b) => b.viewers - a.viewers).slice(0, 3).map((s, idx) => (
+              <div key={s.id} className="trending-card" onClick={() => go("stream", s)}>
+                <div className="trend-num">#{idx + 1}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{s.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{s.streamer}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span className="stag">{s.game}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--red)" }}>👁 {s.viewers.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>
-          {search ? `Results for "${search}"` : "🔴 Live Now"}
+          {search ? `Results for "${search}"` : cat !== "All" ? `${cat} Streams` : "🔴 All Live"}
         </span>
         <span style={{ fontSize: 12, color: "var(--muted)" }}>{filteredStreams.length} streams</span>
       </div>
@@ -1407,6 +1586,17 @@ export default function App() {
           <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
             ← Home
           </button>
+          {/* Viewer count pill */}
+          <div className="viewer-count-pill">
+            <span style={{ width: 7, height: 7, background: "var(--red)", borderRadius: "50%", animation: "blink 1.6s infinite", flexShrink: 0 }} />
+            {(viewerCount || stream.viewers || 0).toLocaleString()} watching
+          </div>
+          {/* Fullscreen button */}
+          <button className="fs-btn" title="Fullscreen" onClick={() => {
+            const el = document.querySelector(".splayer");
+            if (!document.fullscreenElement) { (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); }
+            else { (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document); }
+          }}>⛶</button>
           {stream.mux_playback_id ? (
             <MuxPlayer
               playbackId={stream.mux_playback_id}
@@ -1483,7 +1673,7 @@ export default function App() {
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Send a gift</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {[["🌟", "Star", "1,000"], ["🏆", "Trophy", "5,000"], ["👑", "Crown", "10,000"], ["🚀", "Rocket", "2,500"]].map(([e, n, c]) => (
-                <div key={n} className="gift" onClick={() => sendGift(n, c)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
+                <div key={n} className="gift" onClick={() => sendGift(n, c, e)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
               ))}
             </div>
           </div>
@@ -1506,13 +1696,30 @@ export default function App() {
           )}
           {/* Mobile chat */}
           <div className="chat-section">
-            <div className="chat-hd"><span className="chat-hd-title">Live Chat</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{stream.viewers.toLocaleString()}</span></div>
+            <div className="chat-hd">
+              <span className="chat-hd-title">Live Chat</span>
+              <div style={{ display: "flex", align: "center", gap: 8 }}>
+                {isStreamOwner && (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <select value={slowModeSecs} onChange={e => setSlowModeSecs(Number(e.target.value))} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 6, fontSize: 10, padding: "2px 6px", cursor: "pointer" }}>
+                      <option value={0}>No slow</option>
+                      <option value={10}>10s</option>
+                      <option value={30}>30s</option>
+                      <option value={60}>1 min</option>
+                    </select>
+                    <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontWeight: 700 }}>Sub</button>
+                  </div>
+                )}
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>{(viewerCount || stream.viewers || 0).toLocaleString()} 👁</span>
+              </div>
+            </div>
             <div className="chat-msgs" ref={chatRef}><ChatMessages /></div>
             <div className="chat-foot">
               {user ? (
                 <>
+                  {slowCooldown > 0 && <div className="slow-badge">⏱ Slow mode — {slowCooldown}s</div>}
+                  {slowModeSecs > 0 && slowCooldown === 0 && <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>Slow mode: {slowModeSecs}s</div>}
                   <div className="chat-tip">+10 coins per message</div>
-                  {/* Emote picker */}
                   {showEmotePicker && streamEmotes.length > 0 && (
                     <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
                       {streamEmotes.map(e => (
@@ -1524,8 +1731,8 @@ export default function App() {
                     {streamEmotes.length > 0 && (
                       <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                     )}
-                    <input className="chat-in" placeholder={streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
-                    <button className="chat-send" onClick={sendChat}>↑</button>
+                    <input className="chat-in" placeholder={slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0} />
+                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0}>↑</button>
                   </div>
                 </>
               ) : (
@@ -1540,14 +1747,30 @@ export default function App() {
       </div>
       {/* Desktop chat panel — separate ref to fix auto-scroll */}
       <div className="chat-panel-desktop" style={{ display: "none" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-          <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Live Chat</span>
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>{stream.viewers.toLocaleString()}</span>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isStreamOwner ? 8 : 0 }}>
+            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Live Chat</span>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>{(viewerCount || stream.viewers || 0).toLocaleString()} 👁</span>
+          </div>
+          {isStreamOwner && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select value={slowModeSecs} onChange={e => setSlowModeSecs(Number(e.target.value))} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 6, fontSize: 11, padding: "3px 8px", cursor: "pointer", flex: 1 }}>
+                <option value={0}>No slow mode</option>
+                <option value={10}>Slow: 10s</option>
+                <option value={30}>Slow: 30s</option>
+                <option value={60}>Slow: 1 min</option>
+              </select>
+              <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 12px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
+                {subOnly ? "Sub Only ON" : "Sub Only"}
+              </button>
+            </div>
+          )}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }} ref={chatRef2}><ChatMessages /></div>
         <div style={{ padding: 12, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
           {user ? (
             <>
+              {slowCooldown > 0 && <div className="slow-badge" style={{ marginBottom: 6 }}>⏱ Slow mode — wait {slowCooldown}s</div>}
               <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 600, marginBottom: 6 }}>+10 coins per message</div>
               {showEmotePicker && streamEmotes.length > 0 && (
                 <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
@@ -1560,8 +1783,8 @@ export default function App() {
                 {streamEmotes.length > 0 && (
                   <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                 )}
-                <input className="chat-in" placeholder={streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} />
-                <button className="chat-send" onClick={sendChat}>↑</button>
+                <input className="chat-in" placeholder={slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0} />
+                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0}>↑</button>
               </div>
             </>
           ) : (
@@ -1606,7 +1829,7 @@ export default function App() {
             </div>
           ) : (
             leaderboard.map((u, i) => (
-              <div key={u.id} className="lb-row">
+              <div key={u.id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.id)}>
                 <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
                 <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
                 <div style={{ flex: 1 }}>
@@ -2036,7 +2259,103 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Chat Bans */}
+      {chatBans.size > 0 && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div className="panel-hd">
+            <span className="panel-title">🚫 Banned Users</span>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>{chatBans.size} banned</span>
+          </div>
+          <div style={{ padding: 16 }}>
+            {[...chatBans].map(uid => (
+              <div key={uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,45,85,.15)", border: "1px solid rgba(255,45,85,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🚫</div>
+                <div style={{ flex: 1, fontSize: 12, color: "var(--muted)", fontFamily: "monospace" }}>{uid.slice(0, 16)}…</div>
+                <button onClick={() => unbanUser(uid)} style={{ background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.25)", color: "var(--green)", borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Unban</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>}
+
+    {/* VIEWER PROFILE PAGE */}
+    {page === "vprofile" && (
+      <div className="vprofile-page page">
+        {loadingVProfile ? (
+          <div style={{ padding: 60, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+        ) : vProfile ? (() => {
+          const vInitials = vProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
+          const vCoins = vProfile.coins || 0;
+          const vStreak = vProfile.streak_days || 0;
+          const badges = [];
+          if (vCoins >= 100000) badges.push(["🏆", "Whale", "#ffc800", "rgba(255,200,0,.12)"]);
+          if (vCoins >= 10000)  badges.push(["💰", "High Roller", "#00f5a0", "rgba(0,245,160,.1)"]);
+          if (vStreak >= 14)    badges.push(["🔥", "Streak Legend", "#ff9500", "rgba(255,149,0,.12)"]);
+          if (vStreak >= 7)     badges.push(["🔥", "On Fire", "#ff9500", "rgba(255,149,0,.1)"]);
+          if (vStreak >= 3)     badges.push(["✨", "Consistent", "#7c3aed", "rgba(124,58,237,.12)"]);
+          if (vCoins >= 1500 && vCoins < 5000) badges.push(["🌱", "Growing", "#00f5a0", "rgba(0,245,160,.1)"]);
+          return (<>
+            <button onClick={() => setPage("disc")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, display: "flex", alignItems: "center", gap: 5 }}>← Back</button>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, margin: "0 auto 14px" }}>{vInitials}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{vProfile.full_name || "Viewer"}</div>
+              <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>@{vProfile.username || "unknown"}</div>
+              {vProfile.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", maxWidth: 360, margin: "0 auto 10px" }}>{vProfile.bio}</div>}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, color: "var(--green)" }}>👁 Viewer</div>
+            </div>
+            {/* Stat grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+              {[["🪙", vCoins.toLocaleString(), "Coins"], ["🔥", `${vStreak}d`, "Streak"], ["💸", `$${(vCoins/1000).toFixed(2)}`, "Value"]].map(([icon, v, l]) => (
+                <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22 }}>{v}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Badges */}
+            {badges.length > 0 && (
+              <div className="panel" style={{ marginBottom: 16 }}>
+                <div className="panel-hd"><span className="panel-title">🏅 Badges</span></div>
+                <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {badges.map(([icon, label, color, bg]) => (
+                    <span key={label} className="badge-chip" style={{ background: bg, border: `1px solid ${color}44`, color }}>
+                      {icon} {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Recent activity */}
+            {vProfileTxns.length > 0 && (
+              <div className="panel">
+                <div className="panel-hd"><span className="panel-title">📋 Recent Activity</span></div>
+                <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                  {vProfileTxns.slice(0, 15).map(t => {
+                    const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁" };
+                    const isOut = t.amount < 0 || t.type === "gift_sent";
+                    return (
+                      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderBottom: "1px solid var(--line)" }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
+                          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: isOut ? "var(--red)" : "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{Math.abs(t.amount).toLocaleString()} 🪙</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>);
+        })() : (
+          <div style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>Profile not found</div>
+        )}
+      </div>
+    )}
 
     {/* CHANNEL PAGE */}
     {page === "channel" && channelUser && <div className="page" style={{ maxWidth: 760, margin: "0 auto", paddingTop: 16 }}>
@@ -2396,6 +2715,18 @@ export default function App() {
             Continue watching without account
           </button>
         </div>
+      </div>
+    )}
+
+    {/* GIFT ANIMATIONS */}
+    {giftAnims.length > 0 && (
+      <div className="gift-anim-wrap">
+        {giftAnims.map(g => (
+          <div key={g.id} className="gift-anim-item" style={{ left: `${g.x}%` }}>
+            <span className="gift-anim-emoji">{g.emoji}</span>
+            <span className="gift-anim-label">{g.name}</span>
+          </div>
+        ))}
       </div>
     )}
 
