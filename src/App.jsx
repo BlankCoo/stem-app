@@ -426,8 +426,13 @@ export default function App() {
   const [adminWithdrawals, setAdminWithdrawals] = useState([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
 
-  // Real streamer stats
-  const [streamerStats, setStreamerStats] = useState({ streamCount: 0 });
+  // Streamer analytics
+  const [streamerAnalytics, setStreamerAnalytics] = useState({
+    streamCount: 0, peakViewers: 0, avgPeakViewers: 0,
+    newFollowers30d: 0, activeSubs: 0, totalClips: 0,
+    giftRevenue: 0, recentStreams: [],
+  });
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Subscription system
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -823,11 +828,49 @@ export default function App() {
     }
   };
 
-  // ── Real streamer stats ──────────────────────────────────
-  const fetchStreamerStats = async () => {
+  // ── Streamer analytics ───────────────────────────────────
+  const fetchStreamerAnalytics = async () => {
     if (!user) return;
-    const { count } = await supabase.from("streams").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-    setStreamerStats({ streamCount: count || 0 });
+    setLoadingAnalytics(true);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [pastStreamsRes, newFollowersRes, activeSubsRes, clipCountRes, streamIdsRes] = await Promise.all([
+      supabase.from("past_streams").select("id,title,category,peak_viewers,created_at,mux_playback_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(6),
+      supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", user.id).gte("created_at", thirtyDaysAgo),
+      supabase.from("subscriptions").select("id", { count: "exact", head: true }).eq("streamer_id", user.id).gte("expires_at", new Date().toISOString()),
+      supabase.from("clips").select("id", { count: "exact", head: true }).eq("streamer_id", user.id),
+      supabase.from("streams").select("id").eq("user_id", user.id),
+    ]);
+
+    // Sum gift coins from messages in their streams
+    let giftRevenue = 0;
+    const streamIds = (streamIdsRes.data || []).map(s => s.id);
+    if (streamIds.length > 0) {
+      const { data: gifts } = await supabase
+        .from("messages")
+        .select("coins_spent")
+        .in("stream_id", streamIds)
+        .eq("is_superchat", true)
+        .gt("coins_spent", 0);
+      giftRevenue = (gifts || []).reduce((sum, m) => sum + (m.coins_spent || 0), 0);
+    }
+
+    const recentStreams = pastStreamsRes.data || [];
+    const peaks = recentStreams.map(s => s.peak_viewers || 0);
+    const peakViewers = peaks.length > 0 ? Math.max(...peaks) : 0;
+    const avgPeakViewers = peaks.length > 0 ? Math.round(peaks.reduce((a, b) => a + b, 0) / peaks.length) : 0;
+
+    setStreamerAnalytics({
+      streamCount: recentStreams.length,
+      peakViewers,
+      avgPeakViewers,
+      newFollowers30d: newFollowersRes.count || 0,
+      activeSubs: activeSubsRes.count || 0,
+      totalClips: clipCountRes.count || 0,
+      giftRevenue,
+      recentStreams,
+    });
+    setLoadingAnalytics(false);
   };
 
   // ── Admin withdrawal management ──────────────────────────
@@ -1190,7 +1233,7 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerStats(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") fetchUpcomingSchedule();
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
@@ -2541,24 +2584,53 @@ export default function App() {
           ["r", "Balance", `$${(coins / 1000).toFixed(2)}`, `${coins.toLocaleString()} coins`],
           ["g", "Followers", (profile?.follower_count || 0).toLocaleString(), "total followers"],
           ["y", "Total Earned", `$${(profile?.total_earned || 0).toFixed(2)}`, "lifetime"],
-          ["b", "Streams", streamerStats.streamCount.toLocaleString(), "total broadcasts"],
+          ["b", "Streams", streamerAnalytics.streamCount.toLocaleString(), "total broadcasts"],
         ].map(([col, l, v, ch]) => (
           <div key={l} className={`kpi ${col}`}><div className="kpi-l">{l}</div><div className="kpi-v">{v}</div><div className="kpi-ch">{ch}</div></div>
         ))}
       </div>
 
-      {/* Revenue Breakdown + Ad Split */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Revenue Breakdown</span><span style={{ fontSize: 12, color: "var(--muted)" }}>This month</span></div>
-        <div style={{ padding: 16 }}>
-          {[["Ad Revenue", "$337", 40, "linear-gradient(90deg,var(--red),#ff6b35)"], ["Subscriptions", "$218", 26, "linear-gradient(90deg,var(--green),#00c8a0)"], ["Gifts", "$180", 21, "linear-gradient(90deg,var(--gold),var(--orange))"], ["Brand Deals", "$107", 13, "linear-gradient(90deg,var(--blue),var(--purple))"]].map(([l, v, p, c]) => (
-            <div key={l} style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}><span style={{ fontSize: 13, color: "var(--muted)" }}>{l}</span><span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span></div>
-              <div style={{ background: "var(--ink4)", borderRadius: 4, height: 6, overflow: "hidden" }}><div style={{ width: `${p}%`, height: "100%", borderRadius: 4, background: c }} /></div>
+      {/* Revenue Breakdown — real data */}
+      {(() => {
+        const giftUsd = streamerAnalytics.giftRevenue / 1000;
+        const subUsd = streamerAnalytics.activeSubs;
+        const balUsd = coins / 1000;
+        const total = giftUsd + subUsd + balUsd || 1;
+        const rows = [
+          ["Gifts received", giftUsd, "linear-gradient(90deg,var(--gold),var(--orange))"],
+          ["Subscriptions", subUsd, "linear-gradient(90deg,var(--green),#00c8a0)"],
+          ["Coin balance", balUsd, "linear-gradient(90deg,var(--red),#ff6b35)"],
+        ];
+        return (
+          <div className="panel" style={{ marginBottom: 16 }}>
+            <div className="panel-hd">
+              <span className="panel-title">Revenue Breakdown</span>
+              <button onClick={fetchStreamerAnalytics} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
             </div>
-          ))}
-        </div>
-      </div>
+            {loadingAnalytics ? (
+              <div style={{ padding: 32, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+            ) : (
+              <div style={{ padding: 16 }}>
+                {rows.map(([l, usd, grad]) => (
+                  <div key={l} style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, color: "var(--muted)" }}>{l}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>${usd.toFixed(2)}</span>
+                    </div>
+                    <div style={{ background: "var(--ink4)", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                      <div style={{ width: `${Math.round(usd / total * 100)}%`, height: "100%", borderRadius: 4, background: grad, transition: "width .6s ease" }} />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "var(--muted)" }}>Total value</span>
+                  <span style={{ fontWeight: 800, color: "var(--green)" }}>${total.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Ad Revenue Split */}
       <div className="panel" style={{ marginBottom: 16 }}>
@@ -2579,20 +2651,57 @@ export default function App() {
         </div>
       </div>
 
-      {/* Audience Overview */}
+      {/* Audience Overview — real data */}
       <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Audience Overview</span><span style={{ fontSize: 12, color: "var(--muted)" }}>Last 30 days</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[["Avg. Watch Time", "24 min", "var(--blue)"], ["Return Viewers", "68%", "var(--green)"], ["Peak Concurrent", "3,840", "var(--gold)"], ["New Followers", "1,204", "var(--purple)"]].map(([l, v, c]) => (
-              <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6, fontWeight: 600, letterSpacing: .4, textTransform: "uppercase" }}>{l}</div>
-                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, color: c }}>{v}</div>
-              </div>
-            ))}
+        <div className="panel-hd"><span className="panel-title">Audience Overview</span><span style={{ fontSize: 12, color: "var(--muted)" }}>All time</span></div>
+        {loadingAnalytics ? (
+          <div style={{ padding: 32, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+        ) : (
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                ["Peak Viewers", streamerAnalytics.peakViewers.toLocaleString(), "var(--gold)"],
+                ["Avg. Viewers", streamerAnalytics.avgPeakViewers.toLocaleString(), "var(--blue)"],
+                ["New Followers (30d)", streamerAnalytics.newFollowers30d.toLocaleString(), "var(--purple)"],
+                ["Active Subs", streamerAnalytics.activeSubs.toLocaleString(), "var(--green)"],
+                ["Total Clips", streamerAnalytics.totalClips.toLocaleString(), "var(--red)"],
+                ["Total Streams", streamerAnalytics.streamCount.toLocaleString(), "var(--muted)"],
+              ].map(([l, v, c]) => (
+                <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6, fontWeight: 600, letterSpacing: .4, textTransform: "uppercase" }}>{l}</div>
+                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, color: c }}>{v || "0"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Streams — real data */}
+      {streamerAnalytics.recentStreams.length > 0 && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-hd"><span className="panel-title">📺 Recent Streams</span></div>
+          <div>
+            {streamerAnalytics.recentStreams.map((s, i) => {
+              const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < streamerAnalytics.recentStreams.length - 1 ? "1px solid var(--line)" : "none" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{meta.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{s.category} · {new Date(s.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, color: "var(--gold)" }}>{(s.peak_viewers || 0).toLocaleString()}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)" }}>peak</div>
+                  </div>
+                  {s.mux_playback_id && <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, flexShrink: 0 }}>VOD</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Stream Schedule */}
       <div className="panel">
