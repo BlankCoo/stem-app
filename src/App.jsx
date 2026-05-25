@@ -774,19 +774,22 @@ export default function App() {
 
     {/* NAV */}
     <nav className="nav">
-      <div className="logo" onClick={() => go("disc")}>STEM</div>
+      <div className="logo" onClick={() => go("disc")} title="Home">STEM</div>
       <div className="nav-c">
         {user ? (
-          // Logged-in nav links
           (mode === "viewer"
-            ? [["disc", "Discover"], ["leaderboard", "Top Earners"], ["wallet", "Wallet"], ["profile", "Profile"]]
-            : [["disc", "Discover"], ["dash", "Dashboard"], ["profile", "Profile"]]
+            ? [["disc", "Home"], ["leaderboard", "Top Earners"], ["wallet", "Wallet"], ["profile", "Profile"]]
+            : [["disc", "Home"], ["dash", "Dashboard"], ["profile", "Profile"]]
           ).map(([p, l]) => (
-            <button key={p} className={`nl ${page === p ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
+            <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
           ))
         ) : (
-          // Guest nav — just Discover
-          <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Discover</button>
+          <>
+            <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Home</button>
+            {page === "stream" && (
+              <button className="nl" onClick={() => go("disc")} style={{ color: "var(--muted)", display: "flex", alignItems: "center", gap: 4 }}>← Back</button>
+            )}
+          </>
         )}
       </div>
       <div className="nav-r">
@@ -805,19 +808,36 @@ export default function App() {
       </div>
     </nav>
 
-    {/* MOBILE BOTTOM NAV — logged-in only */}
-    {isApp && user && (
+    {/* MOBILE BOTTOM NAV */}
+    {isApp && (
       <div className="bottom-nav">
         <div className="bottom-nav-items">
-          {(mode === "viewer"
-            ? [["disc", "🔍", "Discover"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Profile"]]
-            : [["disc", "🔍", "Discover"], ["dash", "📊", "Dashboard"], ["profile", "👤", "Profile"]]
-          ).map(([p, icon, l]) => (
-            <button key={p} className={`bn-item ${page === p ? "on" : ""}`} onClick={() => go(p)}>
-              <span className="bn-icon">{icon}</span>
-              <span className="bn-label">{l}</span>
-            </button>
-          ))}
+          {user ? (
+            (mode === "viewer"
+              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Profile"]]
+              : [["disc", "🏠", "Home"], ["dash", "📊", "Dashboard"], ["profile", "👤", "Profile"]]
+            ).map(([p, icon, l]) => (
+              <button key={p} className={`bn-item ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>
+                <span className="bn-icon">{icon}</span>
+                <span className="bn-label">{l}</span>
+              </button>
+            ))
+          ) : (
+            <>
+              <button className={`bn-item ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>
+                <span className="bn-icon">🏠</span>
+                <span className="bn-label">Home</span>
+              </button>
+              <button className="bn-item" onClick={() => { setAuthMode("login"); go("auth"); }}>
+                <span className="bn-icon">👤</span>
+                <span className="bn-label">Log In</span>
+              </button>
+              <button className="bn-item" onClick={() => { setAuthMode("signup"); go("auth"); }}>
+                <span className="bn-icon">✨</span>
+                <span className="bn-label">Sign Up</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     )}
@@ -848,6 +868,9 @@ export default function App() {
 
     {/* AUTH */}
     {page === "auth" && <div className="auth-wrap page">
+      <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center" }}>
+        <button onClick={() => go("disc")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>← Browse without account</button>
+      </div>
       <div className="auth-box">
         <div style={{ padding: "24px 24px 0", borderBottom: "1px solid var(--line)" }}>
           <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: 2, background: "linear-gradient(90deg,var(--purple),var(--red))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 6 }}>STEM</div>
@@ -974,6 +997,10 @@ export default function App() {
     {page === "stream" && stream && <div className="slayout" style={{ paddingTop: 56 }}>
       <div className="sleft">
         <div className="splayer">
+          {/* Back button — always visible over the player */}
+          <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
+            ← Home
+          </button>
           {stream.mux_playback_id ? (
             <MuxPlayer
               playbackId={stream.mux_playback_id}
