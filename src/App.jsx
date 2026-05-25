@@ -303,22 +303,55 @@ export default function App() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
 
+  // Transactions
+  const [transactions, setTransactions] = useState([]);
+  const [loadingTxns, setLoadingTxns] = useState(false);
+
+  // Referral
+  const [referralCode, setReferralCode] = useState("");
+
+  // Channel page
+  const [channelUser, setChannelUser] = useState(null);
+  const [channelStreams, setChannelStreams] = useState([]);
+  const [channelClips, setChannelClips] = useState([]);
+  const [channelFollowers, setChannelFollowers] = useState(0);
+  const [channelIsLive, setChannelIsLive] = useState(false);
+  const [channelSchedule, setChannelSchedule] = useState([]);
+
+  // Stream schedule
+  const [upcomingSchedule, setUpcomingSchedule] = useState([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ title: "", category: "Gaming", date: "", time: "" });
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  // Clips
+  const [streamClips, setStreamClips] = useState([]);
+  const [showClipModal, setShowClipModal] = useState(false);
+  const [clipTitle, setClipTitle] = useState("");
+  const [savingClip, setSavingClip] = useState(false);
+
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
   const coinsRef = useRef(0);
-  const prevLiveIdsRef = useRef(new Set()); // tracks which stream IDs were already live
+  const sessRef = useRef(0);
+  const prevLiveIdsRef = useRef(new Set());
 
-  // Keep coinsRef in sync with state
+  // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
+  useEffect(() => { sessRef.current = sess; }, [sess]);
 
   // Auth init + streams subscription
   useEffect(() => {
+    // Store referral code from URL on first load
+    const refParam = new URLSearchParams(window.location.search).get("ref");
+    if (refParam) sessionStorage.setItem("stem_ref", refParam);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); setPage("disc"); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); }
-      else { setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); }
+      else { setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode(""); }
     });
 
     // Fetch and subscribe to live streams
@@ -344,6 +377,7 @@ export default function App() {
       coinsRef.current = c;
       setMode(data.role || "viewer");
       setStreakDays(data.streak_days || 0);
+      setReferralCode(data.referral_code || "");
       setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "" });
     }
     return data;
@@ -442,6 +476,102 @@ export default function App() {
     if (data) setMyFollows(data.map(f => f.following_id));
   };
 
+  // --- TRANSACTION HISTORY ---
+  const logTransaction = async (type, amount, description) => {
+    if (!user) return;
+    await supabase.from("transactions").insert({ user_id: user.id, type, amount, description });
+  };
+
+  const fetchTransactions = async () => {
+    if (!user) return;
+    setLoadingTxns(true);
+    const { data } = await supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
+    if (data) setTransactions(data);
+    setLoadingTxns(false);
+  };
+
+  // --- REFERRAL ---
+  const applyReferral = async (newUserId, newUserName, startCoins) => {
+    const ref = sessionStorage.getItem("stem_ref");
+    if (!ref) return startCoins;
+    const { data: referrer } = await supabase.from("profiles").select("id,coins,referral_count").eq("referral_code", ref).maybeSingle();
+    if (!referrer || referrer.id === newUserId) return startCoins;
+    // Reward referrer
+    const rc = (referrer.coins || 0) + 500;
+    await supabase.from("profiles").update({ coins: rc, referral_count: (referrer.referral_count || 0) + 1 }).eq("id", referrer.id);
+    await supabase.from("transactions").insert({ user_id: referrer.id, type: "referral_reward", amount: 500, description: `${newUserName} signed up with your referral link` });
+    // Reward new user (on top of signup bonus)
+    await supabase.from("profiles").update({ referred_by: ref, coins: startCoins + 500 }).eq("id", newUserId);
+    await supabase.from("transactions").insert({ user_id: newUserId, type: "referral_bonus", amount: 500, description: "Joined via referral link" });
+    sessionStorage.removeItem("stem_ref");
+    notify("🎉 Referral bonus! You and your friend both earned 500 coins!");
+    return startCoins + 500;
+  };
+
+  // --- CHANNEL PAGE ---
+  const viewChannel = async (userId) => {
+    if (!userId) return;
+    const [profRes, streamsRes, followersRes, liveRes, schedRes, clipsRes] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
+      supabase.from("follows").select("id", { count: "exact" }).eq("following_id", userId),
+      supabase.from("streams").select("id,title").eq("user_id", userId).eq("status", "live").maybeSingle(),
+      supabase.from("stream_schedule").select("*").eq("user_id", userId).gte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(5),
+      supabase.from("clips").select("*, profiles(full_name,username)").eq("streamer_id", userId).order("created_at", { ascending: false }).limit(12),
+    ]);
+    if (profRes.data) {
+      setChannelUser(profRes.data);
+      setChannelStreams(streamsRes.data || []);
+      setChannelFollowers(followersRes.count || 0);
+      setChannelIsLive(!!liveRes.data);
+      setChannelSchedule(schedRes.data || []);
+      setChannelClips(clipsRes.data || []);
+      setPage("channel");
+      window.scrollTo(0, 0);
+    }
+  };
+
+  // --- STREAM SCHEDULE ---
+  const fetchUpcomingSchedule = async () => {
+    const { data } = await supabase.from("stream_schedule").select("*, profiles(full_name,username)").gte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(6);
+    if (data) setUpcomingSchedule(data);
+  };
+
+  const handleAddSchedule = async () => {
+    if (!scheduleForm.title.trim() || !scheduleForm.date || !scheduleForm.time) { notify("Fill in all schedule fields"); return; }
+    setSavingSchedule(true);
+    const scheduledAt = new Date(`${scheduleForm.date}T${scheduleForm.time}`).toISOString();
+    const { error } = await supabase.from("stream_schedule").insert({ user_id: user.id, title: scheduleForm.title.trim(), category: scheduleForm.category, scheduled_at: scheduledAt });
+    if (!error) { notify("Stream scheduled!"); setShowScheduleModal(false); setScheduleForm({ title: "", category: "Gaming", date: "", time: "" }); fetchUpcomingSchedule(); }
+    else notify("Error saving schedule");
+    setSavingSchedule(false);
+  };
+
+  // --- CLIPS ---
+  const fetchStreamClips = async (streamId) => {
+    const { data } = await supabase.from("clips").select("*, profiles(full_name,username)").eq("stream_id", streamId).order("created_at", { ascending: false }).limit(10);
+    if (data) setStreamClips(data);
+  };
+
+  const createClip = async () => {
+    if (!user || !stream?.id) return;
+    if (!requireAuth()) return;
+    setSavingClip(true);
+    const title = clipTitle.trim() || `Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`;
+    const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title });
+    if (!error) {
+      notify("Clip saved!");
+      setShowClipModal(false);
+      setClipTitle("");
+      fetchStreamClips(stream.id);
+      const nc = coinsRef.current + 25;
+      setCoins(nc); coinsRef.current = nc;
+      supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+      logTransaction("clip", 25, `Clipped "${stream.title}"`);
+    }
+    setSavingClip(false);
+  };
+
   // Coin earning — tick speed scales with streak (faster ticks = more coins/sec)
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
   useEffect(() => {
@@ -456,13 +586,15 @@ export default function App() {
   // Sync earned coins to Supabase every 15s while watching
   useEffect(() => {
     if (page !== "stream" || !user) return;
+    const uid = user.id;
     const syncT = setInterval(() => {
-      supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", user.id);
+      supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", uid);
     }, 15000);
     return () => {
       clearInterval(syncT);
-      // Save final balance when leaving stream
-      supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", user.id);
+      const earned = sessRef.current;
+      supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", uid);
+      if (earned > 0) supabase.from("transactions").insert({ user_id: uid, type: "watch", amount: earned, description: `Watched "${stream?.title || "a stream"}"` });
     };
   }, [page, user]);
 
@@ -559,10 +691,13 @@ export default function App() {
     if (chatRef2.current) chatRef2.current.scrollTop = chatRef2.current.scrollHeight;
   }, [chat]);
 
-  // Load leaderboard when navigating there
+  // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) checkIsStreaming(user.id);
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); }
+    if (page === "disc") fetchUpcomingSchedule();
+    if (page === "wallet" && user) fetchTransactions();
+    if (page === "stream" && stream?.id) fetchStreamClips(stream.id);
   }, [page, user]);
 
   const handleSignUp = async () => {
@@ -572,19 +707,24 @@ export default function App() {
     if (error) { setAuthError(error.message); setLoading(false); return; }
     if (data.user) {
       const username = await generateUniqueUsername(formData.fullName);
+      const refCode = `${username.toUpperCase().slice(0, 8)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
       const { error: pe } = await supabase.from("profiles").insert({
-        id: data.user.id, full_name: formData.fullName, username, role, coins: 1000, total_earned: 0, bio: "", follower_count: 0,
+        id: data.user.id, full_name: formData.fullName, username, role, coins: 1000, total_earned: 0, bio: "", follower_count: 0, referral_code: refCode,
       });
       if (pe) {
-        // Profile creation failed — roll back auth
         await supabase.auth.signOut();
-        setAuthError("Account setup failed — username conflict. Please try again.");
+        setAuthError("Account setup failed — please try again.");
         setLoading(false);
         return;
       }
-      setProfile({ id: data.user.id, full_name: formData.fullName, username, role, coins: 1000 });
-      setCoins(1000);
-      coinsRef.current = 1000;
+      // Log signup bonus
+      await supabase.from("transactions").insert({ user_id: data.user.id, type: "signup_bonus", amount: 1000, description: "Welcome bonus" });
+      // Apply referral if present
+      const finalCoins = await applyReferral(data.user.id, formData.fullName, 1000);
+      setProfile({ id: data.user.id, full_name: formData.fullName, username, role, coins: finalCoins, referral_code: refCode });
+      setCoins(finalCoins);
+      coinsRef.current = finalCoins;
+      setReferralCode(refCode);
       setMode(role);
       setEditProfile({ fullName: formData.fullName, username, bio: "" });
       notify("Welcome to STEM! You got 1,000 bonus coins!");
@@ -657,6 +797,7 @@ export default function App() {
             const nc = coinsRef.current + 50;
             setCoins(nc); coinsRef.current = nc;
             supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+            logTransaction("follow", 50, `Followed ${stream.streamer}`);
             notify("+50 coins for following!");
           }
         }
@@ -688,6 +829,7 @@ export default function App() {
     });
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    logTransaction("chat", 10, `Chatted in "${stream.title}"`);
     setMsg(""); notify("+10 coins!");
   };
 
@@ -703,6 +845,7 @@ export default function App() {
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
       content: `Sent a ${name}!`, color: "#ffc800", is_superchat: true, coins_spent: c,
     });
+    logTransaction("gift_sent", -c, `Sent ${name} to ${stream.streamer}`);
     notify(`${name} sent! 🎁`);
   };
 
@@ -822,7 +965,7 @@ export default function App() {
     return matchCat && matchSearch;
   });
 
-  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard"].includes(page);
+  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel"].includes(page);
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
@@ -1077,6 +1220,24 @@ export default function App() {
           </div>
         </div>
       )}
+      {upcomingSchedule.length > 0 && !search && cat === "All" && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📅 Upcoming Streams</div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
+            {upcomingSchedule.map(s => {
+              const d = new Date(s.scheduled_at);
+              return (
+                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 180, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.profiles?.full_name || "Streamer"}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>
           {search ? `Results for "${search}"` : "🔴 Live Now"}
@@ -1147,11 +1308,13 @@ export default function App() {
               {loadingFollow ? "..." : following ? "✓ Following" : "+ Follow"}
             </button>
             <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
+            <button className="abtn" onClick={() => { if (!requireAuth()) return; setShowClipModal(true); }}>✂ Clip</button>
             <button className="abtn" onClick={() => notify("Subscribe coming soon!")}>Sub $4.99</button>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: 14, cursor: stream.user_id ? "pointer" : "default" }} onClick={() => stream.user_id && viewChannel(stream.user_id)}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: stream.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{stream.emoji}</div>
             <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{stream.streamer}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{stream.game} · 24,810 followers</div></div>
+            {stream.user_id && <span style={{ fontSize: 11, color: "var(--purple)", flexShrink: 0 }}>View →</span>}
           </div>
           {user ? (
             <div className="earn-box">
@@ -1200,6 +1363,23 @@ export default function App() {
               ))}
             </div>
           </div>
+          {/* Clips */}
+          {streamClips.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Recent Clips</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {streamClips.map(clip => (
+                  <div key={clip.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>✂</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || "viewer"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Mobile chat */}
           <div className="chat-section">
             <div className="chat-hd"><span className="chat-hd-title">Live Chat</span><span style={{ fontSize: 11, color: "var(--muted)" }}>{stream.viewers.toLocaleString()}</span></div>
@@ -1345,10 +1525,71 @@ export default function App() {
           <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))" }} onClick={() => notify("Premium 2x earnings coming soon!")}>Get Premium</button>
         </div>
       </div>
-      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
         <div style={{ fontSize: 26 }}>💡</div>
         <div style={{ flex: 1 }}><div style={{ fontWeight: 700, marginBottom: 3, fontSize: 15 }}>Earn 2x faster with Premium</div><div style={{ fontSize: 13, color: "var(--muted)" }}>$9.99/month — double all your ad earnings.</div></div>
         <button className="btn-g" onClick={() => notify("Premium coming soon!")}>Upgrade</button>
+      </div>
+
+      {/* Referral */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd"><span className="panel-title">🔗 Referral Program</span></div>
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Invite friends to STEM and you both earn <strong style={{ color: "var(--gold)" }}>500 coins</strong> when they sign up.</div>
+          {profile?.referral_code ? (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input readOnly value={`${window.location.origin}/?ref=${profile.referral_code}`} className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
+                <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?ref=${profile.referral_code}`); notify("Referral link copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--green)" }}>{profile?.referral_count || 0}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>Friends referred</div>
+                </div>
+                <div style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>{((profile?.referral_count || 0) * 500).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>Coins earned</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Referral code not set — log out and back in to generate one.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Transaction History */}
+      <div className="panel">
+        <div className="panel-hd">
+          <span className="panel-title">📋 Transaction History</span>
+          <button onClick={fetchTransactions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+        </div>
+        {loadingTxns ? (
+          <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+        ) : transactions.length === 0 ? (
+          <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
+            <div style={{ fontSize: 13 }}>No transactions yet. Start watching to earn!</div>
+          </div>
+        ) : (
+          <div style={{ maxHeight: 400, overflowY: "auto" }}>
+            {transactions.map(t => {
+              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗" };
+              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)" };
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>+{t.amount.toLocaleString()} 🪙</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>}
 
@@ -1505,7 +1746,7 @@ export default function App() {
       </div>
 
       {/* Audience Overview */}
-      <div className="panel">
+      <div className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-hd"><span className="panel-title">Audience Overview</span><span style={{ fontSize: 12, color: "var(--muted)" }}>Last 30 days</span></div>
         <div style={{ padding: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1518,7 +1759,229 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Stream Schedule */}
+      <div className="panel">
+        <div className="panel-hd">
+          <span className="panel-title">📅 Stream Schedule</span>
+          <button onClick={() => setShowScheduleModal(true)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Add</button>
+        </div>
+        {channelSchedule.length === 0 && upcomingSchedule.filter(s => s.user_id === user?.id).length === 0 ? (
+          <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--muted)" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
+            <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>No scheduled streams</div>
+            <div style={{ fontSize: 12 }}>Let your audience know when you're going live next.</div>
+          </div>
+        ) : (
+          <div>
+            {upcomingSchedule.filter(s => s.user_id === user?.id).map(s => {
+              const d = new Date(s.scheduled_at);
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ textAlign: "center", minWidth: 42, background: "rgba(124,58,237,.1)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 8, padding: "6px 4px" }}>
+                    <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700 }}>{d.toLocaleDateString([], { month: "short" }).toUpperCase()}</div>
+                    <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, lineHeight: 1 }}>{d.getDate()}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{s.category} · {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>}
+
+    {/* CHANNEL PAGE */}
+    {page === "channel" && channelUser && <div className="page" style={{ maxWidth: 760, margin: "0 auto", paddingTop: 16 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
+        <div style={{ width: 72, height: 72, borderRadius: 18, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, flexShrink: 0 }}>
+          {channelUser.full_name?.charAt(0) || "?"}
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, letterSpacing: .5 }}>{channelUser.full_name}</div>
+            {channelIsLive && <span style={{ background: "var(--red)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 5, letterSpacing: .5 }}>🔴 LIVE</span>}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>@{channelUser.username} · {channelFollowers.toLocaleString()} followers</div>
+          {channelUser.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", maxWidth: 420 }}>{channelUser.bio}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          {channelIsLive && (
+            <button className="btn-red" onClick={() => { const ls = liveStreams.find(s => s.user_id === channelUser.id); if (ls) go("stream", formatDbStream(ls)); }} style={{ padding: "9px 18px", fontSize: 13 }}>
+              Watch Live
+            </button>
+          )}
+          {user && user.id !== channelUser.id && (
+            <button
+              className={myFollows.includes(channelUser.id) ? "btn-o" : "btn-g"}
+              onClick={async () => {
+                if (!user) { setShowSignupPrompt(true); return; }
+                if (myFollows.includes(channelUser.id)) {
+                  await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", channelUser.id);
+                  setMyFollows(f => f.filter(id => id !== channelUser.id));
+                  setChannelFollowers(n => Math.max(0, n - 1));
+                } else {
+                  await supabase.from("follows").insert({ follower_id: user.id, following_id: channelUser.id });
+                  setMyFollows(f => [...f, channelUser.id]);
+                  setChannelFollowers(n => n + 1);
+                  notify("+50 coins for following!");
+                  const nc = coinsRef.current + 50;
+                  setCoins(nc); coinsRef.current = nc;
+                  supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+                  logTransaction("follow", 50, `Followed ${channelUser.full_name}`);
+                }
+              }}
+              style={{ padding: "9px 18px", fontSize: 13 }}
+            >
+              {myFollows.includes(channelUser.id) ? "✓ Following" : "+ Follow"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 }}>
+        {[["Followers", channelFollowers.toLocaleString()], ["Streams", channelStreams.length], ["Clips", channelClips.length]].map(([l, v]) => (
+          <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", textAlign: "center" }}>
+            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26 }}>{v}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Upcoming schedule */}
+      {channelSchedule.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📅 Upcoming</div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+            {channelSchedule.map(s => {
+              const d = new Date(s.scheduled_at);
+              return (
+                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 170, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 3 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Past streams */}
+      {channelStreams.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📺 Past Streams</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+            {channelStreams.map(s => {
+              const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
+              return (
+                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: "pointer" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
+                  <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{meta.emoji}</div>
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{s.category} · {s.status === "live" ? <span style={{ color: "var(--red)" }}>LIVE</span> : "Ended"}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Clips */}
+      {channelClips.length > 0 && (
+        <div>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>✂ Clips</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {channelClips.map(clip => (
+              <div key={clip.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>✂</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{clip.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Clipped by {clip.profiles?.full_name || "viewer"} · {new Date(clip.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {channelStreams.length === 0 && channelClips.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No streams yet</div>
+          <div style={{ fontSize: 13 }}>Check back when this creator goes live.</div>
+        </div>
+      )}
+    </div>}
+
+    {/* CLIP MODAL */}
+    {showClipModal && (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowClipModal(false)}>
+        <div className="modal-box" style={{ maxWidth: 380 }}>
+          <div className="modal-title">✂ Create Clip</div>
+          <div className="modal-sub">Save this moment — you'll earn +25 coins when you clip!</div>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Clip Title (optional)</label>
+          <input
+            className="fi"
+            placeholder={`Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`}
+            value={clipTitle}
+            onChange={e => setClipTitle(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && createClip()}
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button onClick={() => { setShowClipModal(false); setClipTitle(""); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+            <button onClick={createClip} disabled={savingClip} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingClip ? "not-allowed" : "pointer", opacity: savingClip ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {savingClip ? <div className="spinner" /> : <>✂ Save Clip — +25 coins</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* SCHEDULE MODAL */}
+    {showScheduleModal && (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowScheduleModal(false)}>
+        <div className="modal-box">
+          <div className="modal-title">📅 Schedule a Stream</div>
+          <div className="modal-sub">Let your audience know when you're going live next.</div>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Stream Title</label>
+          <input
+            className="fi"
+            placeholder="e.g. Sunday Ranked Games, Chill Music Stream..."
+            value={scheduleForm.title}
+            onChange={e => setScheduleForm({ ...scheduleForm, title: e.target.value })}
+            autoFocus
+          />
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Category</label>
+          <select className="select-fi" value={scheduleForm.category} onChange={e => setScheduleForm({ ...scheduleForm, category: e.target.value })}>
+            {STREAM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Date</label>
+              <input type="date" className="fi" style={{ margin: 0 }} value={scheduleForm.date} onChange={e => setScheduleForm({ ...scheduleForm, date: e.target.value })} min={new Date().toISOString().split("T")[0]} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Time</label>
+              <input type="time" className="fi" style={{ margin: 0 }} value={scheduleForm.time} onChange={e => setScheduleForm({ ...scheduleForm, time: e.target.value })} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button onClick={() => setShowScheduleModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+            <button onClick={handleAddSchedule} disabled={savingSchedule} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingSchedule ? "not-allowed" : "pointer", opacity: savingSchedule ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {savingSchedule ? <div className="spinner" /> : "Schedule Stream"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* GO LIVE MODAL */}
     {showGoLive && (
