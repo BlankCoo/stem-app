@@ -294,9 +294,19 @@ export default function App() {
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
 
-  const chatRef = useRef(null);   // mobile chat
-  const chatRef2 = useRef(null);  // desktop panel
-  const coinsRef = useRef(0);     // always-current coin value for intervals
+  // Streak
+  const [streakDays, setStreakDays] = useState(0);
+
+  // Notifications
+  const [myFollows, setMyFollows] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  const chatRef = useRef(null);
+  const chatRef2 = useRef(null);
+  const coinsRef = useRef(0);
+  const prevLiveIdsRef = useRef(new Set()); // tracks which stream IDs were already live
 
   // Keep coinsRef in sync with state
   useEffect(() => { coinsRef.current = coins; }, [coins]);
@@ -304,11 +314,11 @@ export default function App() {
   // Auth init + streams subscription
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { setUser(session.user); fetchProfile(session.user.id); setPage("disc"); }
+      if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); setPage("disc"); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) { setUser(session.user); fetchProfile(session.user.id); }
-      else { setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; }
+      if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); }
+      else { setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); }
     });
 
     // Fetch and subscribe to live streams
@@ -333,6 +343,7 @@ export default function App() {
       setCoins(c);
       coinsRef.current = c;
       setMode(data.role || "viewer");
+      setStreakDays(data.streak_days || 0);
       setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "" });
     }
     return data;
@@ -399,15 +410,48 @@ export default function App() {
     setFollowing(!!data);
   };
 
-  // Coin earning — no DB writes here (debounced separately below)
+  // Returns bonus % for a given streak length
+  const getStreakBonus = (days) => days >= 14 ? 100 : days >= 7 ? 50 : days >= 3 ? 25 : 0;
+
+  // Check and update daily watch streak
+  const updateStreak = async () => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase.from("profiles").select("streak_days,last_streak_date").eq("id", user.id).single();
+    if (!data) return;
+    if (data.last_streak_date === today) { setStreakDays(data.streak_days || 0); return; }
+
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const yestStr = yest.toISOString().split("T")[0];
+    const wasConsecutive = data.last_streak_date === yestStr;
+    const newStreak = wasConsecutive ? (data.streak_days || 0) + 1 : 1;
+
+    await supabase.from("profiles").update({ streak_days: newStreak, last_streak_date: today }).eq("id", user.id);
+    setStreakDays(newStreak);
+
+    if (!wasConsecutive && data.last_streak_date) notify("Streak reset — watch daily for bonus coins!");
+    else if (newStreak === 3)  notify("🔥 3-day streak! Earning 1.25x coins!");
+    else if (newStreak === 7)  notify("🔥 7-day streak! Earning 1.5x coins!");
+    else if (newStreak === 14) notify("🔥 14-day streak! Earning 2x coins — max bonus!");
+    else if (newStreak > 1)    notify(`🔥 ${newStreak}-day streak! Keep it up!`);
+  };
+
+  // Fetch the IDs of streamers this user follows (for notifications)
+  const fetchMyFollows = async (userId) => {
+    const { data } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
+    if (data) setMyFollows(data.map(f => f.following_id));
+  };
+
+  // Coin earning — tick speed scales with streak (faster ticks = more coins/sec)
+  const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
   useEffect(() => {
     if (page !== "stream") return;
     const t = setInterval(() => {
       setSess(s => s + 1);
       setCoins(c => c + 1);
-    }, 900);
+    }, tickMs);
     return () => clearInterval(t);
-  }, [page]);
+  }, [page, tickMs]);
 
   // Sync earned coins to Supabase every 15s while watching
   useEffect(() => {
@@ -445,6 +489,38 @@ export default function App() {
     setFollowing(false);
     if (page === "stream") checkFollowing(stream);
   }, [page, stream?.id, user?.id]);
+
+  // Update streak when entering a stream
+  useEffect(() => {
+    if (page === "stream" && user) updateStreak();
+  }, [page]);
+
+  // Notification detection: fire when a followed streamer goes live
+  useEffect(() => {
+    const currentIds = new Set(liveStreams.map(s => s.id));
+    if (user && myFollows.length > 0) {
+      const newlyLive = liveStreams.filter(s => !prevLiveIdsRef.current.has(s.id) && myFollows.includes(s.user_id));
+      if (newlyLive.length > 0) {
+        const newNotifs = newlyLive.map(s => ({
+          id: s.id,
+          title: `${s.profiles?.full_name || s.streamer_name || "Someone"} is live!`,
+          body: s.title,
+          stream: formatDbStream(s),
+          time: new Date(),
+        }));
+        setNotifications(n => [...newNotifs, ...n].slice(0, 20));
+        setUnreadNotifs(c => c + newlyLive.length);
+        if (newlyLive.length === 1) notify(`🔴 ${newlyLive[0].profiles?.full_name || "A streamer"} just went live!`);
+        else notify(`🔴 ${newlyLive.length} streamers you follow just went live!`);
+      }
+    }
+    prevLiveIdsRef.current = currentIds;
+  }, [liveStreams]);
+
+  // Refresh follows list when follow/unfollow happens (so notifications stay accurate)
+  useEffect(() => {
+    if (user) fetchMyFollows(user.id);
+  }, [following]);
 
   // Real-time chat subscription
   useEffect(() => {
@@ -798,6 +874,15 @@ export default function App() {
             <button className={`mode-btn ${mode === "viewer" ? "on" : ""}`} onClick={() => switchMode("viewer")}>👁</button>
             <button className={`mode-btn ${mode === "streamer" ? "on" : ""}`} onClick={() => switchMode("streamer")}>🎙</button>
           </div>
+          {/* Notification bell */}
+          <div style={{ position: "relative", cursor: "pointer", lineHeight: 1 }} onClick={() => { setShowNotifs(v => !v); setUnreadNotifs(0); }}>
+            <span style={{ fontSize: 19 }}>🔔</span>
+            {unreadNotifs > 0 && (
+              <span style={{ position: "absolute", top: -4, right: -5, background: "var(--red)", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: "50%", minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                {unreadNotifs > 9 ? "9+" : unreadNotifs}
+              </span>
+            )}
+          </div>
           <div className="coin-badge" onClick={() => go("wallet")}>🪙 {coins.toLocaleString()}</div>
           <div className="av" onClick={() => go("profile")}>{initials}</div>
         </>}
@@ -807,6 +892,42 @@ export default function App() {
         </>}
       </div>
     </nav>
+
+    {/* NOTIFICATION PANEL */}
+    {showNotifs && user && (
+      <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 299 }} onClick={() => setShowNotifs(false)} />
+        <div style={{ position: "fixed", top: 66, right: 12, width: 310, background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 16, zIndex: 300, boxShadow: "0 8px 40px rgba(0,0,0,.6)", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Notifications</span>
+            <button onClick={() => setShowNotifs(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 16 }}>✕</button>
+          </div>
+          {notifications.length === 0 ? (
+            <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No notifications yet</div>
+              <div style={{ fontSize: 12 }}>Follow streamers to get notified when they go live</div>
+            </div>
+          ) : (
+            <div style={{ maxHeight: 360, overflowY: "auto" }}>
+              {notifications.map((n, i) => (
+                <div key={i} onClick={() => { go("stream", n.stream); setShowNotifs(false); }} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", cursor: "pointer", display: "flex", gap: 12, alignItems: "flex-start", transition: "background .15s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.03)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>🔴</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.body}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>{n.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>Watch →</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </>
+    )}
 
     {/* MOBILE BOTTOM NAV */}
     {isApp && (
@@ -1035,6 +1156,17 @@ export default function App() {
           {user ? (
             <div className="earn-box">
               <div className="ebox-title">Session Earnings</div>
+              {/* Streak badge */}
+              {streakDays >= 2 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,149,0,.1)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 8, padding: "7px 10px", marginBottom: 10 }}>
+                  <span style={{ fontSize: 18 }}>🔥</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--orange)" }}>{streakDays}-day streak</span>
+                    {streakDays >= 3 && <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>+{getStreakBonus(streakDays)}% speed boost</span>}
+                  </div>
+                  {streakDays < 3 && <span style={{ fontSize: 11, color: "var(--muted)" }}>{3 - streakDays} day{3 - streakDays > 1 ? "s" : ""} to bonus</span>}
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <div><div className="ebig">+{sess}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>coins this session</div></div>
                 <div style={{ textAlign: "right" }}><div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>🪙 {coins.toLocaleString()}</div><div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>total balance</div></div>
@@ -1042,7 +1174,12 @@ export default function App() {
               <div className="ecells">
                 <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
                 <div className="ecell"><div className="ecell-v" style={{ color: "var(--gold)" }}>+10</div><div className="ecell-l">Per chat</div></div>
-                <div className="ecell"><div className="ecell-v">20K</div><div className="ecell-l">To withdraw</div></div>
+                <div className="ecell">
+                  <div className="ecell-v" style={{ color: streakDays >= 3 ? "var(--orange)" : "var(--muted)" }}>
+                    {streakDays >= 3 ? `${(1 + getStreakBonus(streakDays) / 100).toFixed(2)}x` : "1x"}
+                  </div>
+                  <div className="ecell-l">Streak</div>
+                </div>
               </div>
             </div>
           ) : (
@@ -1164,6 +1301,27 @@ export default function App() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>My Wallet</div>
         <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "there"}! Your coins and earnings.</div>
+      </div>
+      {/* Streak card */}
+      <div style={{ background: streakDays >= 3 ? "linear-gradient(135deg,rgba(255,149,0,.12),rgba(255,149,0,.04))" : "var(--card)", border: streakDays >= 3 ? "1px solid rgba(255,149,0,.25)" : "1px solid var(--line)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ fontSize: 36 }}>{streakDays >= 14 ? "🔥" : streakDays >= 7 ? "🔥" : streakDays >= 3 ? "🔥" : streakDays >= 1 ? "🌱" : "💤"}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3, color: streakDays >= 3 ? "var(--orange)" : "#fff" }}>
+            {streakDays === 0 ? "No active streak" : `${streakDays}-day watch streak`}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>
+            {streakDays === 0 && "Watch a stream today to start your streak and earn bonus coins."}
+            {streakDays === 1 && "Watch tomorrow to keep your streak going!"}
+            {streakDays === 2 && "One more day for a 1.25x coin bonus!"}
+            {streakDays >= 3 && streakDays < 7 && `+${getStreakBonus(streakDays)}% coin speed active · ${7 - streakDays} days to 1.5x`}
+            {streakDays >= 7 && streakDays < 14 && `+${getStreakBonus(streakDays)}% coin speed active · ${14 - streakDays} days to 2x`}
+            {streakDays >= 14 && "2x coins — maximum streak bonus active!"}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, color: streakDays >= 3 ? "var(--orange)" : "var(--muted)" }}>{streakDays}d</div>
+          <div style={{ fontSize: 10, color: "var(--muted)" }}>streak</div>
+        </div>
       </div>
       <div className="wcards">
         <div className="wcard g">
