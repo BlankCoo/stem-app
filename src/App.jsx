@@ -455,15 +455,13 @@ export default function App() {
   // Past streams
   const [pastStreams, setPastStreams] = useState([]);
   const [selectedVod, setSelectedVod] = useState(null);
-  const [isPremium, setIsPremium] = useState(false);
-  const [premiumExpiresAt, setPremiumExpiresAt] = useState(null);
-  const [upgradingPremium, setUpgradingPremium] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistDone, setWaitlistDone] = useState(false);
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
   const coinsRef = useRef(0);
   const sessRef = useRef(0);
-  const premiumRef = useRef(false);
   const prevLiveIdsRef = useRef(new Set());
   const emoteFileRef = useRef(null);
   const slowTimerRef = useRef(null);
@@ -471,7 +469,6 @@ export default function App() {
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
   useEffect(() => { sessRef.current = sess; }, [sess]);
-  useEffect(() => { premiumRef.current = isPremium; }, [isPremium]);
 
   // Parse all emoji in the DOM to Twemoji SVGs after every render
   useEffect(() => {
@@ -490,7 +487,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); }
       else {
-        setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0; setIsPremium(false); premiumRef.current = false; setPremiumExpiresAt(null);
+        setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
         setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
         setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false);
@@ -525,10 +522,6 @@ export default function App() {
       setStreakDays(data.streak_days || 0);
       setReferralCode(data.referral_code || "");
       setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "" });
-      const prem = !!(data.is_premium && (!data.premium_expires_at || new Date(data.premium_expires_at) > new Date()));
-      setIsPremium(prem);
-      premiumRef.current = prem;
-      setPremiumExpiresAt(data.premium_expires_at || null);
     }
     return data;
   };
@@ -719,7 +712,7 @@ export default function App() {
     const title = clipTitle.trim() || `Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`;
     const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title });
     if (!error) {
-      const earned = Math.round(25 * (premiumRef.current ? 2 : 1) * (1 + getStreakBonus(streakDays) / 100));
+      const earned = Math.round(25 * (1 + getStreakBonus(streakDays) / 100));
       setShowClipModal(false);
       setClipTitle("");
       fetchStreamClips(stream.id);
@@ -770,42 +763,14 @@ export default function App() {
   };
   // ────────────────────────────────────────────────────────
 
-  // ── Premium ─────────────────────────────────────────────
-  const handleUpgradePremium = async () => {
-    if (!requireAuth()) return;
-    setUpgradingPremium(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/stripe-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else notify(data.error || "Failed to start checkout");
-    } catch {
-      notify("Something went wrong — try again");
-    } finally {
-      setUpgradingPremium(false);
+  const joinWaitlist = async () => {
+    const email = waitlistEmail.trim() || user?.email || "";
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      notify("Enter a valid email address"); return;
     }
-  };
-
-  const activatePremiumFromSession = async (sessionId) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/activate-premium?session_id=${sessionId}`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setIsPremium(true);
-        premiumRef.current = true;
-        setPremiumExpiresAt(data.premium_expires_at || null);
-        notify("Premium activated! You now earn 2x coins.");
-      }
-    } catch {
-      // silently ignore — user will see status on next load
-    }
+    await supabase.from("premium_waitlist").upsert({ email, user_id: user?.id || null }, { onConflict: "email" });
+    setWaitlistDone(true);
+    notify("You're on the waitlist! We'll let you know when Premium launches.");
   };
   // ────────────────────────────────────────────────────────
 
@@ -1126,9 +1091,8 @@ export default function App() {
   useEffect(() => {
     if (page !== "stream") return;
     const t = setInterval(() => {
-      const gain = premiumRef.current ? 2 : 1;
-      setSess(s => s + gain);
-      setCoins(c => c + gain);
+      setSess(s => s + 1);
+      setCoins(c => c + 1);
     }, tickMs);
     return () => clearInterval(t);
   }, [page, tickMs]);
@@ -1285,15 +1249,7 @@ export default function App() {
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") fetchUpcomingSchedule();
-    if (page === "wallet" && user) {
-      fetchTransactions(); fetchWithdrawHistory();
-      const params = new URLSearchParams(window.location.search);
-      const sessionId = params.get("session_id");
-      if (params.get("premium") === "success" && sessionId) {
-        window.history.replaceState({}, "", window.location.pathname);
-        activatePremiumFromSession(sessionId);
-      }
-    }
+    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
       if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); }
@@ -1405,7 +1361,7 @@ export default function App() {
           });
           if (!error) {
             setFollowing(true);
-            const earned = Math.round(50 * (premiumRef.current ? 2 : 1) * (1 + getStreakBonus(streakDays) / 100));
+            const earned = Math.round(50 * (1 + getStreakBonus(streakDays) / 100));
             const nc = coinsRef.current + earned;
             setCoins(nc); coinsRef.current = nc;
             supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
@@ -1439,7 +1395,7 @@ export default function App() {
     if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
-    const earned = Math.round(10 * (premiumRef.current ? 2 : 1) * (1 + getStreakBonus(streakDays) / 100));
+    const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
     const nc = coinsRef.current + earned;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
@@ -1675,7 +1631,6 @@ export default function App() {
               </span>
             )}
           </div>
-          {isPremium && <div style={{ display: "flex", alignItems: "center", gap: 4, background: "linear-gradient(135deg,rgba(255,200,0,.15),rgba(255,149,0,.08))", border: "1px solid rgba(255,200,0,.3)", borderRadius: 20, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "var(--gold)", cursor: "pointer", whiteSpace: "nowrap" }} onClick={() => go("wallet")}>⭐ PRO</div>}
           <div className="coin-badge" onClick={() => go("wallet")}>🪙 {coins.toLocaleString()}</div>
           <div className="av" onClick={() => go("profile")}>{initials}</div>
         </>}
@@ -2388,33 +2343,29 @@ export default function App() {
           <div className="wcard-l">Total Earned</div>
           <div className="wcard-v">${(profile?.total_earned || 0).toFixed(2)}</div>
           <div className="wcard-sub">{mode === "streamer" ? "Streaming, gifts, referrals" : "Watching, chatting, referrals"}</div>
-          {isPremium
-            ? <button className="wbtn" style={{ background: "linear-gradient(135deg,#ffc800,#ff9500)", color: "#000" }} disabled>⭐ Premium Active</button>
-            : <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))" }} onClick={handleUpgradePremium} disabled={upgradingPremium}>{upgradingPremium ? "Loading…" : "Get Premium"}</button>
-          }
+          <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", opacity: .7, cursor: "default" }} disabled>Coming Soon</button>
         </div>
       </div>
-      {isPremium ? (
-        <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.1),rgba(255,149,0,.06))", border: "1px solid rgba(255,200,0,.25)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
-          <div style={{ fontSize: 26 }}>⭐</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, marginBottom: 3, fontSize: 15, color: "var(--gold)" }}>Premium Active — 2x Earnings!</div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              {premiumExpiresAt ? `Renews ${new Date(premiumExpiresAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}` : "Active membership"}
-            </div>
+      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.1),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 16, padding: "20px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ fontSize: 28 }}>⚡</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Premium — 2x Earnings</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Premium launching soon — join the waitlist to be first.</div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", background: "rgba(255,200,0,.1)", border: "1px solid rgba(255,200,0,.25)", borderRadius: 20, padding: "4px 12px" }}>PREMIUM</span>
+          <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "var(--purple)", background: "rgba(124,58,237,.12)", border: "1px solid rgba(124,58,237,.3)", borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>COMING SOON</span>
         </div>
-      ) : (
-        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
-          <div style={{ fontSize: 26 }}>⚡</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, marginBottom: 3, fontSize: 15 }}>Earn 2x faster with Premium</div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>$9.99/month — double coins from watching, chatting, following & clipping.</div>
+        {waitlistDone ? (
+          <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.2)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "var(--green)", textAlign: "center" }}>
+            You're on the waitlist! We'll notify you at {waitlistEmail || user?.email} when Premium launches.
           </div>
-          <button className="btn-g" onClick={handleUpgradePremium} disabled={upgradingPremium}>{upgradingPremium ? "Loading…" : "Upgrade $9.99"}</button>
-        </div>
-      )}
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder={user?.email || "your@email.com"} value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && joinWaitlist()} />
+            <button className="btn-g" style={{ flexShrink: 0 }} onClick={joinWaitlist}>Join Waitlist</button>
+          </div>
+        )}
+      </div>
 
       {/* Coin Shop */}
       <div className="panel" style={{ marginBottom: 16 }}>
