@@ -449,6 +449,7 @@ export default function App() {
 
   // Past streams
   const [pastStreams, setPastStreams] = useState([]);
+  const [selectedVod, setSelectedVod] = useState(null);
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
@@ -699,6 +700,7 @@ export default function App() {
   const createClip = async () => {
     if (!user || !stream?.id) return;
     if (!requireAuth()) return;
+    if (clipTitle.trim().length > 100) { notify("Clip title too long (max 100 chars)"); return; }
     setSavingClip(true);
     const title = clipTitle.trim() || `Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`;
     const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title });
@@ -724,8 +726,10 @@ export default function App() {
   };
 
   const handleWithdraw = async () => {
-    if (!withdrawPaypal.includes("@")) { notify("Enter a valid PayPal email"); return; }
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(withdrawPaypal.trim());
+    if (!emailOk) { notify("Enter a valid PayPal email address"); return; }
     if (withdrawCoins < 20000) { notify("Minimum withdrawal is 20,000 coins ($20)"); return; }
+    if (withdrawCoins % 1000 !== 0) { notify("Amount must be a whole number of thousands (e.g. 20,000)"); return; }
     if (withdrawCoins > coins) { notify("Insufficient coins"); return; }
     setProcessingWithdraw(true);
     try {
@@ -1265,7 +1269,11 @@ export default function App() {
   };
 
   const handleSaveProfile = async () => {
-    if (!editProfile.fullName || !editProfile.username) { setProfileMsg("Please fill in all fields"); return; }
+    if (!editProfile.fullName.trim() || !editProfile.username.trim()) { setProfileMsg("Please fill in all fields"); return; }
+    if (editProfile.fullName.trim().length < 2) { setProfileMsg("Name must be at least 2 characters"); return; }
+    if (editProfile.username.trim().length < 3 || editProfile.username.trim().length > 30) { setProfileMsg("Username must be 3–30 characters"); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(editProfile.username.trim())) { setProfileMsg("Username can only contain letters, numbers and underscores"); return; }
+    if (editProfile.bio && editProfile.bio.length > 300) { setProfileMsg("Bio must be under 300 characters"); return; }
     setSavingProfile(true); setProfileMsg("");
     const { error } = await supabase.from("profiles").update({
       full_name: editProfile.fullName, username: editProfile.username, bio: editProfile.bio,
@@ -1328,6 +1336,7 @@ export default function App() {
   const sendChat = async () => {
     if (!requireAuth()) return;
     if (!msg.trim()) return;
+    if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
@@ -1482,7 +1491,7 @@ export default function App() {
     return matchCat && matchSearch;
   });
 
-  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile"].includes(page);
+  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin"].includes(page);
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
@@ -1618,8 +1627,8 @@ export default function App() {
         <div className="bottom-nav-items">
           {user ? (
             (mode === "viewer"
-              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
+              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
+              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
             ).map(([p, icon, l]) => {
               const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard");
               return (
@@ -2935,7 +2944,7 @@ export default function App() {
       {/* Tab bar */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--line)", marginBottom: 20, overflowX: "auto" }}>
         {[["overview", "Overview"], ["streams", `Streams${channelStreams.length ? ` (${channelStreams.length})` : ""}`], ["clips", `Clips${channelClips.length ? ` (${channelClips.length})` : ""}`], ["schedule", `Schedule${channelSchedule.length ? ` (${channelSchedule.length})` : ""}`], ...(streamEmotes.length ? [["emotes", `Emotes (${streamEmotes.length})`]] : [])].map(([tab, label]) => (
-          <button key={tab} onClick={() => setChannelTab(tab)} style={{ background: "none", border: "none", borderBottom: channelTab === tab ? "2px solid var(--red)" : "2px solid transparent", color: channelTab === tab ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "10px 16px", cursor: "pointer", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</button>
+          <button key={tab} onClick={() => { setChannelTab(tab); setSelectedVod(null); }} style={{ background: "none", border: "none", borderBottom: channelTab === tab ? "2px solid var(--red)" : "2px solid transparent", color: channelTab === tab ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "10px 16px", cursor: "pointer", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</button>
         ))}
       </div>
 
@@ -3002,19 +3011,44 @@ export default function App() {
       {channelTab === "streams" && (
         channelStreams.length === 0
           ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>📺</div>No past streams yet</div>
-          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
-              {channelStreams.map(s => {
-                const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
-                return (
-                  <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: s.status === "live" ? "pointer" : "default" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
-                    <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{meta.emoji}</div>
-                    <div style={{ padding: "10px 12px" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{s.category} · {s.status === "live" ? <span style={{ color: "var(--red)" }}>LIVE</span> : new Date(s.created_at).toLocaleDateString()}</div>
-                    </div>
+          : <div>
+              {selectedVod && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>{selectedVod.title}</div>
+                    <button onClick={() => setSelectedVod(null)} style={{ background: "none", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "4px 12px", fontSize: 12, cursor: "pointer" }}>✕ Close</button>
                   </div>
-                );
-              })}
+                  <div style={{ borderRadius: 12, overflow: "hidden", background: "#000" }}>
+                    <MuxPlayer playbackId={selectedVod.mux_playback_id} streamType="on-demand" style={{ width: "100%", aspectRatio: "16/9" }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+                    {selectedVod.category}{selectedVod.peak_viewers > 0 ? ` · ${selectedVod.peak_viewers.toLocaleString()} peak viewers` : ""} · {new Date(selectedVod.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+                {channelStreams.map(s => {
+                  const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
+                  const playable = !!s.mux_playback_id;
+                  const isSelected = selectedVod?.id === s.id;
+                  return (
+                    <div key={s.id} style={{ background: "var(--card)", border: `1px solid ${isSelected ? "rgba(124,58,237,.5)" : "var(--line)"}`, borderRadius: 12, overflow: "hidden", cursor: playable ? "pointer" : "default", transition: "border-color .2s" }}
+                      onClick={() => playable && setSelectedVod(isSelected ? null : s)}>
+                      <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, position: "relative" }}>
+                        {meta.emoji}
+                        {playable && <div style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.65)", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>▶</div>}
+                      </div>
+                      <div style={{ padding: "10px 12px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>
+                          {s.category}{s.peak_viewers > 0 ? ` · ${s.peak_viewers.toLocaleString()} peak` : ""} · {new Date(s.created_at).toLocaleDateString()}
+                        </div>
+                        {playable && <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, marginTop: 4 }}>▶ Watch VOD</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
       )}
 

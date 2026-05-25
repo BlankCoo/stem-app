@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://qqlvruflljwfnxpqqysx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbHZydWZsbGp3Zm54cHFxeXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTU4NzUsImV4cCI6MjA4OTU5MTg3NX0.sP1Cu7Xp6EoiZb830g5sWhUPj6Cd3mVo-a5aHFWUJHA';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 const PAYPAL_BASE = process.env.PAYPAL_SANDBOX === 'true'
   ? 'https://api-m.sandbox.paypal.com'
