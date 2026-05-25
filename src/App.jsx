@@ -339,6 +339,7 @@ export default function App() {
   const [channelFollowers, setChannelFollowers] = useState(0);
   const [channelIsLive, setChannelIsLive] = useState(false);
   const [channelSchedule, setChannelSchedule] = useState([]);
+  const [channelTab, setChannelTab] = useState("overview");
 
   // Stream schedule
   const [upcomingSchedule, setUpcomingSchedule] = useState([]);
@@ -597,6 +598,7 @@ export default function App() {
       setChannelSchedule(schedRes.data || []);
       setChannelClips(clipsRes.data || []);
       setStreamEmotes(profRes.data.emotes_enabled !== false ? (emotesRes.data || []) : []);
+      setChannelTab("overview");
       setPage("channel");
       window.scrollTo(0, 0);
     }
@@ -631,14 +633,15 @@ export default function App() {
     const title = clipTitle.trim() || `Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`;
     const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title });
     if (!error) {
-      notify("Clip saved!");
+      const earned = Math.round(25 * (1 + getStreakBonus(streakDays) / 100));
       setShowClipModal(false);
       setClipTitle("");
       fetchStreamClips(stream.id);
-      const nc = coinsRef.current + 25;
+      const nc = coinsRef.current + earned;
       setCoins(nc); coinsRef.current = nc;
       supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-      logTransaction("clip", 25, `Clipped "${stream.title}"`);
+      logTransaction("clip", earned, `Clipped "${stream.title}"`);
+      notify(`Clip saved! +${earned} coins`);
     }
     setSavingClip(false);
   };
@@ -1046,11 +1049,12 @@ export default function App() {
           });
           if (!error) {
             setFollowing(true);
-            const nc = coinsRef.current + 50;
+            const earned = Math.round(50 * (1 + getStreakBonus(streakDays) / 100));
+            const nc = coinsRef.current + earned;
             setCoins(nc); coinsRef.current = nc;
             supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-            logTransaction("follow", 50, `Followed ${stream.streamer}`);
-            notify("+50 coins for following!");
+            logTransaction("follow", earned, `Followed ${stream.streamer}`);
+            notify(`+${earned} coins for following!`);
           }
         }
       } else {
@@ -1059,10 +1063,11 @@ export default function App() {
           setFollowing(false); notify("Unfollowed");
         } else {
           setFollowing(true);
-          const nc = coinsRef.current + 50;
+          const earned = Math.round(50 * (1 + getStreakBonus(streakDays) / 100));
+          const nc = coinsRef.current + earned;
           setCoins(nc); coinsRef.current = nc;
           supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-          notify("+50 coins for following!");
+          notify(`+${earned} coins for following!`);
         }
       }
     } finally {
@@ -1075,7 +1080,8 @@ export default function App() {
     if (!msg.trim()) return;
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
-    const nc = coinsRef.current + 10;
+    const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
+    const nc = coinsRef.current + earned;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
@@ -1083,8 +1089,8 @@ export default function App() {
     });
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-    logTransaction("chat", 10, `Chatted in "${stream.title}"`);
-    setMsg(""); notify("+10 coins!");
+    logTransaction("chat", earned, `Chatted in "${stream.title}"`);
+    setMsg(""); notify(`+${earned} coins!`);
     startSlowCooldown();
   };
 
@@ -1356,14 +1362,29 @@ export default function App() {
         <div className="bottom-nav-items">
           {user ? (
             (mode === "viewer"
-              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Profile"]]
-              : [["disc", "🏠", "Home"], ["dash", "📊", "Dashboard"], ["profile", "👤", "Profile"]]
-            ).map(([p, icon, l]) => (
-              <button key={p} className={`bn-item ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>
-                <span className="bn-icon">{icon}</span>
-                <span className="bn-label">{l}</span>
-              </button>
-            ))
+              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
+              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["profile", "👤", "Me"]]
+            ).map(([p, icon, l]) => {
+              const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard");
+              return (
+                <button key={p} className={`bn-item ${isOn ? "on" : ""}`} onClick={() => go(p)}>
+                  <div style={{ position: "relative", lineHeight: 1 }}>
+                    <span className="bn-icon">{icon}</span>
+                    {/* Unread notification dot on Home */}
+                    {p === "disc" && unreadNotifs > 0 && (
+                      <span style={{ position: "absolute", top: -3, right: -5, background: "var(--red)", borderRadius: "50%", width: 8, height: 8, display: "block" }} />
+                    )}
+                    {/* Coin value badge on Wallet */}
+                    {p === "wallet" && coins >= 1000 && (
+                      <span style={{ position: "absolute", top: -6, right: -14, background: "var(--gold)", color: "#000", fontSize: 8, fontWeight: 800, borderRadius: 10, padding: "1px 5px", whiteSpace: "nowrap" }}>
+                        ${(coins / 1000).toFixed(0)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="bn-label">{l}</span>
+                </button>
+              );
+            })
           ) : (
             <>
               <button className={`bn-item ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>
@@ -1488,7 +1509,14 @@ export default function App() {
         <input className="search-input" placeholder="🔍 Search streams, games, streamers..." value={search} onChange={e => setSearch(e.target.value)} />
         {search && <button onClick={() => setSearch("")} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 10, padding: "0 14px", cursor: "pointer", fontSize: 13 }}>Clear</button>}
       </div>
-      <div className="cats">{CATS.map(c => <button key={c} className={`cat ${cat === c ? "on" : ""}`} onClick={() => setCat(c)}>{c}</button>)}</div>
+      <div className="cats">{CATS.map(c => {
+        const count = c === "All" ? allStreams.length : allStreams.filter(s => s.game === c || s.game.includes(c)).length;
+        return (
+          <button key={c} className={`cat ${cat === c ? "on" : ""}`} onClick={() => setCat(c)}>
+            {CAT_META[c] ? `${CAT_META[c].emoji} ` : ""}{c}{count > 0 && c !== "All" ? <span style={{ fontSize: 9, opacity: .7, marginLeft: 4 }}>{count}</span> : ""}
+          </button>
+        );
+      })}</div>
       {liveStreams.length > 0 && !search && cat === "All" && (
         <div className="live-banner">
           <div className="live-dot" />
@@ -1568,8 +1596,15 @@ export default function App() {
             </div>
             <div className="sc-body">
               <div className="sc-row">
-                <div className="sc-av" style={{ background: s.color }}>{s.emoji}</div>
-                <div><div className="sc-title">{s.title}</div><div className="sc-name">{s.streamer}</div></div>
+                <div className="sc-av" style={{ background: s.color, cursor: s.isRealStream && s.user_id ? "pointer" : "default" }}
+                  onClick={s.isRealStream && s.user_id ? (e) => { e.stopPropagation(); viewChannel(s.user_id); } : undefined}
+                >{s.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="sc-title">{s.title}</div>
+                  <div className="sc-name" style={{ cursor: s.isRealStream && s.user_id ? "pointer" : "default", textDecoration: s.isRealStream && s.user_id ? "underline" : "none", textDecorationColor: "rgba(255,255,255,.2)" }}
+                    onClick={s.isRealStream && s.user_id ? (e) => { e.stopPropagation(); viewChannel(s.user_id); } : undefined}
+                  >{s.streamer}</div>
+                </div>
               </div>
               <div style={{ display: "flex", gap: 4 }}><span className="stag">{s.game}</span></div>
             </div>
@@ -1650,12 +1685,15 @@ export default function App() {
               </div>
               <div className="ecells">
                 <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
-                <div className="ecell"><div className="ecell-v" style={{ color: "var(--gold)" }}>+10</div><div className="ecell-l">Per chat</div></div>
+                <div className="ecell">
+                  <div className="ecell-v" style={{ color: "var(--gold)" }}>+{Math.round(10 * (1 + getStreakBonus(streakDays) / 100))}</div>
+                  <div className="ecell-l">Per chat</div>
+                </div>
                 <div className="ecell">
                   <div className="ecell-v" style={{ color: streakDays >= 3 ? "var(--orange)" : "var(--muted)" }}>
-                    {streakDays >= 3 ? `${(1 + getStreakBonus(streakDays) / 100).toFixed(2)}x` : "1x"}
+                    {streakDays >= 3 ? `+${getStreakBonus(streakDays)}%` : "1x"}
                   </div>
-                  <div className="ecell-l">Streak</div>
+                  <div className="ecell-l">{streakDays >= 3 ? "Bonus" : "Streak"}</div>
                 </div>
               </div>
             </div>
@@ -1909,6 +1947,9 @@ export default function App() {
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <input readOnly value={`${window.location.origin}/?ref=${profile.referral_code}`} className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
                 <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?ref=${profile.referral_code}`); notify("Referral link copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
+                {typeof navigator.share === "function" && (
+                  <button onClick={() => navigator.share({ title: "Join STEM — Earn Money Watching Streams", text: `Sign up with my link and we both get 500 free coins!`, url: `${window.location.origin}/?ref=${profile.referral_code}` }).catch(() => {})} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Share</button>
+                )}
               </div>
               <div style={{ display: "flex", gap: 12 }}>
                 <div style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
@@ -2407,93 +2448,150 @@ export default function App() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
         {[["Followers", channelFollowers.toLocaleString()], ["Streams", channelStreams.length], ["Clips", channelClips.length]].map(([l, v]) => (
-          <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", textAlign: "center" }}>
-            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26 }}>{v}</div>
+          <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24 }}>{v}</div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{l}</div>
           </div>
         ))}
       </div>
 
-      {/* Upcoming schedule */}
-      {channelSchedule.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📅 Upcoming</div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
-            {channelSchedule.map(s => {
-              const d = new Date(s.scheduled_at);
-              return (
-                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 170, flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 3 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{s.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Tab bar */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--line)", marginBottom: 20, overflowX: "auto" }}>
+        {[["overview", "Overview"], ["streams", `Streams${channelStreams.length ? ` (${channelStreams.length})` : ""}`], ["clips", `Clips${channelClips.length ? ` (${channelClips.length})` : ""}`], ["schedule", `Schedule${channelSchedule.length ? ` (${channelSchedule.length})` : ""}`], ...(streamEmotes.length ? [["emotes", `Emotes (${streamEmotes.length})`]] : [])].map(([tab, label]) => (
+          <button key={tab} onClick={() => setChannelTab(tab)} style={{ background: "none", border: "none", borderBottom: channelTab === tab ? "2px solid var(--red)" : "2px solid transparent", color: channelTab === tab ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "10px 16px", cursor: "pointer", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</button>
+        ))}
+      </div>
+
+      {/* Overview tab */}
+      {channelTab === "overview" && (
+        <div>
+          {channelIsLive && (
+            <div style={{ background: "linear-gradient(135deg,rgba(255,45,85,.12),rgba(255,45,85,.05))", border: "1px solid rgba(255,45,85,.3)", borderRadius: 14, padding: "16px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 10, height: 10, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>Live right now</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{channelUser.full_name} is streaming</div>
+              </div>
+              <button className="btn-red" onClick={() => { const ls = liveStreams.find(s => s.user_id === channelUser.id); if (ls) go("stream", formatDbStream(ls)); }} style={{ padding: "8px 16px", fontSize: 13 }}>Watch</button>
+            </div>
+          )}
+          {channelSchedule.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 10 }}>Up next</div>
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+                {channelSchedule.slice(0, 3).map(s => {
+                  const d = new Date(s.scheduled_at);
+                  return (
+                    <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 160, flexShrink: 0 }}>
+                      <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 3 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {channelStreams.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 10 }}>Recent streams</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+                {channelStreams.slice(0, 4).map(s => {
+                  const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
+                  return (
+                    <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: s.status === "live" ? "pointer" : "default" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
+                      <div style={{ height: 70, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{meta.emoji}</div>
+                      <div style={{ padding: "8px 10px" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{s.status === "live" ? <span style={{ color: "var(--red)" }}>🔴 LIVE</span> : "Ended"}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {channelStreams.length === 0 && !channelIsLive && (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No streams yet</div>
+              <div style={{ fontSize: 13 }}>Check back when this creator goes live.</div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Past streams */}
-      {channelStreams.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📺 Past Streams</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
-            {channelStreams.map(s => {
-              const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
-              return (
-                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: "pointer" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
-                  <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{meta.emoji}</div>
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{s.category} · {s.status === "live" ? <span style={{ color: "var(--red)" }}>LIVE</span> : "Ended"}</div>
+      {/* Streams tab */}
+      {channelTab === "streams" && (
+        channelStreams.length === 0
+          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>📺</div>No past streams yet</div>
+          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+              {channelStreams.map(s => {
+                const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
+                return (
+                  <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: s.status === "live" ? "pointer" : "default" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
+                    <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{meta.emoji}</div>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{s.category} · {s.status === "live" ? <span style={{ color: "var(--red)" }}>LIVE</span> : new Date(s.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+      )}
+
+      {/* Clips tab */}
+      {channelTab === "clips" && (
+        channelClips.length === 0
+          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>✂</div>No clips yet</div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {channelClips.map(clip => (
+                <div key={clip.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>✂</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{clip.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || "viewer"} · {new Date(clip.created_at).toLocaleDateString()}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              ))}
+            </div>
       )}
 
-      {/* Clips */}
-      {channelClips.length > 0 && (
-        <div>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>✂ Clips</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {channelClips.map(clip => (
-              <div key={clip.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 20 }}>✂</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{clip.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Clipped by {clip.profiles?.full_name || "viewer"} · {new Date(clip.created_at).toLocaleDateString()}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Schedule tab */}
+      {channelTab === "schedule" && (
+        channelSchedule.length === 0
+          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>📅</div>No upcoming streams scheduled</div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {channelSchedule.map(s => {
+                const d = new Date(s.scheduled_at);
+                return (
+                  <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ textAlign: "center", minWidth: 44, background: "rgba(124,58,237,.1)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 8, padding: "6px 4px", flexShrink: 0 }}>
+                      <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700 }}>{d.toLocaleDateString([], { month: "short" }).toUpperCase()}</div>
+                      <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, lineHeight: 1 }}>{d.getDate()}</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{s.category} · {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
       )}
 
-      {channelStreams.length === 0 && channelClips.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No streams yet</div>
-          <div style={{ fontSize: 13 }}>Check back when this creator goes live.</div>
-        </div>
-      )}
-
-      {/* Channel emotes showcase */}
-      {streamEmotes.length > 0 && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>😄 Channel Emotes</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {streamEmotes.map(e => (
-              <div key={e.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} title={`:${e.name}:`}>
-                <img src={e.image_url} alt={e.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
-              </div>
-            ))}
-          </div>
+      {/* Emotes tab */}
+      {channelTab === "emotes" && streamEmotes.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {streamEmotes.map(e => (
+            <div key={e.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }} title={`:${e.name}:`}>
+              <img src={e.image_url} alt={e.name} style={{ width: 48, height: 48, objectFit: "contain" }} />
+              <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
+            </div>
+          ))}
         </div>
       )}
     </div>}
@@ -2503,7 +2601,7 @@ export default function App() {
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowClipModal(false)}>
         <div className="modal-box" style={{ maxWidth: 380 }}>
           <div className="modal-title">✂ Create Clip</div>
-          <div className="modal-sub">Save this moment — you'll earn +25 coins when you clip!</div>
+          <div className="modal-sub">Save this moment — earn +{Math.round(25 * (1 + getStreakBonus(streakDays) / 100))} coins{getStreakBonus(streakDays) > 0 ? ` (${getStreakBonus(streakDays)}% streak bonus!)` : ""}!</div>
           <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Clip Title (optional)</label>
           <input
             className="fi"
@@ -2516,7 +2614,7 @@ export default function App() {
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <button onClick={() => { setShowClipModal(false); setClipTitle(""); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
             <button onClick={createClip} disabled={savingClip} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingClip ? "not-allowed" : "pointer", opacity: savingClip ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {savingClip ? <div className="spinner" /> : <>✂ Save Clip — +25 coins</>}
+              {savingClip ? <div className="spinner" /> : <>✂ Save Clip — +{Math.round(25 * (1 + getStreakBonus(streakDays) / 100))} coins</>}
             </button>
           </div>
         </div>
@@ -2566,7 +2664,7 @@ export default function App() {
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowWithdrawModal(false)}>
         <div className="modal-box">
           <div className="modal-title">💸 Withdraw Earnings</div>
-          <div className="modal-sub">Funds sent to your PayPal within 24 hours.</div>
+          <div className="modal-sub">Request is reviewed manually — paid within 24 hours via PayPal or bank transfer.</div>
 
           {/* Quick amounts */}
           <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8, display: "block" }}>Amount</label>
@@ -2599,9 +2697,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* PayPal email */}
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>PayPal Email</label>
+          {/* Payout email */}
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Payout Email (PayPal)</label>
           <input className="fi" type="email" placeholder="your@paypal.com" value={withdrawPaypal} onChange={e => setWithdrawPaypal(e.target.value)} onKeyDown={e => e.key === "Enter" && handleWithdraw()} />
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10, marginTop: -4 }}>Your request is saved and manually reviewed — you'll receive payment within 24 hours.</div>
 
           {withdrawCoins < 20000 && withdrawCoins > 0 && (
             <div style={{ fontSize: 12, color: "var(--orange)", marginBottom: 10 }}>Minimum withdrawal is 20,000 coins ($20)</div>
