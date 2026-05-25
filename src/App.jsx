@@ -280,6 +280,17 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .react-btn:hover,.react-btn:active{background:var(--ink4);transform:scale(1.18)}
 .admin-page{padding:20px 16px;padding-bottom:80px;max-width:720px;margin:0 auto}
 .raid-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.poll-card{background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(255,45,85,.07));border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.poll-opt{width:100%;background:var(--ink3);border:1px solid var(--line);color:#fff;border-radius:10px;padding:9px 14px;font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;text-align:left;margin-bottom:6px;transition:all .15s;position:relative;overflow:hidden;display:block}
+.poll-opt:hover{background:var(--ink4)}.poll-opt.voted{border-color:rgba(124,58,237,.6);background:rgba(124,58,237,.12)}
+.poll-bar{position:absolute;inset:0;background:rgba(124,58,237,.2);transition:width .5s ease;pointer-events:none;border-radius:10px}
+.gifters-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.gifter-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.22);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--gold)}
+.clips-page{padding:20px 16px;padding-bottom:80px;max-width:900px;margin:0 auto}
+.clips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px}
+.clip-card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .2s}
+.clip-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.shop-item{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
 .slow-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,149,0,.1);border:1px solid rgba(255,149,0,.2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px}
 .fs-btn{position:absolute;bottom:10px;right:10px;z-index:20;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;backdrop-filter:blur(6px);transition:background .15s}
 .fs-btn:hover{background:rgba(0,0,0,.85)}
@@ -417,6 +428,27 @@ export default function App() {
 
   // Real streamer stats
   const [streamerStats, setStreamerStats] = useState({ streamCount: 0 });
+
+  // Subscription system
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+
+  // Stream polls
+  const [activePoll, setActivePoll] = useState(null);
+  const [pollVoted, setPollVoted] = useState(null);
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollForm, setPollForm] = useState({ question: "", options: ["", ""] });
+  const pollChRef = useRef(null);
+
+  // Top gifters this session
+  const [topGifters, setTopGifters] = useState({});
+
+  // Clips gallery
+  const [allClips, setAllClips] = useState([]);
+  const [loadingClips, setLoadingClips] = useState(false);
+
+  // Past streams
+  const [pastStreams, setPastStreams] = useState([]);
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
@@ -621,7 +653,7 @@ export default function App() {
     if (!userId) return;
     const [profRes, streamsRes, followersRes, liveRes, schedRes, clipsRes, emotesRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
+      supabase.from("past_streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
       supabase.from("follows").select("id", { count: "exact" }).eq("following_id", userId),
       supabase.from("streams").select("id,title").eq("user_id", userId).eq("status", "live").maybeSingle(),
       supabase.from("stream_schedule").select("*").eq("user_id", userId).gte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(5),
@@ -824,6 +856,98 @@ export default function App() {
     if (data && data.length > 0) { setRaidTargets(data); setShowRaidModal(true); }
   };
 
+  // ── Subscription ────────────────────────────────────────
+  const checkSubscription = async (streamerId) => {
+    if (!user || !streamerId) { setIsSubscribed(false); return; }
+    const { data } = await supabase.from("subscriptions").select("expires_at").eq("subscriber_id", user.id).eq("streamer_id", streamerId).maybeSingle();
+    setIsSubscribed(!!data && new Date(data.expires_at) > new Date());
+  };
+
+  const handleSubscribe = async () => {
+    if (!requireAuth()) return;
+    if (!stream?.user_id || stream.user_id === user?.id) return;
+    const COST = 1000;
+    if (coinsRef.current < COST) { notify("Need 1,000 coins to subscribe!"); return; }
+    setSubscribing(true);
+    const nc = coinsRef.current - COST;
+    setCoins(nc); coinsRef.current = nc;
+    supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    await supabase.from("subscriptions").upsert({
+      subscriber_id: user.id, streamer_id: stream.user_id,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }, { onConflict: "subscriber_id,streamer_id" });
+    logTransaction("subscription", -COST, `Subscribed to ${stream.streamer}`);
+    setIsSubscribed(true);
+    notify(`Subscribed to ${stream.streamer}! ⭐`);
+    setSubscribing(false);
+  };
+
+  // ── Top gifters ──────────────────────────────────────────
+  const addGifter = (amount) => {
+    if (!user) return;
+    const name = profile?.full_name?.split(" ")[0] || profile?.username || "Anon";
+    setTopGifters(prev => ({ ...prev, [user.id]: { name, total: (prev[user.id]?.total || 0) + amount } }));
+  };
+
+  // ── Stream polls ─────────────────────────────────────────
+  const createPoll = () => {
+    if (!pollForm.question.trim()) { notify("Enter a poll question"); return; }
+    const opts = pollForm.options.filter(o => o.trim());
+    if (opts.length < 2) { notify("Add at least 2 options"); return; }
+    const poll = { question: pollForm.question.trim(), options: opts, votes: Object.fromEntries(opts.map(o => [o, 0])) };
+    setActivePoll(poll); setPollVoted(null);
+    setShowPollCreator(false); setPollForm({ question: "", options: ["", ""] });
+    pollChRef.current?.send({ type: "broadcast", event: "poll_start", payload: poll });
+  };
+
+  const votePoll = (opt) => {
+    if (pollVoted || !activePoll) return;
+    setPollVoted(opt);
+    setActivePoll(p => ({ ...p, votes: { ...p.votes, [opt]: (p.votes[opt] || 0) + 1 } }));
+    pollChRef.current?.send({ type: "broadcast", event: "poll_vote", payload: { opt } });
+  };
+
+  const endPoll = () => {
+    setActivePoll(null); setPollVoted(null);
+    pollChRef.current?.send({ type: "broadcast", event: "poll_end", payload: {} });
+  };
+
+  // ── Clips gallery ─────────────────────────────────────────
+  const fetchAllClips = async () => {
+    setLoadingClips(true);
+    const { data } = await supabase.from("clips").select("*, profiles(username, full_name)").order("created_at", { ascending: false }).limit(50);
+    setAllClips(data || []); setLoadingClips(false);
+  };
+
+  // ── Past streams ──────────────────────────────────────────
+  const savePastStream = async () => {
+    if (!user) return;
+    const { data: sd } = await supabase.from("streams").select("title,category,mux_playback_id,viewer_count").eq("user_id", user.id).single();
+    if (sd) {
+      await supabase.from("past_streams").insert({
+        user_id: user.id, streamer_name: profile?.full_name || profile?.username || "Streamer",
+        title: sd.title, category: sd.category, mux_playback_id: sd.mux_playback_id, peak_viewers: sd.viewer_count || 0,
+      });
+    }
+  };
+
+  const fetchPastStreams = async (userId) => {
+    const { data } = await supabase.from("past_streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(12);
+    setPastStreams(data || []);
+  };
+
+  // ── Coin shop ──────────────────────────────────────────
+  const buyShopItem = async (name, cost, profileUpdate) => {
+    if (!requireAuth()) return;
+    if (coinsRef.current < cost) { notify(`Need ${cost.toLocaleString()} coins!`); return; }
+    const nc = coinsRef.current - cost;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc, ...profileUpdate }).eq("id", user.id);
+    setProfile(p => p ? { ...p, ...profileUpdate } : p);
+    logTransaction("shop_purchase", -cost, `Bought ${name}`);
+    notify(`${name} unlocked! ✨`);
+  };
+
   const executeRaid = (target) => {
     setShowRaidModal(false);
     notify(`Raiding ${target.streamer_name}!`);
@@ -960,6 +1084,20 @@ export default function App() {
     return () => supabase.removeChannel(presenceCh);
   }, [page, stream?.id, stream?.isRealStream]);
 
+  // Poll broadcast channel
+  useEffect(() => {
+    if (page !== "stream" || !stream?.id) { pollChRef.current = null; return; }
+    const ch = supabase.channel(`polls-${stream.id}`)
+      .on("broadcast", { event: "poll_start" }, ({ payload }) => { setActivePoll(payload); setPollVoted(null); })
+      .on("broadcast", { event: "poll_vote" }, ({ payload }) => {
+        setActivePoll(p => p ? { ...p, votes: { ...p.votes, [payload.opt]: (p.votes[payload.opt] || 0) + 1 } } : p);
+      })
+      .on("broadcast", { event: "poll_end" }, () => { setActivePoll(null); setPollVoted(null); })
+      .subscribe();
+    pollChRef.current = ch;
+    return () => { supabase.removeChannel(ch); pollChRef.current = null; };
+  }, [page, stream?.id]);
+
   // Load moderation state when entering a stream as the streamer
   useEffect(() => {
     if (page === "stream" && stream?.isRealStream && user?.id === stream?.user_id) {
@@ -1020,12 +1158,9 @@ export default function App() {
         .order("created_at", { ascending: true })
         .limit(50);
       if (data) setChat(data.map(m => ({
-        a: m.username,
-        t: m.content,
-        c: m.color || "#ff2d55",
-        sc: m.is_superchat,
-        amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
-        uid: m.user_id,
+        a: m.username, t: m.content, c: m.color || "#ff2d55",
+        sc: m.is_superchat, amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
+        uid: m.user_id, badge: m.badge || null,
       })));
     };
     loadMessages();
@@ -1035,7 +1170,7 @@ export default function App() {
         setChat(l => [...l, {
           a: m.username, t: m.content, c: m.color || "#ff2d55",
           sc: m.is_superchat, amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
-          uid: m.user_id,
+          uid: m.user_id, badge: m.badge || null,
         }]);
       })
       .subscribe();
@@ -1055,7 +1190,13 @@ export default function App() {
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") fetchUpcomingSchedule();
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
-    if (page === "stream" && stream?.id) { fetchStreamClips(stream.id); if (stream.user_id) fetchStreamEmotes(stream.user_id); }
+    if (page === "stream" && stream?.id) {
+      fetchStreamClips(stream.id);
+      if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); }
+      setTopGifters({}); setActivePoll(null); setPollVoted(null);
+    }
+    if (page === "clips") fetchAllClips();
+    if (page === "channel" && channelUser?.id) fetchPastStreams(channelUser.id);
   }, [page, user]);
 
   const handleSignUp = async () => {
@@ -1194,7 +1335,7 @@ export default function App() {
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
-      content: msg.trim(), color: "#ff2d55", is_superchat: false, coins_spent: 0,
+      content: msg.trim(), color: profile?.chat_color || "#ff2d55", is_superchat: false, coins_spent: 0, badge: profile?.badge || null,
     });
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
@@ -1220,6 +1361,7 @@ export default function App() {
     triggerGiftAnim(emoji, name);
     showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} sent a ${name}!`, emoji, `${c.toLocaleString()} coins`);
     addHype(c);
+    addGifter(c);
   };
 
   const handleGoLive = async () => {
@@ -1261,6 +1403,7 @@ export default function App() {
   };
 
   const handleEndStream = async () => {
+    await savePastStream();
     if (muxStreamId) {
       await fetch("/api/mux-end", {
         method: "POST",
@@ -1359,6 +1502,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
             <div style={{ flex: 1 }}>
               {m.sc && <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>}
+              {m.badge && <span style={{ fontSize: 12, marginRight: 3 }}>{m.badge}</span>}
               <span className="cmsg-a" style={{ color: m.c, cursor: m.uid ? "pointer" : "default" }}
                 onClick={() => m.uid && viewVProfile(m.uid)}>{m.a}</span>
               <span className="cmsg-t" style={{ marginLeft: 6 }}>{parseMessage(m.t)}</span>
@@ -1393,7 +1537,7 @@ export default function App() {
       <div className="nav-c">
         {user ? (
           (mode === "viewer"
-            ? [["disc", "Home"], ["leaderboard", "Top Earners"], ["wallet", "Wallet"], ["profile", "Profile"]]
+            ? [["disc", "Home"], ["leaderboard", "Top Earners"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Profile"]]
             : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Profile"]]
           ).map(([p, l]) => (
             <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
@@ -1784,7 +1928,11 @@ export default function App() {
             </button>
             <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
             <button className="abtn" onClick={() => { if (!requireAuth()) return; setShowClipModal(true); }}>✂ Clip</button>
-            <button className="abtn" onClick={() => notify("Subscribe coming soon!")}>Sub $4.99</button>
+            {stream.user_id && stream.user_id !== user?.id && (
+              <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={handleSubscribe} disabled={subscribing || isSubscribed}>
+                {isSubscribed ? "⭐ Subscribed" : subscribing ? "…" : "⭐ Sub (1K coins)"}
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: 14, cursor: stream.user_id ? "pointer" : "default" }} onClick={() => stream.user_id && viewChannel(stream.user_id)}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: stream.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{stream.emoji}</div>
@@ -1833,6 +1981,57 @@ export default function App() {
               </div>
             </div>
           )}
+          {/* Top gifters this session */}
+          {Object.keys(topGifters).length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>Top Gifters</div>
+              <div className="gifters-strip">
+                {Object.entries(topGifters).sort((a,b) => b[1].total - a[1].total).slice(0,5).map(([uid, g], i) => (
+                  <span key={uid} className="gifter-chip">{["🥇","🥈","🥉","4️⃣","5️⃣"][i]} {g.name} · {g.total.toLocaleString()}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active poll */}
+          {activePoll && (() => {
+            const totalVotes = Object.values(activePoll.votes).reduce((s,v) => s+v, 0);
+            return (
+              <div className="poll-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>📊 {activePoll.question}</div>
+                  {user?.id === stream?.user_id && <button onClick={endPoll} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>End</button>}
+                </div>
+                {activePoll.options.map(opt => {
+                  const pct = totalVotes ? Math.round((activePoll.votes[opt] || 0) / totalVotes * 100) : 0;
+                  return (
+                    <button key={opt} className={`poll-opt ${pollVoted === opt ? "voted" : ""}`} onClick={() => votePoll(opt)} disabled={!!pollVoted}>
+                      <div className="poll-bar" style={{ width: pollVoted ? `${pct}%` : "0%" }} />
+                      <span style={{ position: "relative" }}>{opt}{pollVoted && <span style={{ float: "right", fontWeight: 700, color: "var(--purple)" }}>{pct}%</span>}</span>
+                    </button>
+                  );
+                })}
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</div>
+              </div>
+            );
+          })()}
+
+          {/* Poll creator (streamer only) */}
+          {user?.id === stream?.user_id && !activePoll && showPollCreator && (
+            <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Create Poll</div>
+              <input className="fi" style={{ margin: "0 0 8px", fontSize: 13 }} placeholder="Poll question…" value={pollForm.question} onChange={e => setPollForm(f => ({ ...f, question: e.target.value }))} />
+              {pollForm.options.map((o, i) => (
+                <input key={i} className="fi" style={{ margin: "0 0 6px", fontSize: 13 }} placeholder={`Option ${i+1}`} value={o} onChange={e => { const ops = [...pollForm.options]; ops[i] = e.target.value; setPollForm(f => ({ ...f, options: ops })); }} />
+              ))}
+              {pollForm.options.length < 4 && <button onClick={() => setPollForm(f => ({ ...f, options: [...f.options, ""] }))} style={{ background: "none", border: "none", color: "var(--purple)", fontSize: 12, cursor: "pointer", marginBottom: 8 }}>+ Add option</button>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={createPoll} className="btn-g" style={{ flex: 1, padding: "8px 0", fontSize: 13 }}>Launch Poll</button>
+                <button onClick={() => setShowPollCreator(false)} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
           {/* Hype Train */}
           {hypeProgress > 0 && (
             <div className="hype-wrap">
@@ -1885,6 +2084,9 @@ export default function App() {
             <div className="chat-hd">
               <span className="chat-hd-title">Live Chat</span>
               <div style={{ display: "flex", align: "center", gap: 8 }}>
+                {isStreamOwner && !activePoll && (
+                  <button onClick={() => setShowPollCreator(p => !p)} style={{ background: showPollCreator ? "rgba(124,58,237,.2)" : "var(--ink3)", border: "1px solid var(--line2)", color: showPollCreator ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "3px 8px", cursor: "pointer", fontWeight: 700 }}>📊 Poll</button>
+                )}
                 {isStreamOwner && (
                   <div style={{ display: "flex", gap: 6 }}>
                     <select value={slowModeSecs} onChange={e => setSlowModeSecs(Number(e.target.value))} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 6, fontSize: 10, padding: "2px 6px", cursor: "pointer" }}>
@@ -2083,6 +2285,33 @@ export default function App() {
         <div style={{ fontSize: 26 }}>💡</div>
         <div style={{ flex: 1 }}><div style={{ fontWeight: 700, marginBottom: 3, fontSize: 15 }}>Earn 2x faster with Premium</div><div style={{ fontSize: 13, color: "var(--muted)" }}>$9.99/month — double all your ad earnings.</div></div>
         <button className="btn-g" onClick={() => notify("Premium coming soon!")}>Upgrade</button>
+      </div>
+
+      {/* Coin Shop */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd"><span className="panel-title">🛍 Coin Shop</span></div>
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>Spend your coins on profile upgrades and chat perks.</div>
+          {[
+            { icon: "🎨", name: "Neon Chat Color", desc: "Your chat messages glow in neon green", cost: 500, profileUpdate: { chat_color: "#00f5a0" }, owned: profile?.chat_color === "#00f5a0" },
+            { icon: "🔥", name: "Red Hot Color", desc: "Fiery red chat color", cost: 500, profileUpdate: { chat_color: "#ff6b35" }, owned: profile?.chat_color === "#ff6b35" },
+            { icon: "💜", name: "Purple Royale", desc: "Rich purple chat color", cost: 500, profileUpdate: { chat_color: "#a78bfa" }, owned: profile?.chat_color === "#a78bfa" },
+            { icon: "👑", name: "VIP Badge", desc: "Crown badge shown in chat next to your name", cost: 1000, profileUpdate: { badge: "👑" }, owned: profile?.badge === "👑" },
+            { icon: "🐋", name: "Whale Badge", desc: "Whale badge for big spenders", cost: 2000, profileUpdate: { badge: "🐋" }, owned: profile?.badge === "🐋" },
+            { icon: "⭐", name: "Star Badge", desc: "Gold star badge for loyal viewers", cost: 750, profileUpdate: { badge: "⭐" }, owned: profile?.badge === "⭐" },
+          ].map(item => (
+            <div key={item.name} className="shop-item">
+              <span style={{ fontSize: 28, flexShrink: 0 }}>{item.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{item.name}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{item.desc}</div>
+              </div>
+              <button onClick={() => !item.owned && buyShopItem(item.name, item.cost, item.profileUpdate)} style={{ background: item.owned ? "rgba(0,245,160,.1)" : "linear-gradient(135deg,var(--purple),var(--red))", border: item.owned ? "1px solid rgba(0,245,160,.3)" : "none", color: item.owned ? "var(--green)" : "#fff", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: item.owned ? "default" : "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
+                {item.owned ? "Owned ✓" : `🪙 ${item.cost.toLocaleString()}`}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Referral */}
@@ -2529,6 +2758,41 @@ export default function App() {
             </div>
           )}
         </div>
+      </div>
+    )}
+
+    {/* CLIPS GALLERY */}
+    {page === "clips" && (
+      <div className="clips-page page">
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Clips</div>
+        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 20 }}>Best moments from STEM streams</div>
+        {loadingClips ? (
+          <div style={{ padding: 60, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+        ) : allClips.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
+            <div style={{ fontSize: 48, marginBottom: 14 }}>✂</div>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>No clips yet</div>
+            <div style={{ fontSize: 13 }}>Watch streams and click ✂ Clip to save moments.</div>
+          </div>
+        ) : (
+          <div className="clips-grid">
+            {allClips.map(clip => {
+              const meta = CAT_META[clip.category] || { emoji: "🎮", color: "#7c3aed" };
+              return (
+                <div key={clip.id} className="clip-card" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?clip=${clip.id}`); notify("Clip link copied!"); }}>
+                  <div style={{ background: `linear-gradient(135deg,${meta.color}33,${meta.color}11)`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, borderBottom: "1px solid var(--line)" }}>
+                    {meta.emoji}
+                  </div>
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     )}
 
