@@ -787,7 +787,7 @@ export default function App() {
   const fetchLiveStreams = async () => {
     const { data } = await supabase
       .from("streams")
-      .select("*, profiles(full_name, username)")
+      .select("*, profiles(full_name, username, follower_count)")
       .eq("status", "live")
       .order("viewer_count", { ascending: false });
     if (data) setLiveStreams(data);
@@ -1655,7 +1655,8 @@ export default function App() {
   // Presence-based live viewer count
   useEffect(() => {
     if (page !== "stream" || !stream?.isRealStream) { setViewerCount(0); return; }
-    const key = user?.id || `guest-${Math.random().toString(36).slice(2)}`;
+    const guestKey = sessionStorage.getItem("guestKey") || (() => { const k = `guest-${Math.random().toString(36).slice(2)}`; sessionStorage.setItem("guestKey", k); return k; })();
+    const key = user?.id || guestKey;
     const presenceCh = supabase.channel(`pres-${stream.id}`, { config: { presence: { key } } })
       .on("presence", { event: "sync" }, () => {
         setViewerCount(Object.keys(presenceCh.presenceState()).length);
@@ -1747,6 +1748,12 @@ export default function App() {
     }
   }, [page, stream?.id]);
 
+  // Persist chat moderation settings to DB when stream owner changes them
+  useEffect(() => {
+    if (!stream?.id || !stream?.isRealStream || user?.id !== stream?.user_id) return;
+    supabase.from("streams").update({ slow_mode: slowModeSecs, sub_only_chat: subOnly, follower_only_chat: followerOnly }).eq("id", stream.id);
+  }, [slowModeSecs, subOnly, followerOnly]);
+
   // Check follow status + ban status whenever we enter a stream
   useEffect(() => {
     setFollowing(false);
@@ -1795,8 +1802,8 @@ export default function App() {
 
   // Load followed streamers when switching to Following tab
   useEffect(() => {
-    if (discTab === "following" && user) fetchFollowedStreamers();
-  }, [discTab, myFollows.length]);
+    if (page === "disc" && user) fetchFollowedStreamers();
+  }, [page, myFollows.length]);
 
   // Refresh follows list when follow/unfollow happens (so notifications stay accurate)
   useEffect(() => {
@@ -1924,7 +1931,7 @@ export default function App() {
   const handleForgotPassword = async () => {
     if (!formData.email) { setAuthError("Enter your email address first"); return; }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(formData.email, { redirectTo: "https://www.stemapp.online/reset-password" });
+    const { error } = await supabase.auth.resetPasswordForEmail(formData.email, { redirectTo: `${window.location.origin}/reset-password` });
     if (error) { setAuthError(error.message); } else { notify("Password reset email sent!"); }
     setLoading(false);
   };
@@ -2203,6 +2210,7 @@ export default function App() {
       streamer: s.profiles?.full_name || s.streamer_name || "Streamer",
       game: s.category || "Just Chatting",
       viewers: s.viewer_count || 0,
+      follower_count: s.profiles?.follower_count || 0,
       emoji: meta.emoji,
       color: meta.color,
       bg: meta.bg,
@@ -2560,7 +2568,6 @@ export default function App() {
             <div className="lgc-ov" />
             <span className="lgc-emoji">{s.emoji}</span>
             <span className="lgc-live-badge"><span className="lgc-live-dot" />LIVE</span>
-            {s.isRealStream && <span className="lgc-real-badge">REAL</span>}
             <span className="lgc-viewers-badge">👁 {s.viewers.toLocaleString()}</span>
           </div>
           <div className="lgc-body">
@@ -2846,13 +2853,13 @@ export default function App() {
                       {allClips.slice(0, 12).map(clip => {
                         const meta = DEMO_STREAMS.find(d => d.game === clip.game) || DEMO_STREAMS[Math.abs(clip.id?.charCodeAt(0) || 0) % DEMO_STREAMS.length] || DEMO_STREAMS[0];
                         return (
-                          <div key={clip.id} className="csc" onClick={() => go("clips")}>
+                          <div key={clip.id} className="csc" onClick={() => { supabase.from("clips").update({ view_count: (clip.view_count || 0) + 1 }).eq("id", clip.id); go("clips"); }}>
                             <div className="csc-thumb">
                               <div className="csc-tbg" style={{ background: `linear-gradient(${meta.bg})` }} />
                               <div className="csc-tov" />
                               <span className="csc-emoji">{meta.emoji}</span>
                               <div className="csc-play" style={{ fontSize: 28 }}>▶</div>
-                              <span className="csc-views">👁 {(clip.view_count || Math.floor(Math.random()*9000+500)).toLocaleString()}</span>
+                              <span className="csc-views">👁 {(clip.view_count || 0).toLocaleString()}</span>
                               {clip.duration && <span className="csc-dur">{Math.floor(clip.duration/60)}:{String(clip.duration%60).padStart(2,"0")}</span>}
                             </div>
                             <div className="csc-body">
@@ -3040,7 +3047,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: 14, cursor: stream.user_id ? "pointer" : "default" }} onClick={() => stream.user_id && viewChannel(stream.user_id)}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: stream.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{stream.emoji}</div>
-            <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{stream.streamer}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{stream.game} · 24,810 followers</div></div>
+            <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{stream.streamer}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{stream.game} · {(stream.follower_count || 0).toLocaleString()} followers</div></div>
             {stream.user_id && <span style={{ fontSize: 11, color: "var(--purple)", flexShrink: 0 }}>View →</span>}
           </div>
           {user ? (
@@ -3636,7 +3643,7 @@ export default function App() {
           <div className="wcard-l">STEM Coins</div>
           <div className="wcard-v">🪙 {coins.toLocaleString()}</div>
           <div className="wcard-sub">1,000 coins = $1.00 · 2% fee</div>
-          <button className="wbtn" style={{ background: "var(--gold)" }} onClick={() => mode === "streamer" ? go("dash") : go("stream", DEMO_STREAMS[0])}>{mode === "streamer" ? "Go Live" : "Earn Coins"}</button>
+          <button className="wbtn" style={{ background: "var(--gold)" }} onClick={() => mode === "streamer" ? go("dash") : go("disc")}>{mode === "streamer" ? "Go Live" : "Earn Coins"}</button>
         </div>
         <div className="wcard p">
           <div className="wcard-l">Total Earned</div>
