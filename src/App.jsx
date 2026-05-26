@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import MuxPlayer from "@mux/mux-player-react";
-import twemoji from "twemoji";
 import { supabase } from "./supabase";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
@@ -45,7 +44,6 @@ const CAT_META = {
 
 const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-img.emoji{height:1.1em;width:1.1em;vertical-align:-0.15em;display:inline-block}
 :root{--ink:#080816;--ink2:#0d0d20;--ink3:#12122a;--ink4:#1a1a35;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);--purple:#7c3aed;--red:#ff2d55;--orange:#ff9500;--green:#00f5a0;--gold:#ffc800;--blue:#4d9fff;--txt:#ffffff;--muted:rgba(255,255,255,.45);--card:rgba(255,255,255,.03)}
 html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--txt);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
@@ -746,10 +744,6 @@ export default function App() {
     if (coins >= 50000) unlockAchievement("whale");
   }, [coins]);
 
-  // Parse all emoji in the DOM to Twemoji SVGs after every render
-  useEffect(() => {
-    twemoji.parse(document.body, { folder: "svg", ext: ".svg", base: "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/" });
-  });
 
   // Auth init + streams subscription
   useEffect(() => {
