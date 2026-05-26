@@ -484,6 +484,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 
 export default function App() {
   const [page, setPage] = useState("land");
+  const [authReady, setAuthReady] = useState(false);
   const [mode, setMode] = useState("viewer");
   const [role, setRole] = useState("viewer");
   const [cat, setCat] = useState("All");
@@ -747,16 +748,29 @@ export default function App() {
 
   // Auth init + streams subscription
   useEffect(() => {
-    // Store referral code from URL on first load
     const refParam = new URLSearchParams(window.location.search).get("ref");
     if (refParam) sessionStorage.setItem("stem_ref", refParam);
 
+    // getSession is the authoritative initial check — sets authReady when done
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); setPage("disc"); }
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+        fetchMyFollows(session.user.id);
+        setPage("disc");
+      }
+      setAuthReady(true);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) { setUser(session.user); fetchProfile(session.user.id); fetchMyFollows(session.user.id); }
-      else {
+
+    // onAuthStateChange handles events AFTER initial load (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return; // already handled by getSession above
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+        fetchMyFollows(session.user.id);
+        setPage("disc");
+      } else {
         setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
         setShowNotifs(false); setShowSignupPrompt(false); setShowClipModal(false);
@@ -767,18 +781,22 @@ export default function App() {
       }
     });
 
-    // Fetch and subscribe to live streams
+    // Fetch streams + debounce channel updates so frequent viewer-count UPDATEs
+    // don't trigger a full refetch on every tick
     fetchLiveStreams();
     fetchFeaturedPredictions();
+    let streamsDebounce = null;
     const streamCh = supabase.channel("live-streams")
       .on("postgres_changes", { event: "*", schema: "public", table: "streams" }, () => {
-        fetchLiveStreams();
+        clearTimeout(streamsDebounce);
+        streamsDebounce = setTimeout(fetchLiveStreams, 3000);
       })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(streamCh);
+      clearTimeout(streamsDebounce);
     };
   }, []);
 
@@ -2065,10 +2083,10 @@ export default function App() {
     if (page === "disc" && user) fetchFollowedStreamers();
   }, [page, myFollows.length]);
 
-  // Refresh follows list when follow/unfollow happens (so notifications stay accurate)
+  // Refresh follows list after follow/unfollow (keyed on user, not the boolean)
   useEffect(() => {
     if (user) fetchMyFollows(user.id);
-  }, [following]);
+  }, [user?.id]);
 
   // Load DB notifications + subscribe to realtime new ones
   useEffect(() => {
@@ -2655,6 +2673,16 @@ export default function App() {
           </div>
         </div>
       ))}
+    </>
+  );
+
+  if (!authReady) return (
+    <>
+      <style>{FONTS}</style><style>{CSS}</style>
+      <div style={{ minHeight: "100vh", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 32, letterSpacing: 3, background: "linear-gradient(90deg,var(--purple),var(--red),var(--orange))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>STEM</div>
+        <div className="spinner" style={{ borderColor: "rgba(255,255,255,.15)", borderTopColor: "var(--purple)" }} />
+      </div>
     </>
   );
 
