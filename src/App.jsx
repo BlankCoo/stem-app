@@ -328,6 +328,9 @@ export default function App() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loadingLb, setLoadingLb] = useState(false);
+  const [lbTab, setLbTab] = useState("earners");
+  const [topSupporters, setTopSupporters] = useState([]);
+  const [isBannedFromChannel, setIsBannedFromChannel] = useState(false);
 
   // Go Live state
   const [showGoLive, setShowGoLive] = useState(false);
@@ -554,15 +557,19 @@ export default function App() {
 
   const fetchLeaderboard = async () => {
     setLoadingLb(true);
-    // Only show viewers — streamers are never on the leaderboard
-    const { data } = await supabase
-      .from("profiles")
-      .select("id,full_name,username,role,coins")
-      .eq("role", "viewer")
-      .order("coins", { ascending: false })
-      .limit(20);
-    if (data) setLeaderboard(data);
+    const [earnerRes, supporterRes] = await Promise.all([
+      supabase.from("profiles").select("id,full_name,username,coins").eq("role", "viewer").order("coins", { ascending: false }).limit(20),
+      supabase.rpc("get_top_supporters", { limit_n: 20 }),
+    ]);
+    if (earnerRes.data) setLeaderboard(earnerRes.data);
+    if (supporterRes.data) setTopSupporters(supporterRes.data);
     setLoadingLb(false);
+  };
+
+  const checkMyBanStatus = async (channelId) => {
+    if (!user || !channelId) { setIsBannedFromChannel(false); return; }
+    const { data } = await supabase.from("chat_bans").select("id").eq("streamer_id", channelId).eq("banned_user_id", user.id).maybeSingle();
+    setIsBannedFromChannel(!!data);
   };
 
   const fetchLiveStreams = async () => {
@@ -1423,10 +1430,14 @@ export default function App() {
     }
   }, [page, stream?.id]);
 
-  // Check follow status whenever we enter a stream (reset first, then query DB)
+  // Check follow status + ban status whenever we enter a stream
   useEffect(() => {
     setFollowing(false);
-    if (page === "stream") checkFollowing(stream);
+    setIsBannedFromChannel(false);
+    if (page === "stream") {
+      checkFollowing(stream);
+      if (stream?.user_id && user?.id !== stream?.user_id) checkMyBanStatus(stream.user_id);
+    }
   }, [page, stream?.id, user?.id]);
 
   // Update streak when entering a stream
@@ -1673,6 +1684,7 @@ export default function App() {
     if (!requireAuth()) return;
     if (!msg.trim()) return;
     if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
+    if (isBannedFromChannel) { notify("You are banned from this channel's chat"); return; }
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
@@ -2732,8 +2744,8 @@ export default function App() {
                     {streamEmotes.length > 0 && (
                       <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                     )}
-                    <input className="chat-in" placeholder={slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0} />
-                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0}>↑</button>
+                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel} />
+                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel}>↑</button>
                   </div>
                 </>
               ) : (
@@ -2784,8 +2796,8 @@ export default function App() {
                 {streamEmotes.length > 0 && (
                   <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                 )}
-                <input className="chat-in" placeholder={slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0} />
-                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0}>↑</button>
+                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel} />
+                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel}>↑</button>
               </div>
             </>
           ) : (
@@ -2800,47 +2812,62 @@ export default function App() {
 
     {/* LEADERBOARD — viewers only, no streamers */}
     {page === "leaderboard" && <div className="leaderboard-page page">
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Top Earners</div>
-        <div style={{ fontSize: 14, color: "var(--muted)" }}>The highest coin earners on STEM — viewers only</div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Leaderboard</div>
+        <div style={{ fontSize: 14, color: "var(--muted)" }}>Top viewers on STEM</div>
       </div>
       {profile && (
-        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <div style={{ fontSize: 24 }}>📊</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 2 }}>Your coins</div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{firstName} — 🪙 {coins.toLocaleString()} coins</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{firstName} — 🪙 {coins.toLocaleString()}</div>
             {profile.role === "streamer" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Streamers don't appear on the viewer leaderboard</div>}
           </div>
           <button className="btn-g" onClick={() => go("stream", DEMO_STREAMS[0])}>Earn More</button>
         </div>
       )}
+      {/* Tab switcher */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"]].map(([t, label]) => (
+          <button key={t} onClick={() => setLbTab(t)} style={{ background: lbTab === t ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (lbTab === t ? "var(--line2)" : "transparent"), color: lbTab === t ? "#fff" : "var(--muted)", borderRadius: 20, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{label}</button>
+        ))}
+      </div>
       <div className="panel">
         <div className="panel-hd">
-          <span className="panel-title">🏆 Top Viewers</span>
+          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : "🎁 Most Coins Spent"}</span>
           <button onClick={fetchLeaderboard} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
         </div>
         {loadingLb ? (
           <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : (
+        ) : lbTab === "earners" ? (
           leaderboard.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🏆</div>
-              No data yet — start watching to earn coins!
-            </div>
-          ) : (
-            leaderboard.map((u, i) => (
-              <div key={u.id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.id)}>
-                <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-                <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
-                <div style={{ flex: 1 }}>
-                  <div className="lb-name">{u.full_name || "Anonymous"}</div>
-                  <div className="lb-role">👁 Viewer · @{u.username}</div>
-                </div>
-                <div className="lb-coins">🪙 {(u.coins || 0).toLocaleString()}</div>
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🏆</div>No data yet — start watching to earn coins!</div>
+          ) : leaderboard.map((u, i) => (
+            <div key={u.id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.id)}>
+              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
+              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
+              <div style={{ flex: 1 }}>
+                <div className="lb-name">{u.full_name || "Anonymous"}</div>
+                <div className="lb-role">👁 Viewer · @{u.username}</div>
               </div>
-            ))
-          )
+              <div className="lb-coins">🪙 {(u.coins || 0).toLocaleString()}</div>
+            </div>
+          ))
+        ) : (
+          topSupporters.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🎁</div>No supporters yet — send a gift or superchat to appear here!</div>
+          ) : topSupporters.map((u, i) => (
+            <div key={u.user_id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.user_id)}>
+              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
+              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
+              <div style={{ flex: 1 }}>
+                <div className="lb-name">{u.full_name || "Anonymous"}</div>
+                <div className="lb-role">🎁 Supporter · @{u.username}</div>
+              </div>
+              <div className="lb-coins" style={{ color: "var(--purple)" }}>🪙 {(u.total_spent || 0).toLocaleString()}</div>
+            </div>
+          ))
         )}
       </div>
     </div>}
