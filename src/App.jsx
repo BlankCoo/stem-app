@@ -323,7 +323,10 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authMode, setAuthMode] = useState("signup");
   const [formData, setFormData] = useState({ fullName: "", email: "", password: "" });
-  const [editProfile, setEditProfile] = useState({ fullName: "", username: "", bio: "" });
+  const [editProfile, setEditProfile] = useState({ fullName: "", username: "", bio: "", twitter: "", instagram: "", youtube: "", tiktok: "" });
+  const [editingLiveInfo, setEditingLiveInfo] = useState(false);
+  const [liveInfoForm, setLiveInfoForm] = useState({ title: "", category: "Gaming" });
+  const [savingLiveInfo, setSavingLiveInfo] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -550,7 +553,7 @@ export default function App() {
       setMode(data.role || "viewer");
       setStreakDays(data.streak_days || 0);
       setReferralCode(data.referral_code || "");
-      setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "" });
+      setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "", twitter: data.social_twitter || "", instagram: data.social_instagram || "", youtube: data.social_youtube || "", tiktok: data.social_tiktok || "" });
     }
     return data;
   };
@@ -1185,6 +1188,16 @@ export default function App() {
     }
   };
 
+  const updateLiveInfo = async () => {
+    if (!liveInfoForm.title.trim()) { notify("Title cannot be empty"); return; }
+    setSavingLiveInfo(true);
+    await supabase.from("streams").update({ title: liveInfoForm.title.trim(), category: liveInfoForm.category }).eq("user_id", user.id);
+    setGoLiveForm(f => ({ ...f, title: liveInfoForm.title.trim(), category: liveInfoForm.category }));
+    setEditingLiveInfo(false);
+    notify("Stream info updated!");
+    setSavingLiveInfo(false);
+  };
+
   const fetchPastStreams = async (userId) => {
     const { data } = await supabase.from("past_streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(12);
     setPastStreams(data || []);
@@ -1624,10 +1637,12 @@ export default function App() {
     setSavingProfile(true); setProfileMsg("");
     const { error } = await supabase.from("profiles").update({
       full_name: editProfile.fullName, username: editProfile.username, bio: editProfile.bio,
+      social_twitter: editProfile.twitter || null, social_instagram: editProfile.instagram || null,
+      social_youtube: editProfile.youtube || null, social_tiktok: editProfile.tiktok || null,
     }).eq("id", user.id);
     if (error) { setProfileMsg(error.message); }
     else {
-      setProfile(p => ({ ...p, full_name: editProfile.fullName, username: editProfile.username, bio: editProfile.bio }));
+      setProfile(p => ({ ...p, full_name: editProfile.fullName, username: editProfile.username, bio: editProfile.bio, social_twitter: editProfile.twitter || null, social_instagram: editProfile.instagram || null, social_youtube: editProfile.youtube || null, social_tiktok: editProfile.tiktok || null }));
       setProfileMsg("success");
       notify("Profile updated!");
     }
@@ -3097,6 +3112,10 @@ export default function App() {
           <input className="fi" placeholder="Your username" value={editProfile.username} onChange={e => setEditProfile({ ...editProfile, username: e.target.value })} />
           <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Bio</label>
           <input className="fi" placeholder="Tell people about yourself..." value={editProfile.bio} onChange={e => setEditProfile({ ...editProfile, bio: e.target.value })} />
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block", marginTop: 4 }}>Social Links</label>
+          {[["twitter", "🐦 Twitter / X username"], ["instagram", "📸 Instagram username"], ["youtube", "▶️ YouTube channel URL"], ["tiktok", "🎵 TikTok username"]].map(([key, ph]) => (
+            <input key={key} className="fi" placeholder={ph} value={editProfile[key]} onChange={e => setEditProfile({ ...editProfile, [key]: e.target.value })} style={{ marginBottom: 6 }} />
+          ))}
           <button onClick={handleSaveProfile} disabled={savingProfile} style={{ width: "100%", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingProfile ? "not-allowed" : "pointer", opacity: savingProfile ? 0.7 : 1 }}>
             {savingProfile ? <div className="spinner" /> : "Save Changes"}
           </button>
@@ -3134,14 +3153,29 @@ export default function App() {
       {isStreaming ? (
         <div style={{ background: "linear-gradient(135deg,rgba(255,45,85,.15),rgba(255,107,53,.1))", border: "1px solid rgba(255,45,85,.4)", borderRadius: 20, padding: "22px 24px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,var(--red),#ff6b35)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 12, height: 12, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
               <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, letterSpacing: .5, color: "var(--red)" }}>LIVE NOW</span>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>"{goLiveForm.title}"</span>
-            <span style={{ fontSize: 12, color: "var(--muted)", background: "rgba(255,255,255,.06)", borderRadius: 6, padding: "3px 8px" }}>{goLiveForm.category}</span>
+            {!editingLiveInfo && <>
+              <span style={{ fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{goLiveForm.title}"</span>
+              <span style={{ fontSize: 12, color: "var(--muted)", background: "rgba(255,255,255,.06)", borderRadius: 6, padding: "3px 8px", flexShrink: 0 }}>{goLiveForm.category}</span>
+              <button onClick={() => { setLiveInfoForm({ title: goLiveForm.title, category: goLiveForm.category }); setEditingLiveInfo(true); }} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "rgba(255,255,255,.7)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Edit</button>
+            </>}
           </div>
+          {editingLiveInfo && (
+            <div style={{ marginBottom: 14 }}>
+              <input value={liveInfoForm.title} onChange={e => setLiveInfoForm(f => ({ ...f, title: e.target.value }))} placeholder="Stream title..." style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "9px 12px", color: "#fff", fontSize: 14, marginBottom: 8, boxSizing: "border-box" }} />
+              <select value={liveInfoForm.category} onChange={e => setLiveInfoForm(f => ({ ...f, category: e.target.value }))} style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "9px 12px", color: "#fff", fontSize: 13, marginBottom: 10 }}>
+                {["Gaming","IRL","Music","Sports","Education","Art","Tech","Just Chatting","Cooking","Travel","Business","Other"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={updateLiveInfo} disabled={savingLiveInfo} style={{ flex: 1, background: "var(--green)", color: "#000", border: "none", borderRadius: 8, padding: "9px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{savingLiveInfo ? "Saving..." : "Save"}</button>
+                <button onClick={() => setEditingLiveInfo(false)} style={{ flex: 1, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", borderRadius: 8, padding: "9px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          )}
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18 }}>Your stream is live — viewers can find you on the Discover page. Open OBS and start streaming if you haven't already.</div>
           {muxStreamKey && (
             <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -3607,7 +3641,17 @@ export default function App() {
             {channelIsLive && <span style={{ background: "var(--red)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 5, letterSpacing: .5 }}>🔴 LIVE</span>}
           </div>
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>@{channelUser.username} · {channelFollowers.toLocaleString()} followers</div>
-          {channelUser.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", maxWidth: 420 }}>{channelUser.bio}</div>}
+          {channelUser.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", maxWidth: 420, marginBottom: 8 }}>{channelUser.bio}</div>}
+          {[["social_twitter", "🐦", "twitter.com/"], ["social_instagram", "📸", "instagram.com/"], ["social_youtube", "▶️", null], ["social_tiktok", "🎵", "tiktok.com/@"]].some(([k]) => channelUser[k]) && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {[["social_twitter", "🐦", v => `https://twitter.com/${v}`], ["social_instagram", "📸", v => `https://instagram.com/${v}`], ["social_youtube", "▶️", v => v.startsWith("http") ? v : `https://youtube.com/${v}`], ["social_tiktok", "🎵", v => `https://tiktok.com/@${v}`]].map(([key, icon, urlFn]) => channelUser[key] ? (
+                <a key={key} href={urlFn(channelUser[key])} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.07)", border: "1px solid var(--line)", borderRadius: 8, padding: "5px 10px", fontSize: 12, color: "rgba(255,255,255,.8)", textDecoration: "none", transition: "background .15s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.07)"}
+                >{icon} {channelUser[key].replace(/https?:\/\/(www\.)?/, "").split("/")[0]}</a>
+              ) : null)}
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           {channelIsLive && (
