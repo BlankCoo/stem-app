@@ -35,6 +35,7 @@ body{background:var(--ink);color:var(--txt);font-family:'Outfit',sans-serif;min-
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--ink2)}::-webkit-scrollbar-thumb{background:var(--ink4)}
 button,input,textarea,select{font-family:'Outfit',sans-serif}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -302,7 +303,132 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .fs-btn:hover{background:rgba(0,0,0,.85)}
 .viewer-count-pill{position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px)}
 @media(min-width:768px){.vprofile-page{padding:32px 44px}}
+
+/* ═══════════════ DISCOVER REDESIGN ═══════════════ */
+/* Nav restructure */
+.nav-l{display:flex;align-items:center;flex-shrink:0}
+.nav-center{flex:1;display:flex;justify-content:center;padding:0 12px;max-width:none}
+.nav-search-wrap{position:relative;width:100%;max-width:440px}
+.nav-search-wrap input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line2);border-radius:10px;padding:8px 14px 8px 38px;color:#fff;font-size:13px;outline:none;transition:all .2s;font-family:'Outfit',sans-serif}
+.nav-search-wrap input:focus{border-color:rgba(124,58,237,.55);background:rgba(255,255,255,.09)}
+.nav-search-wrap input::placeholder{color:var(--muted)}
+.nav-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;opacity:.5}
+/* Full-page discover layout */
+.disc-root{display:flex;min-height:calc(100vh - 56px);background:var(--ink)}
+/* Sidebar */
+.disc-sb{width:240px;flex-shrink:0;background:var(--ink2);border-right:1px solid var(--line);position:fixed;top:56px;left:0;bottom:0;overflow-y:auto;z-index:100;padding-bottom:24px;display:none}
+.disc-sb::-webkit-scrollbar{width:2px}
+.sb-hd{padding:18px 16px 8px;font-size:10px;font-weight:700;letter-spacing:.9px;color:var(--muted);text-transform:uppercase}
+.sb-divider{height:1px;background:var(--line);margin:10px 0}
+.sb-ch{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;transition:background .12s}
+.sb-ch:hover{background:rgba(255,255,255,.055)}
+.sb-ch-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;position:relative}
+.sb-live-dot{position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;background:var(--red);border-radius:50%;border:2px solid var(--ink2);animation:blink 1.6s infinite}
+.sb-ch-info{flex:1;min-width:0}
+.sb-ch-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.sb-ch-sub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ch-vc{font-size:11px;color:var(--red);font-weight:700;flex-shrink:0;white-space:nowrap}
+.sb-nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;border-radius:0}
+.sb-nav-item:hover,.sb-nav-item.on{color:#fff;background:rgba(255,255,255,.05)}
+.sb-nav-item.on{color:#fff;font-weight:700}
+/* Main area */
+.disc-main{flex:1;min-width:0;padding-bottom:80px}
+/* Hero banner */
+.d-hero{position:relative;width:100%;overflow:hidden;cursor:pointer;display:block;aspect-ratio:16/7}
+.d-hero-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.d-hero-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(8,8,22,1) 0%,rgba(8,8,22,.65) 35%,rgba(8,8,22,.15) 70%,transparent 100%),linear-gradient(to right,rgba(8,8,22,.85) 0%,rgba(8,8,22,.3) 50%,transparent 100%)}
+.d-hero-content{position:absolute;bottom:0;left:0;padding:28px 32px;max-width:580px;width:100%}
+.d-hero-badge{display:inline-flex;align-items:center;gap:5px;background:var(--red);color:#fff;font-size:10px;font-weight:800;letter-spacing:.5px;padding:3px 10px;border-radius:5px;margin-bottom:10px}
+.d-hero-dot{width:6px;height:6px;background:#fff;border-radius:50%;animation:blink 1.6s infinite;display:inline-block}
+.d-hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,4vw,52px);letter-spacing:.5px;line-height:1.05;margin-bottom:8px;text-shadow:0 2px 20px rgba(0,0,0,.5)}
+.d-hero-meta{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.75);flex-wrap:wrap;margin-bottom:14px}
+.d-hero-streamer{font-weight:700;color:#fff}
+.d-hero-sep{opacity:.4}
+.d-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.d-hero-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:'Outfit',sans-serif}
+.d-hero-btn:hover{background:rgba(255,255,255,.25)}
+.d-hero-btn.primary{background:linear-gradient(135deg,var(--purple),var(--red));border-color:transparent}
+.d-hero-btn.primary:hover{opacity:.9}
+/* Section layout */
+.d-section{padding:28px 24px 0}
+.d-section-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.d-section-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px}
+.d-see-all{font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color .15s;background:none;border:none;font-family:'Outfit',sans-serif}
+.d-see-all:hover{color:#fff}
+/* New stream card */
+.lgc{border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;background:var(--ink3)}
+.lgc:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.6)}
+.lgc-thumb{aspect-ratio:16/9;position:relative;overflow:hidden}
+.lgc-bg{position:absolute;inset:0}
+.lgc-ov{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55) 0%,transparent 55%)}
+.lgc-emoji{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px;opacity:.1}
+.lgc-live-badge{position:absolute;top:8px;left:8px;display:inline-flex;align-items:center;gap:3px;background:var(--red);color:#fff;font-size:9px;font-weight:800;letter-spacing:.4px;padding:3px 7px;border-radius:4px}
+.lgc-live-dot{width:5px;height:5px;background:#fff;border-radius:50%;animation:blink 1.6s infinite}
+.lgc-real-badge{position:absolute;top:8px;right:8px;background:rgba(255,45,85,.85);color:#fff;font-size:8px;font-weight:800;padding:2px 6px;border-radius:3px}
+.lgc-viewers-badge{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;color:#fff}
+.lgc-body{padding:10px 8px 12px}
+.lgc-row{display:flex;gap:8px;align-items:flex-start}
+.lgc-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.lgc-info{flex:1;min-width:0}
+.lgc-title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lgc-name{font-size:12px;color:var(--muted);margin-bottom:3px}
+.lgc-cat{display:inline-block;font-size:11px;color:var(--muted);cursor:pointer}
+.lgc-cat:hover{color:#fff;text-decoration:underline}
+/* Live grid */
+.d-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+/* Clips strip — vertical 9:16 cards */
+.clips-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.clips-strip::-webkit-scrollbar{display:none}
+.csc{flex-shrink:0;width:155px;cursor:pointer;border-radius:10px;overflow:hidden;background:var(--ink3);transition:transform .2s}
+.csc:hover{transform:scale(1.04);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.csc-thumb{position:relative;aspect-ratio:9/16;overflow:hidden}
+.csc-tbg{position:absolute;inset:0}
+.csc-tov{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 50%)}
+.csc-emoji{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:54px;opacity:.12}
+.csc-views{position:absolute;bottom:7px;left:8px;font-size:10px;font-weight:700;color:rgba(255,255,255,.95)}
+.csc-dur{position:absolute;bottom:7px;right:7px;background:rgba(0,0,0,.75);border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:#fff}
+.csc-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,.3)}
+.csc:hover .csc-play{opacity:1}
+.csc-body{padding:8px 10px 10px}
+.csc-title{font-size:12px;font-weight:600;line-height:1.35;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.csc-creator{font-size:11px;color:var(--muted)}
+/* Category art grid */
+.cat-art-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px}
+.cat-art{border-radius:10px;overflow:hidden;cursor:pointer;position:relative;aspect-ratio:3/4;transition:transform .2s,box-shadow .2s}
+.cat-art:hover{transform:scale(1.04);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.cat-art-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.cat-art-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,.3) 50%,transparent 100%)}
+.cat-art-label{position:absolute;bottom:0;left:0;right:0;padding:10px 12px}
+.cat-art-name{font-size:13px;font-weight:700;line-height:1.2}
+.cat-art-count{font-size:10px;color:rgba(255,255,255,.55);margin-top:2px}
+/* Featured pred cards row */
+.fpred-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.fpred-strip::-webkit-scrollbar{display:none}
+.fpred-card{flex-shrink:0;width:270px;background:var(--ink3);border:1px solid rgba(77,159,255,.18);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s}
+.fpred-card:hover{border-color:rgba(77,159,255,.45);transform:translateY(-2px)}
+/* Sign-up CTA bar */
+.d-cta-bar{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(124,58,237,.14),rgba(255,45,85,.10));border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:16px 20px;flex-wrap:wrap}
+/* Responsive */
+@media(min-width:900px){
+  .disc-sb{display:flex;flex-direction:column}
+  .disc-main{margin-left:240px}
+  .nav-center{display:flex !important}
+  .nav-search-wrap{display:block !important}
+  .d-hero{aspect-ratio:21/9;max-height:440px}
+  .d-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .cat-art-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+}
+@media(max-width:899px){
+  .disc-sb{display:none !important}
+  .disc-main{margin-left:0}
+  .nav-center{display:none}
+  .d-section{padding:20px 16px 0}
+  .d-hero-content{padding:20px 18px}
+  .cat-art-grid{grid-template-columns:repeat(3,1fr)}
+  .d-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+}
 `;
+
 
 export default function App() {
   const [page, setPage] = useState("land");
@@ -338,6 +464,7 @@ export default function App() {
   const [streamerTier, setStreamerTier] = useState("none");
   const streamEntryTimeRef = useRef(null);
   const watchedStreamsRef = useRef(new Set());
+  const eliteAccumRef = useRef(0);
 
   // Go Live state
   const [showGoLive, setShowGoLive] = useState(false);
@@ -356,6 +483,7 @@ export default function App() {
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
   const [discTab, setDiscTab] = useState("all");
+  const [featuredPreds, setFeaturedPreds] = useState([]);
   const [searchProfiles, setSearchProfiles] = useState([]);
   const [followedStreamers, setFollowedStreamers] = useState([]);
 
@@ -428,6 +556,10 @@ export default function App() {
   const [slowModeSecs, setSlowModeSecs] = useState(0); // 0 = off
   const [slowCooldown, setSlowCooldown] = useState(0); // seconds remaining
   const [subOnly, setSubOnly] = useState(false);
+  const [followerOnly, setFollowerOnly] = useState(false);
+  const [editingStreamInfo, setEditingStreamInfo] = useState(false);
+  const [streamInfoDraft, setStreamInfoDraft] = useState({ title: "", game: "" });
+  const coinMilestoneRef = useRef(0);
 
   // Viewer profile page
   const [vProfile, setVProfile] = useState(null);
@@ -483,9 +615,15 @@ export default function App() {
   const [predBetAmount, setPredBetAmount] = useState(100);
   const [predCountdown, setPredCountdown] = useState(0);
   const [showCreatePred, setShowCreatePred] = useState(false);
-  const [predForm, setPredForm] = useState({ title: "", optionA: "Yes", optionB: "No", duration: 120 });
+  const [predForm, setPredForm] = useState({ title: "", options: ["Yes", "No"], duration: 120 });
   const [placingBet, setPlacingBet] = useState(false);
   const predChRef = useRef(null);
+
+  // Prediction Phase 2
+  const [predRecap, setPredRecap] = useState(null);
+  const [predHistory, setPredHistory] = useState([]);
+  const [loadingPredHistory, setLoadingPredHistory] = useState(false);
+  const [topPredictors, setTopPredictors] = useState([]);
 
   // Top gifters this session
   const [topGifters, setTopGifters] = useState({});
@@ -511,6 +649,20 @@ export default function App() {
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
   useEffect(() => { sessRef.current = sess; }, [sess]);
+
+  // Coin milestone celebrations
+  useEffect(() => {
+    const milestones = [1000, 5000, 10000, 25000, 50000, 100000];
+    const prev = coinMilestoneRef.current;
+    for (const m of milestones) {
+      if (prev < m && coins >= m) {
+        setTimeout(() => notify(`🎉 Milestone! You hit ${m.toLocaleString()} coins ($${(m / 1000).toFixed(0)})!`), 300);
+        coinMilestoneRef.current = coins;
+        break;
+      }
+    }
+    if (coins > coinMilestoneRef.current) coinMilestoneRef.current = coins;
+  }, [coins]);
 
   // Parse all emoji in the DOM to Twemoji SVGs after every render
   useEffect(() => {
@@ -541,6 +693,7 @@ export default function App() {
 
     // Fetch and subscribe to live streams
     fetchLiveStreams();
+    fetchFeaturedPredictions();
     const streamCh = supabase.channel("live-streams")
       .on("postgres_changes", { event: "*", schema: "public", table: "streams" }, () => {
         fetchLiveStreams();
@@ -567,7 +720,14 @@ export default function App() {
       // Compute tiers (need auth session for email_confirmed_at)
       const { data: { session } } = await supabase.auth.getSession();
       const emailVerified = !!session?.user?.email_confirmed_at;
-      setViewerTier(computeViewerTier(data, emailVerified));
+      const newViewerTier = computeViewerTier(data, emailVerified);
+      const tierOrder = { guest: 0, active: 1, verified_earner: 2, elite: 3 };
+      const storedTier = localStorage.getItem("stem_viewer_tier") || "guest";
+      if (tierOrder[newViewerTier] > tierOrder[storedTier]) {
+        setTimeout(() => notify(`🎉 You unlocked ${VIEWER_TIER_INFO[newViewerTier]?.label} status! ${VIEWER_TIER_INFO[newViewerTier]?.emoji}`), 1500);
+      }
+      localStorage.setItem("stem_viewer_tier", newViewerTier);
+      setViewerTier(newViewerTier);
       setStreamerTier(computeStreamerTier(data));
     }
     return data;
@@ -575,12 +735,14 @@ export default function App() {
 
   const fetchLeaderboard = async () => {
     setLoadingLb(true);
-    const [earnerRes, supporterRes] = await Promise.all([
+    const [earnerRes, supporterRes, predictorRes] = await Promise.all([
       supabase.from("profiles").select("id,full_name,username,coins").eq("role", "viewer").order("coins", { ascending: false }).limit(20),
       supabase.rpc("get_top_supporters", { limit_n: 20 }),
+      supabase.rpc("get_top_predictors", { limit_n: 20 }),
     ]);
     if (earnerRes.data) setLeaderboard(earnerRes.data);
     if (supporterRes.data) setTopSupporters(supporterRes.data);
+    if (predictorRes.data) setTopPredictors(predictorRes.data);
     setLoadingLb(false);
   };
 
@@ -629,6 +791,17 @@ export default function App() {
       .eq("status", "live")
       .order("viewer_count", { ascending: false });
     if (data) setLiveStreams(data);
+  };
+
+  const fetchFeaturedPredictions = async () => {
+    const { data } = await supabase
+      .from("predictions")
+      .select("*, streams(title, user_id, profiles(full_name, username))")
+      .eq("is_featured", true)
+      .in("status", ["open", "locked"])
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (data) setFeaturedPreds(data);
   };
 
   // Retry username generation until unique
@@ -1137,16 +1310,19 @@ export default function App() {
 
   const createPrediction = async () => {
     if (!predForm.title.trim()) { notify("Enter a prediction question"); return; }
-    if (!predForm.optionA.trim() || !predForm.optionB.trim()) { notify("Fill in both options"); return; }
+    const validOpts = predForm.options.map(o => o.trim()).filter(Boolean).slice(0, 5);
+    if (validOpts.length < 2) { notify("Add at least 2 options"); return; }
     const endsAt = new Date(Date.now() + predForm.duration * 1000).toISOString();
     const { data, error } = await supabase.from("predictions").insert({
       stream_id: stream.id, streamer_id: user.id,
-      title: predForm.title.trim(), option_a: predForm.optionA.trim(), option_b: predForm.optionB.trim(),
+      title: predForm.title.trim(),
+      option_a: validOpts[0], option_b: validOpts[1],
+      option_c: validOpts[2] || null, option_d: validOpts[3] || null, option_e: validOpts[4] || null,
       duration_secs: predForm.duration, ends_at: endsAt, status: "open",
     }).select().single();
     if (error) { notify("Failed to create prediction"); return; }
     setActivePrediction(data); setPredEntries([]); setMyPredBet(null);
-    setShowCreatePred(false); setPredForm({ title: "", optionA: "Yes", optionB: "No", duration: 120 });
+    setShowCreatePred(false); setPredForm({ title: "", options: ["Yes", "No"], duration: 120 });
     predChRef.current?.send({ type: "broadcast", event: "pred_new", payload: { prediction: data } });
     notify("Prediction started!");
   };
@@ -1175,7 +1351,8 @@ export default function App() {
     const newEntries = [...predEntries, entry];
     setPredEntries(newEntries); setMyPredBet(entry);
     predChRef.current?.send({ type: "broadcast", event: "pred_entry", payload: { entry } });
-    notify(`Bet placed! ${amount.toLocaleString()} coins on ${option === "a" ? activePrediction.option_a : activePrediction.option_b}`);
+    const optLabelMap = { a: activePrediction.option_a, b: activePrediction.option_b, c: activePrediction.option_c, d: activePrediction.option_d, e: activePrediction.option_e };
+    notify(`Bet placed! ${amount.toLocaleString()} coins on ${optLabelMap[option] || option}`);
     setPlacingBet(false);
   };
 
@@ -1191,8 +1368,20 @@ export default function App() {
   const resolvePrediction = async (winOption) => {
     const { error } = await supabase.rpc("resolve_prediction", { p_prediction_id: activePrediction.id, p_winning_option: winOption });
     if (error) { notify("Failed to resolve: " + error.message); return; }
-    const winLabel = winOption === "a" ? activePrediction.option_a : activePrediction.option_b;
+    const optLabelMap = { a: activePrediction.option_a, b: activePrediction.option_b, c: activePrediction.option_c, d: activePrediction.option_d, e: activePrediction.option_e };
+    const winLabel = optLabelMap[winOption] || winOption;
     const winners = predEntries.filter(e => e.option === winOption);
+    const totalPot = predEntries.reduce((s, e) => s + e.coins, 0);
+    // Show recap card
+    setPredRecap({
+      title: activePrediction.title,
+      winLabel,
+      potCoins: totalPot,
+      winnerCount: winners.length,
+      myResult: myPredBet ? (myPredBet.option === winOption ? "won" : "lost") : null,
+      myBet: myPredBet?.coins || 0,
+    });
+    setTimeout(() => setPredRecap(null), 12000);
     predChRef.current?.send({ type: "broadcast", event: "pred_resolved", payload: { winning_option: winOption, win_label: winLabel } });
     const { data: prof } = await supabase.from("profiles").select("coins").eq("id", user.id).single();
     if (prof) { setCoins(prof.coins); coinsRef.current = prof.coins; }
@@ -1211,6 +1400,40 @@ export default function App() {
     }
     notify("Prediction cancelled — all bets refunded");
     setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
+  };
+
+  const toggleFeaturedPrediction = async () => {
+    const newFeatured = !activePrediction.is_featured;
+    await supabase.from("predictions").update({ is_featured: newFeatured }).eq("id", activePrediction.id);
+    setActivePrediction(p => ({ ...p, is_featured: newFeatured }));
+    predChRef.current?.send({ type: "broadcast", event: "pred_featured", payload: { is_featured: newFeatured } });
+    fetchFeaturedPredictions();
+    notify(newFeatured ? "Prediction featured on Discover!" : "Removed from Discover");
+  };
+
+  const clearChat = async () => {
+    if (!stream?.id) return;
+    await supabase.from("messages").delete().eq("stream_id", stream.id);
+    setMessages([]);
+    notify("Chat cleared");
+  };
+
+  const updateStreamInfo = async () => {
+    if (!stream?.id || !streamInfoDraft.title.trim()) return;
+    await supabase.from("streams").update({ title: streamInfoDraft.title.trim(), game: streamInfoDraft.game.trim() || stream.game }).eq("id", stream.id);
+    setStream(s => ({ ...s, title: streamInfoDraft.title.trim(), game: streamInfoDraft.game.trim() || s.game }));
+    setEditingStreamInfo(false);
+    notify("Stream info updated");
+  };
+
+  const fetchPredHistory = async () => {
+    if (!user) return;
+    setLoadingPredHistory(true);
+    const { data } = await supabase.from("prediction_history")
+      .select("*").eq("user_id", user.id)
+      .order("created_at", { ascending: false }).limit(30);
+    setPredHistory(data || []);
+    setLoadingPredHistory(false);
   };
   // ────────────────────────────────────────────────────────
 
@@ -1357,14 +1580,19 @@ export default function App() {
   };
   // ────────────────────────────────────────────────────────
 
-  // Coin earning — tick speed scales with streak; guests earn nothing
+  // Coin earning — tick speed scales with streak; guests earn nothing; elite earns 1.5x via fractional accumulator
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
-  const earnPerTick = viewerTier === "elite" ? 2 : 1;
   useEffect(() => {
     if (page !== "stream" || viewerTier === "guest") return;
+    eliteAccumRef.current = 0;
     const t = setInterval(() => {
-      setSess(s => s + earnPerTick);
-      setCoins(c => c + earnPerTick);
+      let earn = 1;
+      if (viewerTier === "elite") {
+        eliteAccumRef.current += 0.5;
+        if (eliteAccumRef.current >= 1) { earn = 2; eliteAccumRef.current -= 1; }
+      }
+      setSess(s => s + earn);
+      setCoins(c => c + earn);
     }, tickMs);
     return () => clearInterval(t);
   }, [page, tickMs, viewerTier]);
@@ -1496,6 +1724,9 @@ export default function App() {
         });
         setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
       })
+      .on("broadcast", { event: "pred_featured" }, ({ payload }) => {
+        setActivePrediction(p => p ? { ...p, is_featured: payload.is_featured } : p);
+      })
       .subscribe();
     predChRef.current = ch;
     fetchActivePrediction(streamId);
@@ -1510,6 +1741,9 @@ export default function App() {
       });
       setSlowModeSecs(stream.slow_mode || 0);
       setSubOnly(stream.sub_only_chat || false);
+      setFollowerOnly(stream.follower_only_chat || false);
+      setStreamInfoDraft({ title: stream.title || "", game: stream.game || "" });
+      coinMilestoneRef.current = coins;
     }
   }, [page, stream?.id]);
 
@@ -1625,8 +1859,8 @@ export default function App() {
     if (page === "leaderboard") fetchLeaderboard();
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
-    if (page === "disc") fetchUpcomingSchedule();
-    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); }
+    if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); }
+    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
       if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); }
@@ -1787,8 +2021,15 @@ export default function App() {
       } else if (cmd === "!uptime" && stream.started_at) {
         const mins = Math.floor((Date.now() - new Date(stream.started_at).getTime()) / 60000);
         botMsg = `⏱ Live for ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`}`;
+      } else if (cmd === "!tier") {
+        const ti = VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest;
+        botMsg = `${ti.emoji} @${uname} is ${ti.label} tier`;
+      } else if (cmd === "!rank") {
+        const { data: rankRows } = await supabase.from("profiles").select("id").eq("role", "viewer").order("coins", { ascending: false }).limit(500);
+        const rankPos = rankRows ? rankRows.findIndex(r => r.id === user.id) + 1 : 0;
+        botMsg = rankPos > 0 ? `🏆 @${uname} is ranked #${rankPos} on the leaderboard` : `🏆 @${uname} — keep earning to climb the board!`;
       } else if (cmd === "!commands") {
-        botMsg = "📋 !coins · !viewers · !top · !uptime";
+        botMsg = "📋 !coins · !viewers · !top · !uptime · !tier · !rank";
       }
       if (botMsg) {
         await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: botMsg, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
@@ -1796,13 +2037,16 @@ export default function App() {
       }
     }
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
-    if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
+    if (subOnly && !isStreamOwner) { notify("Subscriber-only chat — subscribe to chat"); return; }
+    if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat — follow this channel to chat"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
     const nc = coinsRef.current + earned;
+    const tierEmoji = viewerTier !== "guest" ? (VIEWER_TIER_INFO[viewerTier]?.emoji || null) : null;
+    const chatBadge = [tierEmoji, profile?.badge].filter(Boolean).join(" ") || null;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
-      content: msg.trim(), color: profile?.chat_color || "#ff2d55", is_superchat: false, coins_spent: 0, badge: profile?.badge || null,
+      content: msg.trim(), color: profile?.chat_color || "#ff2d55", is_superchat: false, coins_spent: 0, badge: chatBadge,
     });
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
@@ -2082,25 +2326,40 @@ export default function App() {
     <style>{FONTS}</style><style>{CSS}</style>
 
     {/* NAV */}
-    <nav className="nav">
-      <div className="logo" onClick={() => go("disc")} title="Home">STEM</div>
-      <div className="nav-c">
-        {user ? (
-          (mode === "viewer"
-            ? [["disc", "Home"], ["leaderboard", "Top Earners"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Profile"]]
-            : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Profile"]]
-          ).map(([p, l]) => (
-            <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
-          )).concat(user?.email === "blankcoojnr@gmail.com" ? [<button key="admin" className={`nl ${page === "admin" ? "on" : ""}`} style={{ color: "var(--red)" }} onClick={() => setPage("admin")}>⚙ Admin</button>] : [])
-        ) : (
-          <>
-            <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Home</button>
-            {page === "stream" && (
-              <button className="nl" onClick={() => go("disc")} style={{ color: "var(--muted)", display: "flex", alignItems: "center", gap: 4 }}>← Back</button>
-            )}
-          </>
-        )}
+    <nav className="nav" style={{ padding: "0 16px" }}>
+      <div className="nav-l" style={{ width: page === "disc" ? undefined : undefined, gap: 0 }}>
+        <div className="logo" onClick={() => go("disc")} title="Home" style={{ marginRight: 12 }}>STEM</div>
+        {/* Non-disc nav tabs — hidden on disc page on desktop (sidebar handles it) */}
+        <div className="nav-c" style={{ display: "flex" }}>
+          {user ? (
+            (mode === "viewer"
+              ? [["disc", "Home"], ["leaderboard", "Top"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Me"]]
+              : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Me"]]
+            ).map(([p, l]) => (
+              <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
+            )).concat(user?.email === "blankcoojnr@gmail.com" ? [<button key="admin" className={`nl ${page === "admin" ? "on" : ""}`} style={{ color: "var(--red)" }} onClick={() => setPage("admin")}>Admin</button>] : [])
+          ) : (
+            <>
+              <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Home</button>
+              {page === "stream" && <button className="nl" onClick={() => go("disc")}>← Back</button>}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Centered search bar — desktop only */}
+      <div className="nav-center">
+        <div className="nav-search-wrap">
+          <span className="nav-search-icon">🔍</span>
+          <input
+            placeholder="Search streams, streamers, categories..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); if (page !== "disc") go("disc"); }}
+            onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
+          />
+        </div>
+      </div>
+
       <div className="nav-r">
         {user && isApp && <>
           <div className="mode-toggle">
@@ -2109,7 +2368,7 @@ export default function App() {
           </div>
           {/* Notification bell */}
           <div style={{ position: "relative", cursor: "pointer", lineHeight: 1 }} onClick={() => { setShowNotifs(v => !v); setUnreadNotifs(0); if (user) supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false).then(() => {}); }}>
-            <span style={{ fontSize: 19 }}>🔔</span>
+            <span style={{ fontSize: 20 }}>🔔</span>
             {unreadNotifs > 0 && (
               <span style={{ position: "absolute", top: -4, right: -5, background: "var(--red)", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: "50%", minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
                 {unreadNotifs > 9 ? "9+" : unreadNotifs}
@@ -2120,8 +2379,8 @@ export default function App() {
           <div className="av" onClick={() => go("profile")}>{initials}</div>
         </>}
         {!user && <>
-          <button className="btn-o" onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
-          <button className="btn-g" onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign up</button>
+          <button className="btn-o" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
+          <button className="btn-g" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign up</button>
         </>}
       </div>
     </nav>
@@ -2292,252 +2551,417 @@ export default function App() {
     </div>}
 
     {/* DISCOVER */}
-    {page === "disc" && <div className="disc-page page">
-      {/* Guest banner — Twitch/Kick style: watch free, sign up to earn */}
-      {!user && (
-        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(135deg,rgba(124,58,237,.14),rgba(255,45,85,.10))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 14, padding: "14px 18px", marginBottom: 18, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>🪙 Watch streams and earn real money</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Create a free account to earn coins while watching, chat, and withdraw cash.</div>
+    {page === "disc" && (() => {
+      // Helper: render a stream card (new Twitch-style)
+      const LiveCard = ({ s }) => (
+        <div className="lgc" onClick={() => go("stream", s)}>
+          <div className="lgc-thumb">
+            <div className="lgc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
+            <div className="lgc-ov" />
+            <span className="lgc-emoji">{s.emoji}</span>
+            <span className="lgc-live-badge"><span className="lgc-live-dot" />LIVE</span>
+            {s.isRealStream && <span className="lgc-real-badge">REAL</span>}
+            <span className="lgc-viewers-badge">👁 {s.viewers.toLocaleString()}</span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            <button className="btn-o" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
-            <button className="btn-g" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
-          </div>
-        </div>
-      )}
-      <div className="disc-hero">
-        <h1><span>Watch Live.</span> {user ? "Earn Real Money." : "Stream for Free."}</h1>
-        <p>{firstName ? `Welcome back ${firstName}! ` : ""}Every stream earns you coins. Every coin converts to real cash.</p>
-        <div className="dpills">
-          {[["🔴", String(liveStreams.length + DEMO_STREAMS.length), "live now"], user ? ["🪙", coins.toLocaleString(), "your coins"] : ["🪙", "FREE", "to join"], ["💸", "$48K", "paid today"]].map(([icon, v, l]) => (
-            <div key={l} className="dpill"><span className="dpill-icon">{icon}</span><div><div className="dpill-v">{v}</div><div className="dpill-l">{l}</div></div></div>
-          ))}
-        </div>
-      </div>
-      <div className="search-bar">
-        <input className="search-input" placeholder="🔍 Search streams, streamers, games..." value={search} onChange={e => { setSearch(e.target.value); if (discTab === "following") setDiscTab("all"); }} />
-        {search && <button onClick={() => setSearch("")} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 10, padding: "0 14px", cursor: "pointer", fontSize: 13 }}>Clear</button>}
-      </div>
-
-      {/* Streamer search results */}
-      {search && searchProfiles.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 16, letterSpacing: .5, marginBottom: 8 }}>Channels</div>
-          {searchProfiles.map(sp => {
-            const isLive = liveStreams.some(s => s.user_id === sp.id);
-            const ini = sp.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2) || "?";
-            return (
-              <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 6, cursor: "pointer", transition: "border-color .15s" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{ini}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>@{sp.username}</div>
-                </div>
-                {isLive
-                  ? <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 6, padding: "3px 8px" }}>🔴 LIVE</span>
-                  : <span style={{ fontSize: 12, color: "var(--muted)" }}>View →</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tab switcher — only for logged-in users */}
-      {user && !search && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          <button onClick={() => setDiscTab("all")} style={{ background: discTab === "all" ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (discTab === "all" ? "var(--line2)" : "transparent"), color: discTab === "all" ? "#fff" : "var(--muted)", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🏠 All</button>
-          <button onClick={() => setDiscTab("following")} style={{ background: discTab === "following" ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (discTab === "following" ? "var(--line2)" : "transparent"), color: discTab === "following" ? "#fff" : "var(--muted)", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            ❤️ Following {myFollows.length > 0 && <span style={{ fontSize: 10, opacity: .7 }}>({myFollows.length})</span>}
-          </button>
-        </div>
-      )}
-
-      {/* ── FOLLOWING FEED ── */}
-      {discTab === "following" && !search && (() => {
-        if (!user) return (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Sign in to see your feed</div>
-            <div style={{ fontSize: 13, marginBottom: 20 }}>Follow streamers and see them all in one place.</div>
-            <button className="btn-g" onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
-          </div>
-        );
-        if (myFollows.length === 0) return (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nobody followed yet</div>
-            <div style={{ fontSize: 13 }}>Go to any stream and hit Follow to build your feed.</div>
-          </div>
-        );
-        const followingLive = liveStreams.filter(s => myFollows.includes(s.user_id)).map(formatDbStream);
-        const offlineFollowed = followedStreamers.filter(sp => !liveStreams.some(s => s.user_id === sp.id));
-        return (
-          <>
-            {followingLive.length > 0 ? (
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <div className="live-dot" />
-                  <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Live Now</span>
-                  <span style={{ fontSize: 12, color: "var(--muted)" }}>{followingLive.length} stream{followingLive.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="sg">{followingLive.map(s => (
-                  <div key={s.id} className={`sc ${s.isRealStream ? "real" : ""}`} onClick={() => go("stream", s)}>
-                    <div className="sc-thumb">
-                      <div className="sc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
-                      <div className="sc-ov" /><div className="sc-emoji">{s.emoji}</div>
-                      <div className="sc-badges"><span className="lpip"><span className="lpip-dot" />LIVE</span></div>
-                      <div className="sc-viewers">👁 {s.viewers.toLocaleString()}</div>
-                    </div>
-                    <div className="sc-body">
-                      <div className="sc-row">
-                        <div className="sc-av" style={{ background: s.color }}>{s.emoji}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}><div className="sc-title">{s.title}</div><div className="sc-name">{s.streamer}</div></div>
-                      </div>
-                      <span className="stag">{s.game}</span>
-                    </div>
-                  </div>
-                ))}</div>
-              </div>
-            ) : (
-              <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, padding: "18px 20px", marginBottom: 20, textAlign: "center" }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>😴</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Nobody you follow is live right now</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Check back later — you'll get a notification when they go live.</div>
-              </div>
-            )}
-            {offlineFollowed.length > 0 && (
-              <div>
-                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 16, letterSpacing: .5, color: "var(--muted)", marginBottom: 10 }}>Offline</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {offlineFollowed.map(sp => {
-                    const ini = sp.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2) || "?";
-                    return (
-                      <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer" }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--ink4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0, opacity: .6 }}>{ini}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>{sp.full_name}</div>
-                          <div style={{ fontSize: 11, color: "var(--muted)" }}>@{sp.username}</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: "var(--muted)", background: "var(--ink4)", borderRadius: 6, padding: "3px 8px" }}>Offline</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        );
-      })()}
-
-      {/* ── ALL STREAMS (default tab) ── */}
-      {(discTab === "all" || search) && <>
-      <div className="cats">{CATS.map(c => {
-        const count = c === "All" ? allStreams.length : allStreams.filter(s => s.game === c || s.game.includes(c)).length;
-        return (
-          <button key={c} className={`cat ${cat === c ? "on" : ""}`} onClick={() => setCat(c)}>
-            {CAT_META[c] ? `${CAT_META[c].emoji} ` : ""}{c}{count > 0 && c !== "All" ? <span style={{ fontSize: 9, opacity: .7, marginLeft: 4 }}>{count}</span> : ""}
-          </button>
-        );
-      })}</div>
-      {liveStreams.length > 0 && !search && cat === "All" && (
-        <div className="live-banner">
-          <div className="live-dot" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{liveStreams.length} streamer{liveStreams.length !== 1 ? "s" : ""} live right now</div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Real streams from STEM creators — appearing at the top</div>
-          </div>
-        </div>
-      )}
-      {upcomingSchedule.length > 0 && !search && cat === "All" && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>📅 Upcoming Streams</div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
-            {upcomingSchedule.map(s => {
-              const d = new Date(s.scheduled_at);
-              return (
-                <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 180, flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.profiles?.full_name || "Streamer"}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {/* Trending section — top 3 by viewers when no filter active */}
-      {!search && cat === "All" && allStreams.length >= 3 && (
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5, marginBottom: 10 }}>🔥 Trending Now</div>
-          <div className="trending-strip">
-            {[...allStreams].sort((a, b) => b.viewers - a.viewers).slice(0, 3).map((s, idx) => (
-              <div key={s.id} className="trending-card" onClick={() => go("stream", s)}>
-                <div className="trend-num">#{idx + 1}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{s.emoji}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{s.streamer}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span className="stag">{s.game}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--red)" }}>👁 {s.viewers.toLocaleString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>
-          {search ? `Results for "${search}"` : cat !== "All" ? `${cat} Streams` : "🔴 All Live"}
-        </span>
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>{filteredStreams.length} streams</span>
-      </div>
-      {filteredStreams.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No streams found</div>
-          <div style={{ fontSize: 13 }}>Try a different search or category</div>
-        </div>
-      ) : (
-        <div className="sg">{filteredStreams.map(s => (
-          <div key={s.id} className={`sc ${s.isRealStream ? "real" : ""}`} onClick={() => go("stream", s)}>
-            <div className="sc-thumb">
-              <div className="sc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
-              <div className="sc-ov" /><div className="sc-emoji">{s.emoji}</div>
-              <div className="sc-badges">
-                <span className="lpip"><span className="lpip-dot" />LIVE</span>
-                {s.isRealStream && <span style={{ background: "rgba(255,45,85,.8)", color: "#fff", fontSize: 8, fontWeight: 800, padding: "3px 7px", borderRadius: 4 }}>REAL</span>}
-                <span className="epip">+4/hr</span>
-              </div>
-              <div className="sc-viewers">👁 {s.viewers.toLocaleString()}</div>
-            </div>
-            <div className="sc-body">
-              <div className="sc-row">
-                <div className="sc-av" style={{ background: s.color, cursor: s.isRealStream && s.user_id ? "pointer" : "default" }}
+          <div className="lgc-body">
+            <div className="lgc-row">
+              <div className="lgc-av" style={{ background: s.color }}>{s.emoji}</div>
+              <div className="lgc-info">
+                <div className="lgc-title" title={s.title}>{s.title}</div>
+                <div className="lgc-name"
+                  style={{ cursor: s.isRealStream && s.user_id ? "pointer" : "default", textDecoration: s.isRealStream && s.user_id ? "underline" : "none", textDecorationColor: "rgba(255,255,255,.2)" }}
                   onClick={s.isRealStream && s.user_id ? (e) => { e.stopPropagation(); viewChannel(s.user_id); } : undefined}
-                >{s.emoji}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="sc-title">{s.title}</div>
-                  <div className="sc-name" style={{ cursor: s.isRealStream && s.user_id ? "pointer" : "default", textDecoration: s.isRealStream && s.user_id ? "underline" : "none", textDecorationColor: "rgba(255,255,255,.2)" }}
-                    onClick={s.isRealStream && s.user_id ? (e) => { e.stopPropagation(); viewChannel(s.user_id); } : undefined}
-                  >{s.streamer}</div>
-                </div>
+                >{s.streamer}</div>
+                <span className="lgc-cat" onClick={e => { e.stopPropagation(); setCat(s.game); }}>{s.game}</span>
               </div>
-              <div style={{ display: "flex", gap: 4 }}><span className="stag">{s.game}</span></div>
             </div>
           </div>
-        ))}</div>
-      )}
-      </>}
-    </div>}
+        </div>
+      );
+
+      // Sidebar channel list
+      const sidebarLive = liveStreams.filter(s => myFollows.includes(s.user_id));
+      const sidebarOffline = followedStreamers.filter(sp => !liveStreams.some(s => s.user_id === sp.id));
+      const sidebarRec = liveStreams.slice(0, 8);
+      const showFollowing = user && (sidebarLive.length > 0 || sidebarOffline.length > 0);
+
+      return (
+        <div className="disc-root" style={{ paddingTop: 56 }}>
+
+          {/* ── SIDEBAR ── */}
+          <div className="disc-sb">
+            {/* Sidebar nav items */}
+            {user && (
+              <>
+                {(mode === "viewer"
+                  ? [["disc","🏠","Home"],["leaderboard","🏆","Top Earners"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
+                  : [["disc","🏠","Home"],["dash","📊","Dashboard"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
+                ).map(([p,ic,l]) => (
+                  <div key={p} className={`sb-nav-item ${page === p || (p==="disc" && page==="stream") ? "on" : ""}`} onClick={() => go(p)}>
+                    <span style={{ fontSize: 16 }}>{ic}</span>
+                    <span>{l}</span>
+                  </div>
+                ))}
+                <div className="sb-divider" />
+              </>
+            )}
+
+            {/* Following channels */}
+            {showFollowing && (
+              <>
+                <div className="sb-hd">Following</div>
+                {sidebarLive.map(s => {
+                  const fs = formatDbStream(s);
+                  const ini = s.profiles?.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
+                  return (
+                    <div key={s.id} className="sb-ch" onClick={() => go("stream", fs)}>
+                      <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)` }}>
+                        {ini}
+                        <span className="sb-live-dot" />
+                      </div>
+                      <div className="sb-ch-info">
+                        <div className="sb-ch-name">{s.profiles?.full_name || s.profiles?.username || "Creator"}</div>
+                        <div className="sb-ch-sub">{s.category || "Streaming"}</div>
+                      </div>
+                      <div className="sb-ch-vc">{(s.viewer_count || 0).toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+                {sidebarOffline.slice(0, 6).map(sp => {
+                  const ini = sp.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
+                  return (
+                    <div key={sp.id} className="sb-ch" style={{ opacity: .45 }} onClick={() => viewChannel(sp.id)}>
+                      <div className="sb-ch-av" style={{ background: "var(--ink4)", color: "var(--muted)" }}>{ini}</div>
+                      <div className="sb-ch-info">
+                        <div className="sb-ch-name">{sp.full_name || sp.username}</div>
+                        <div className="sb-ch-sub">Offline</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Recommended for guests / no follows */}
+            {!showFollowing && sidebarRec.length > 0 && (
+              <>
+                <div className="sb-hd">Recommended</div>
+                {sidebarRec.map(s => {
+                  const fs = formatDbStream(s);
+                  const ini = s.profiles?.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
+                  return (
+                    <div key={s.id} className="sb-ch" onClick={() => go("stream", fs)}>
+                      <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)` }}>
+                        {ini}
+                        <span className="sb-live-dot" />
+                      </div>
+                      <div className="sb-ch-info">
+                        <div className="sb-ch-name">{s.profiles?.full_name || s.profiles?.username || "Creator"}</div>
+                        <div className="sb-ch-sub">{s.category || "Streaming"}</div>
+                      </div>
+                      <div className="sb-ch-vc">{(s.viewer_count || 0).toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Demo streams in sidebar when nothing real */}
+            {!showFollowing && sidebarRec.length === 0 && (
+              <>
+                <div className="sb-hd">Recommended</div>
+                {DEMO_STREAMS.slice(0, 6).map(s => (
+                  <div key={s.id} className="sb-ch" onClick={() => go("stream", s)}>
+                    <div className="sb-ch-av" style={{ background: `linear-gradient(${s.bg})` }}>
+                      {s.emoji}
+                      <span className="sb-live-dot" />
+                    </div>
+                    <div className="sb-ch-info">
+                      <div className="sb-ch-name">{s.streamer}</div>
+                      <div className="sb-ch-sub">{s.game}</div>
+                    </div>
+                    <div className="sb-ch-vc">{s.viewers.toLocaleString()}</div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* ── MAIN CONTENT ── */}
+          <div className="disc-main">
+
+            {/* Mobile search bar */}
+            <div style={{ padding: "12px 16px 0", display: "block" }} className="d-mobile-search">
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, opacity: .5 }}>🔍</span>
+                <input
+                  style={{ width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid var(--line2)", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#fff", fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", boxSizing: "border-box" }}
+                  placeholder="Search streams, streamers..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
+                />
+              </div>
+            </div>
+
+            {/* ── SEARCH RESULTS ── */}
+            {search && (
+              <div style={{ padding: "0 24px 40px" }}>
+                {searchProfiles.length > 0 && (
+                  <>
+                    <div className="d-section-hd" style={{ marginTop: 24 }}>
+                      <span className="d-section-title">Channels</span>
+                      <button className="d-see-all" onClick={() => setSearch("")}>Clear ✕</button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {searchProfiles.map(sp => {
+                        const isLive = liveStreams.some(s => s.user_id === sp.id);
+                        const ini = sp.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
+                        return (
+                          <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
+                            <div style={{ width: 42, height: 42, borderRadius: 50, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, flexShrink: 0, position: "relative" }}>
+                              {ini}
+                              {isLive && <span style={{ position: "absolute", bottom: 0, right: 0, width: 11, height: 11, background: "var(--red)", borderRadius: "50%", border: "2px solid var(--ink3)" }} />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name}</div>
+                              <div style={{ fontSize: 12, color: "var(--muted)" }}>@{sp.username}</div>
+                            </div>
+                            {isLive ? <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>🔴 LIVE</span> : <span style={{ fontSize: 12, color: "var(--muted)" }}>View →</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                <div className="d-section-hd" style={{ marginTop: 24 }}>
+                  <span className="d-section-title">Streams{filteredStreams.length > 0 ? ` (${filteredStreams.length})` : ""}</span>
+                </div>
+                {filteredStreams.length > 0
+                  ? <div className="d-grid">{filteredStreams.map(s => <LiveCard key={s.id} s={s} />)}</div>
+                  : <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div><div style={{ fontSize: 16, fontWeight: 600 }}>No results for "{search}"</div></div>
+                }
+              </div>
+            )}
+
+            {/* ── CATEGORY FILTER VIEW ── */}
+            {!search && cat !== "All" && (
+              <div className="d-section" style={{ paddingBottom: 40 }}>
+                <div className="d-section-hd">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 24 }}>{CAT_META[cat]?.emoji}</span>
+                    <span className="d-section-title">{cat}</span>
+                    {liveStreams.length > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>{filteredStreams.filter(s=>s.isRealStream).length} LIVE</span>}
+                  </div>
+                  <button className="d-see-all" onClick={() => setCat("All")}>✕ All categories</button>
+                </div>
+                {filteredStreams.length > 0
+                  ? <div className="d-grid">{filteredStreams.map(s => <LiveCard key={s.id} s={s} />)}</div>
+                  : <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{CAT_META[cat]?.emoji}</div><div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No {cat} streams live</div><div style={{ fontSize: 13 }}>Check back later or explore another category.</div></div>
+                }
+              </div>
+            )}
+
+            {/* ── HOME CONTENT (no search, no category filter) ── */}
+            {!search && cat === "All" && (
+              <>
+                {/* FEATURED HERO BANNER */}
+                {allStreams.length > 0 && (() => {
+                  const hero = allStreams[0];
+                  return (
+                    <div className="d-hero" onClick={() => go("stream", hero)}>
+                      <div className="d-hero-bg" style={{ background: `linear-gradient(${hero.bg})` }}>
+                        <span style={{ fontSize: 220, opacity: .06 }}>{hero.emoji}</span>
+                      </div>
+                      <div className="d-hero-grad" />
+                      <div className="d-hero-content">
+                        <div className="d-hero-badge"><span className="d-hero-dot" />LIVE</div>
+                        <div className="d-hero-title">{hero.title}</div>
+                        <div className="d-hero-meta">
+                          <span className="d-hero-streamer"
+                            onClick={hero.isRealStream && hero.user_id ? (e)=>{ e.stopPropagation(); viewChannel(hero.user_id); } : undefined}
+                            style={{ cursor: hero.isRealStream && hero.user_id ? "pointer" : "default" }}
+                          >{hero.streamer}</span>
+                          <span className="d-hero-sep">·</span>
+                          <span>{hero.game}</span>
+                          <span className="d-hero-sep">·</span>
+                          <span>👁 {hero.viewers.toLocaleString()} viewers</span>
+                        </div>
+                        <div className="d-hero-actions">
+                          <button className="d-hero-btn primary">▶ Watch Live</button>
+                          <button className="d-hero-btn" onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* LIVE CHANNELS GRID */}
+                {allStreams.length > 1 && (
+                  <div className="d-section">
+                    <div className="d-section-hd">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="d-section-title">Live Channels</span>
+                        {liveStreams.length > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>{liveStreams.length} REAL</span>}
+                      </div>
+                    </div>
+                    <div className="d-grid">
+                      {allStreams.slice(1).map(s => <LiveCard key={s.id} s={s} />)}
+                    </div>
+                  </div>
+                )}
+
+                {/* UPCOMING STREAMS */}
+                {upcomingSchedule.length > 0 && (
+                  <div className="d-section">
+                    <div className="d-section-hd">
+                      <span className="d-section-title">📅 Upcoming Streams</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
+                      {upcomingSchedule.map(s => {
+                        const d = new Date(s.scheduled_at);
+                        return (
+                          <div key={s.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 180, flexShrink: 0 }}>
+                            <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.profiles?.full_name || "Streamer"}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TRENDING CLIPS & SHORTS */}
+                {allClips.length > 0 && (
+                  <div className="d-section">
+                    <div className="d-section-hd">
+                      <span className="d-section-title">🎬 Trending Clips</span>
+                      <button className="d-see-all" onClick={() => go("clips")}>See all →</button>
+                    </div>
+                    <div className="clips-strip">
+                      {allClips.slice(0, 12).map(clip => {
+                        const meta = DEMO_STREAMS.find(d => d.game === clip.game) || DEMO_STREAMS[Math.abs(clip.id?.charCodeAt(0) || 0) % DEMO_STREAMS.length] || DEMO_STREAMS[0];
+                        return (
+                          <div key={clip.id} className="csc" onClick={() => go("clips")}>
+                            <div className="csc-thumb">
+                              <div className="csc-tbg" style={{ background: `linear-gradient(${meta.bg})` }} />
+                              <div className="csc-tov" />
+                              <span className="csc-emoji">{meta.emoji}</span>
+                              <div className="csc-play" style={{ fontSize: 28 }}>▶</div>
+                              <span className="csc-views">👁 {(clip.view_count || Math.floor(Math.random()*9000+500)).toLocaleString()}</span>
+                              {clip.duration && <span className="csc-dur">{Math.floor(clip.duration/60)}:{String(clip.duration%60).padStart(2,"0")}</span>}
+                            </div>
+                            <div className="csc-body">
+                              <div className="csc-title">{clip.title}</div>
+                              <div className="csc-creator">{clip.profiles?.username || clip.profiles?.full_name || "Creator"}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TOP CATEGORIES */}
+                <div className="d-section">
+                  <div className="d-section-hd">
+                    <span className="d-section-title">🎮 Top Categories</span>
+                  </div>
+                  <div className="cat-art-grid">
+                    {Object.entries(CAT_META).map(([name, meta]) => {
+                      const liveCount = allStreams.filter(s => s.game === name || s.game?.includes(name)).length;
+                      return (
+                        <div key={name} className="cat-art" onClick={() => setCat(name)}>
+                          <div className="cat-art-bg" style={{ background: `linear-gradient(${meta.bg})` }}>
+                            <span style={{ fontSize: 54, filter: "drop-shadow(0 4px 16px rgba(0,0,0,.6))" }}>{meta.emoji}</span>
+                          </div>
+                          <div className="cat-art-grad" />
+                          <div className="cat-art-label">
+                            <div className="cat-art-name">{name}</div>
+                            <div className="cat-art-count">{liveCount > 0 ? `${liveCount} live` : "Browse"}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* FEATURED PREDICTIONS */}
+                {featuredPreds.length > 0 && (
+                  <div className="d-section">
+                    <div className="d-section-hd">
+                      <span className="d-section-title">🔮 Featured Predictions</span>
+                      <span style={{ fontSize: 11, color: "var(--blue)", fontWeight: 600 }}>Live Markets</span>
+                    </div>
+                    <div className="fpred-strip">
+                      {featuredPreds.map(pred => {
+                        const opts = [pred.option_a, pred.option_b, pred.option_c, pred.option_d, pred.option_e].filter(Boolean);
+                        const streamerName = pred.streams?.profiles?.full_name || pred.streams?.profiles?.username || "Streamer";
+                        const liveStream = liveStreams.find(s => s.user_id === pred.streams?.user_id);
+                        return (
+                          <div key={pred.id} className="fpred-card" onClick={() => liveStream && go("stream", formatDbStream(liveStream))}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+                              <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 4, padding: "2px 7px" }}>🔴 LIVE</span>
+                              <span style={{ fontSize: 11, color: "var(--muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{streamerName}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: pred.status === "locked" ? "var(--orange)" : "var(--green)", flexShrink: 0 }}>{pred.status === "locked" ? "🔒 Locked" : "⚡ Open"}</span>
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, lineHeight: 1.35 }}>🔮 {pred.title}</div>
+                            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                              {opts.map((opt, i) => {
+                                const colors = ["var(--blue)","var(--red)","var(--green)","var(--orange)","var(--purple)"];
+                                const c = colors[i] || "var(--muted)";
+                                return <span key={i} style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}18`, border: `1px solid ${c}33`, borderRadius: 20, padding: "3px 10px" }}>{opt}</span>;
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* GUEST SIGN-UP CTA */}
+                {!user && (
+                  <div className="d-section" style={{ paddingBottom: 40 }}>
+                    <div className="d-cta-bar">
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🪙 Watch and earn real money</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Create a free account to earn coins while watching, join chat, and withdraw real cash.</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                        <button className="btn-o" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
+                        <button className="btn-g" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* FOLLOWING FEED */}
+                {user && discTab === "following" && (
+                  <div className="d-section">
+                    {myFollows.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
+                        <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
+                        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nobody followed yet</div>
+                        <div style={{ fontSize: 13 }}>Go to any stream and hit Follow to build your feed.</div>
+                      </div>
+                    ) : (
+                      <div className="d-grid">
+                        {liveStreams.filter(s => myFollows.includes(s.user_id)).map(formatDbStream).map(s => <LiveCard key={s.id} s={s} />)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    })()}
 
     {/* STREAM */}
     {page === "stream" && stream && <div className="slayout" style={{ paddingTop: 56 }}>
@@ -2587,7 +3011,21 @@ export default function App() {
           )}
         </div>
         <div className="sbelow">
-          <div className="stitle">{stream.title}</div>
+          {editingStreamInfo ? (
+            <div style={{ marginBottom: 10 }}>
+              <input value={streamInfoDraft.title} onChange={e => setStreamInfoDraft(d => ({ ...d, title: e.target.value }))} placeholder="Stream title" style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14, fontWeight: 700, marginBottom: 6, boxSizing: "border-box" }} />
+              <input value={streamInfoDraft.game} onChange={e => setStreamInfoDraft(d => ({ ...d, game: e.target.value }))} placeholder="Category / game" style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={updateStreamInfo} style={{ flex: 1, background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Save</button>
+                <button onClick={() => setEditingStreamInfo(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "8px 0", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 2 }}>
+              <div className="stitle" style={{ flex: 1 }}>{stream.title}</div>
+              {isStreamOwner && <button onClick={() => { setStreamInfoDraft({ title: stream.title || "", game: stream.game || "" }); setEditingStreamInfo(true); }} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", flexShrink: 0, marginTop: 4 }}>✏️ Edit</button>}
+            </div>
+          )}
           <div className="sactions">
             <button className={`abtn ${following ? "flwing" : "flw"}`} onClick={handleFollow} disabled={loadingFollow}>
               {loadingFollow ? "..." : following ? "✓ Following" : "+ Follow"}
@@ -2661,22 +3099,28 @@ export default function App() {
 
           {/* Active prediction */}
           {activePrediction && (() => {
-            const totalA = predEntries.filter(e => e.option === "a").reduce((s, e) => s + e.coins, 0);
-            const totalB = predEntries.filter(e => e.option === "b").reduce((s, e) => s + e.coins, 0);
-            const totalPot = totalA + totalB;
-            const pctA = totalPot ? Math.round(totalA / totalPot * 100) : 50;
-            const pctB = 100 - pctA;
+            const predOpts = [
+              { id: "a", label: activePrediction.option_a, color: "var(--green)", fill: "rgba(0,245,160,.15)" },
+              { id: "b", label: activePrediction.option_b, color: "var(--red)", fill: "rgba(255,45,85,.15)" },
+              ...(activePrediction.option_c ? [{ id: "c", label: activePrediction.option_c, color: "var(--blue)", fill: "rgba(77,159,255,.15)" }] : []),
+              ...(activePrediction.option_d ? [{ id: "d", label: activePrediction.option_d, color: "var(--orange)", fill: "rgba(255,149,0,.15)" }] : []),
+              ...(activePrediction.option_e ? [{ id: "e", label: activePrediction.option_e, color: "var(--gold)", fill: "rgba(255,200,0,.15)" }] : []),
+            ];
+            const totalPot = predEntries.reduce((s, e) => s + e.coins, 0);
+            const optTotals = Object.fromEntries(predOpts.map(o => [o.id, predEntries.filter(e => e.option === o.id).reduce((s, e) => s + e.coins, 0)]));
             const canBet = activePrediction.status === "open" && predCountdown > 0 && !myPredBet && user?.id !== activePrediction.streamer_id;
             const isOwner = user?.id === activePrediction.streamer_id;
-            const potentialPayout = myPredBet && totalPot > 0
-              ? Math.round(myPredBet.coins * totalPot / (myPredBet.option === "a" ? totalA : totalB))
+            const myOptTotal = myPredBet ? (optTotals[myPredBet.option] || 0) : 0;
+            const potentialPayout = myPredBet && totalPot > 0 && myOptTotal > 0
+              ? Math.round(myPredBet.coins * totalPot / myOptTotal)
               : 0;
             const STATUS_COLOR = { open: "var(--green)", locked: "var(--orange)", resolved: "var(--blue)", cancelled: "var(--muted)" };
             const STATUS_LABEL = { open: "OPEN", locked: "LOCKED", resolved: "RESOLVED", cancelled: "CANCELLED" };
+            const myBetLabel = myPredBet ? (predOpts.find(o => o.id === myPredBet.option)?.label || myPredBet.option) : null;
             return (
               <div className="pred-card">
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>🔮 {activePrediction.title}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>🔮 {activePrediction.title}{activePrediction.is_featured && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--gold)", fontWeight: 700 }}>⭐ FEATURED</span>}</div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
                     {activePrediction.status === "open" && predCountdown > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: predCountdown < 30 ? "var(--red)" : "var(--blue)", fontVariantNumeric: "tabular-nums" }}>
@@ -2689,22 +3133,28 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Option bars */}
-                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  {[["a", activePrediction.option_a, totalA, pctA, "var(--green)", "rgba(0,245,160,.15)", "a-side", "sel-a"],
-                    ["b", activePrediction.option_b, totalB, pctB, "var(--red)",   "rgba(255,45,85,.15)",  "b-side", "sel-b"]].map(([opt, label, total, pct, color, fill, side, selClass]) => (
-                    <div key={opt} className={`pred-opt ${side} ${myPredBet?.option === opt ? selClass : ""} ${activePrediction.status === "resolved" && activePrediction.winning_option === opt ? selClass : ""}`} style={{ cursor: "default" }}>
-                      <div className="pred-fill" style={{ width: `${pct}%`, background: fill }} />
-                      <div style={{ position: "relative" }}>
-                        <div style={{ fontWeight: 800, fontSize: 13, color }}>{pct}%</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, marginTop: 1 }}>{label}</div>
-                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{total.toLocaleString()} 🪙</div>
-                        {activePrediction.status === "resolved" && activePrediction.winning_option === opt && (
-                          <div style={{ fontSize: 10, color, fontWeight: 700, marginTop: 2 }}>✓ Winner</div>
-                        )}
+                {/* Option bars — supports up to 5 */}
+                <div style={{ display: "flex", flexDirection: predOpts.length > 2 ? "column" : "row", gap: 6, marginBottom: 12 }}>
+                  {predOpts.map(({ id, label, color, fill }) => {
+                    const total = optTotals[id] || 0;
+                    const pct = totalPot ? Math.round(total / totalPot * 100) : Math.round(100 / predOpts.length);
+                    const isWinner = activePrediction.status === "resolved" && activePrediction.winning_option === id;
+                    const isMyBet = myPredBet?.option === id;
+                    return (
+                      <div key={id} style={{ flex: predOpts.length <= 2 ? 1 : undefined, background: "var(--ink3)", border: `1px solid ${isMyBet || isWinner ? color : "rgba(255,255,255,.08)"}`, borderRadius: 10, padding: "8px 10px", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: `${pct}%`, background: fill, transition: "width .6s ease", borderRadius: 10 }} />
+                        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontWeight: 800, fontSize: 14, color, minWidth: 36 }}>{pct}%</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
+                            <div style={{ fontSize: 10, color: "var(--muted)" }}>{total.toLocaleString()} 🪙</div>
+                          </div>
+                          {isWinner && <span style={{ fontSize: 10, color, fontWeight: 800 }}>✓ Winner</span>}
+                          {isMyBet && !isWinner && <span style={{ fontSize: 10, color, fontWeight: 700 }}>Your bet</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Bet input */}
@@ -2717,9 +3167,10 @@ export default function App() {
                         <button key={v} onClick={() => setPredBetAmount(v)} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "0 8px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}>{v}</button>
                       ))}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => placeBet("a")} disabled={placingBet} style={{ flex: 1, background: "rgba(0,245,160,.15)", border: "1px solid rgba(0,245,160,.4)", color: "var(--green)", borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bet {activePrediction.option_a}</button>
-                      <button onClick={() => placeBet("b")} disabled={placingBet} style={{ flex: 1, background: "rgba(255,45,85,.12)", border: "1px solid rgba(255,45,85,.4)", color: "var(--red)", borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bet {activePrediction.option_b}</button>
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(predOpts.length, 3)}, 1fr)`, gap: 6 }}>
+                      {predOpts.map(({ id, label, color }) => (
+                        <button key={id} onClick={() => placeBet(id)} disabled={placingBet} style={{ background: `${color}18`, border: `1px solid ${color}55`, color, borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: 700, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Bet {label}</button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -2728,10 +3179,8 @@ export default function App() {
                 {myPredBet && activePrediction.status !== "resolved" && (
                   <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12 }}>
                     <span style={{ color: "var(--muted)" }}>Your bet: </span>
-                    <span style={{ fontWeight: 700 }}>{myPredBet.coins.toLocaleString()} 🪙 on {myPredBet.option === "a" ? activePrediction.option_a : activePrediction.option_b}</span>
-                    {totalPot > 0 && (myPredBet.option === "a" ? totalA : totalB) > 0 && (
-                      <span style={{ color: "var(--muted)", marginLeft: 6 }}>· ~{potentialPayout.toLocaleString()} 🪙 if win</span>
-                    )}
+                    <span style={{ fontWeight: 700 }}>{myPredBet.coins.toLocaleString()} 🪙 on {myBetLabel}</span>
+                    {potentialPayout > 0 && <span style={{ color: "var(--muted)", marginLeft: 6 }}>· ~{potentialPayout.toLocaleString()} 🪙 if win</span>}
                   </div>
                 )}
 
@@ -2748,12 +3197,10 @@ export default function App() {
                     {activePrediction.status === "open" && (
                       <button onClick={lockPrediction} style={{ background: "rgba(255,149,0,.12)", border: "1px solid rgba(255,149,0,.3)", color: "var(--orange)", borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🔒 Lock Bets</button>
                     )}
-                    {(activePrediction.status === "locked" || activePrediction.status === "open") && (
-                      <>
-                        <button onClick={() => resolvePrediction("a")} style={{ flex: 1, background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{activePrediction.option_a} Wins</button>
-                        <button onClick={() => resolvePrediction("b")} style={{ flex: 1, background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{activePrediction.option_b} Wins</button>
-                      </>
-                    )}
+                    <button onClick={toggleFeaturedPrediction} style={{ background: activePrediction.is_featured ? "rgba(255,200,0,.15)" : "none", border: activePrediction.is_featured ? "1px solid rgba(255,200,0,.4)" : "1px solid var(--line)", color: activePrediction.is_featured ? "var(--gold)" : "var(--muted)", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>⭐ {activePrediction.is_featured ? "Featured" : "Feature"}</button>
+                    {(activePrediction.status === "locked" || activePrediction.status === "open") && predOpts.map(({ id, label, color }) => (
+                      <button key={id} onClick={() => resolvePrediction(id)} style={{ flex: 1, minWidth: 70, background: `${color}18`, border: `1px solid ${color}44`, color, borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{label} Wins</button>
+                    ))}
                     <button onClick={cancelPrediction} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>Cancel</button>
                   </div>
                 )}
@@ -2809,9 +3256,16 @@ export default function App() {
             <div style={{ background: "var(--ink3)", border: "1px solid rgba(77,159,255,.25)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🔮 Create Prediction</div>
               <input className="fi" style={{ margin: "0 0 8px", fontSize: 13 }} placeholder="Will I win this round?" value={predForm.title} onChange={e => setPredForm(f => ({ ...f, title: e.target.value }))} />
-              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Option A" value={predForm.optionA} onChange={e => setPredForm(f => ({ ...f, optionA: e.target.value }))} />
-                <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Option B" value={predForm.optionB} onChange={e => setPredForm(f => ({ ...f, optionB: e.target.value }))} />
+              <div style={{ marginBottom: 8 }}>
+                {predForm.options.map((opt, i) => (
+                  <div key={i} style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                    <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder={`Option ${i + 1}`} value={opt} onChange={e => { const opts = [...predForm.options]; opts[i] = e.target.value; setPredForm(f => ({ ...f, options: opts })); }} />
+                    {i >= 2 && <button onClick={() => setPredForm(f => ({ ...f, options: f.options.filter((_, j) => j !== i) }))} style={{ background: "none", border: "1px solid var(--line)", color: "var(--red)", borderRadius: 6, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>×</button>}
+                  </div>
+                ))}
+                {predForm.options.length < 5 && (
+                  <button onClick={() => setPredForm(f => ({ ...f, options: [...f.options, ""] }))} style={{ background: "none", border: "none", color: "var(--blue)", fontSize: 12, cursor: "pointer" }}>+ Add option</button>
+                )}
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>Duration:</span>
@@ -2912,6 +3366,8 @@ export default function App() {
                       <option value={60}>1 min</option>
                     </select>
                     <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontWeight: 700 }}>Sub</button>
+                    <button onClick={() => setFollowerOnly(v => !v)} style={{ background: followerOnly ? "rgba(255,45,85,.15)" : "var(--ink3)", border: followerOnly ? "1px solid rgba(255,45,85,.4)" : "1px solid var(--line2)", color: followerOnly ? "var(--red)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontWeight: 700 }}>❤️</button>
+                    <button onClick={clearChat} title="Clear chat" style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer" }}>🗑</button>
                   </div>
                 )}
                 <span style={{ fontSize: 11, color: "var(--muted)" }}>{(viewerCount || stream.viewers || 0).toLocaleString()} 👁</span>
@@ -2964,9 +3420,13 @@ export default function App() {
                 <option value={30}>Slow: 30s</option>
                 <option value={60}>Slow: 1 min</option>
               </select>
-              <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 12px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
-                {subOnly ? "Sub Only ON" : "Sub Only"}
+              <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
+                {subOnly ? "Sub ✓" : "Sub"}
               </button>
+              <button onClick={() => setFollowerOnly(v => !v)} title="Follower-only chat" style={{ background: followerOnly ? "rgba(255,45,85,.15)" : "var(--ink3)", border: followerOnly ? "1px solid rgba(255,45,85,.4)" : "1px solid var(--line2)", color: followerOnly ? "var(--red)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
+                {followerOnly ? "Fol ✓" : "Fol"}
+              </button>
+              <button onClick={clearChat} title="Clear chat" style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>🗑</button>
             </div>
           )}
         </div>
@@ -3032,14 +3492,14 @@ export default function App() {
         </div>
       )}
       {/* Tab switcher */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"]].map(([t, label]) => (
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"], ["predictors", "🔮 Top Predictors"]].map(([t, label]) => (
           <button key={t} onClick={() => setLbTab(t)} style={{ background: lbTab === t ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (lbTab === t ? "var(--line2)" : "transparent"), color: lbTab === t ? "#fff" : "var(--muted)", borderRadius: 20, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{label}</button>
         ))}
       </div>
       <div className="panel">
         <div className="panel-hd">
-          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : "🎁 Most Coins Spent"}</span>
+          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : lbTab === "supporters" ? "🎁 Most Coins Spent" : "🔮 Best Predictors"}</span>
           <button onClick={fetchLeaderboard} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
         </div>
         {loadingLb ? (
@@ -3058,7 +3518,7 @@ export default function App() {
               <div className="lb-coins">🪙 {(u.coins || 0).toLocaleString()}</div>
             </div>
           ))
-        ) : (
+        ) : lbTab === "supporters" ? (
           topSupporters.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🎁</div>No supporters yet — send a gift or superchat to appear here!</div>
           ) : topSupporters.map((u, i) => (
@@ -3070,6 +3530,22 @@ export default function App() {
                 <div className="lb-role">🎁 Supporter · @{u.username}</div>
               </div>
               <div className="lb-coins" style={{ color: "var(--purple)" }}>🪙 {(u.total_spent || 0).toLocaleString()}</div>
+            </div>
+          ))
+        ) : (
+          topPredictors.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🔮</div>No prediction data yet — place bets to appear here!</div>
+          ) : topPredictors.map((u, i) => (
+            <div key={u.user_id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.user_id)}>
+              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
+              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
+              <div style={{ flex: 1 }}>
+                <div className="lb-name">{u.full_name || "Anonymous"}</div>
+                <div className="lb-role">🔮 {u.wins || 0}/{u.total_bets || 0} wins · {u.win_rate || 0}% · @{u.username}</div>
+              </div>
+              <div className="lb-coins" style={{ color: (u.total_profit || 0) >= 0 ? "var(--green)" : "var(--red)" }}>
+                {(u.total_profit || 0) >= 0 ? "+" : ""}{(u.total_profit || 0).toLocaleString()} 🪙
+              </div>
             </div>
           ))
         )}
@@ -3152,8 +3628,8 @@ export default function App() {
           <div className="wcard-l">Withdrawable Balance</div>
           <div className="wcard-v">${(coins / 1000).toFixed(2)}</div>
           <div className="wcard-sub">{coins.toLocaleString()} coins · {Math.max(0, 20000 - coins).toLocaleString()} more needed</div>
-          <button className="wbtn" disabled={coins < 20000 || viewerTier === "guest"} onClick={() => coins >= 20000 && viewerTier !== "guest" && setShowWithdrawModal(true)}>
-            {viewerTier === "guest" ? "Unlock at Active Viewer" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
+          <button className="wbtn" disabled={coins < 20000 || (viewerTier !== "verified_earner" && viewerTier !== "elite")} onClick={() => coins >= 20000 && (viewerTier === "verified_earner" || viewerTier === "elite") && setShowWithdrawModal(true)}>
+            {viewerTier === "guest" || viewerTier === "active" ? "Unlock at Verified Earner" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
           </button>
         </div>
         <div className="wcard y">
@@ -3314,6 +3790,36 @@ export default function App() {
           </div>
         )}
       </div>
+      {/* Prediction History */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🔮 Prediction History</span>
+          <button onClick={fetchPredHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+        </div>
+        {loadingPredHistory ? (
+          <div style={{ padding: "20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>Loading…</div>
+        ) : predHistory.length === 0 ? (
+          <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔮</div>
+            No prediction bets yet — join a live stream and bet on an outcome!
+          </div>
+        ) : (
+          <div>
+            {predHistory.map(h => (
+              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                <span style={{ fontSize: 20 }}>{h.won ? "🎉" : "😔"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.prediction_title || "Prediction"}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Bet on: {h.option_label} · {h.coins_bet.toLocaleString()} 🪙 wagered · {new Date(h.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: h.won ? "var(--green)" : "var(--red)", flexShrink: 0 }}>
+                  {h.won ? `+${(h.coins_won - h.coins_bet).toLocaleString()} 🪙` : `-${h.coins_bet.toLocaleString()} 🪙`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>}
 
     {/* PROFILE */}
@@ -3328,6 +3834,16 @@ export default function App() {
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: profile?.role === "streamer" ? "rgba(124,58,237,.1)" : "rgba(0,245,160,.1)", border: profile?.role === "streamer" ? "1px solid rgba(124,58,237,.3)" : "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, color: profile?.role === "streamer" ? "var(--purple)" : "var(--green)" }}>
           {profile?.role === "streamer" ? "🎙 Streamer" : "👁 Viewer"}
         </div>
+        {/* Tier badge */}
+        {(() => {
+          const ti = mode === "viewer" ? (VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest) : (streamerTier !== "none" ? STREAMER_TIER_INFO[streamerTier] : null);
+          if (!ti) return null;
+          return (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: `${ti.color}18`, border: `1px solid ${ti.color}44`, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: ti.color, marginTop: 6 }}>
+              {ti.emoji} {ti.label}
+            </div>
+          );
+        })()}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 28 }}>
         <div className="profile-stat"><div className="profile-stat-v">{coins.toLocaleString()}</div><div className="profile-stat-l">Coins</div></div>
@@ -4452,6 +4968,45 @@ export default function App() {
             <span className="gift-anim-label">{g.name}</span>
           </div>
         ))}
+      </div>
+    )}
+
+    {/* PREDICTION RECAP OVERLAY */}
+    {predRecap && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,.82)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setPredRecap(null)}>
+        <div style={{ background: "linear-gradient(145deg,var(--ink3),var(--ink4))", border: "1px solid rgba(77,159,255,.3)", borderRadius: 24, padding: "32px 28px", maxWidth: 380, width: "100%", textAlign: "center", animation: "popIn .35s cubic-bezier(.34,1.56,.64,1)" }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>
+            {predRecap.myResult === "won" ? "🏆" : predRecap.myResult === "lost" ? "😔" : "🔮"}
+          </div>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, marginBottom: 6 }}>Prediction Resolved!</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: "rgba(255,255,255,.85)" }}>{predRecap.title}</div>
+          <div style={{ background: "rgba(77,159,255,.1)", border: "1px solid rgba(77,159,255,.25)", borderRadius: 14, padding: "14px 18px", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: .6, marginBottom: 4 }}>Winner</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--blue)" }}>{predRecap.winLabel}</div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+            <div style={{ flex: 1, background: "var(--ink4)", borderRadius: 12, padding: "10px 8px" }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{predRecap.potCoins.toLocaleString()}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Total Pot 🪙</div>
+            </div>
+            <div style={{ flex: 1, background: "var(--ink4)", borderRadius: 12, padding: "10px 8px" }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{predRecap.winnerCount}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Winners</div>
+            </div>
+          </div>
+          {predRecap.myResult && (
+            <div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 16, background: predRecap.myResult === "won" ? "rgba(0,245,160,.1)" : "rgba(255,45,85,.08)", border: `1px solid ${predRecap.myResult === "won" ? "rgba(0,245,160,.3)" : "rgba(255,45,85,.25)"}` }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: predRecap.myResult === "won" ? "var(--green)" : "var(--red)" }}>
+                {predRecap.myResult === "won" ? `You won! 🎉 Payout added to wallet.` : `You lost ${predRecap.myBet.toLocaleString()} 🪙 — better luck next time!`}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => { const txt = encodeURIComponent(`🔮 ${predRecap.winLabel} won the STEM prediction!\n"${predRecap.title}"\n${predRecap.winnerCount} winner${predRecap.winnerCount !== 1 ? "s" : ""} split ${predRecap.potCoins.toLocaleString()} coins 🪙`); window.open(`https://twitter.com/intent/tweet?text=${txt}`, "_blank"); }} style={{ background: "#1DA1F2", border: "none", color: "#fff", borderRadius: 10, padding: "9px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>𝕏 Share</button>
+            <button onClick={() => { const txt = encodeURIComponent(`🔮 ${predRecap.winLabel} won! "${predRecap.title}" — ${predRecap.winnerCount} winners split ${predRecap.potCoins.toLocaleString()} coins on STEM 🪙`); window.open(`https://wa.me/?text=${txt}`, "_blank"); }} style={{ background: "#25D366", border: "none", color: "#fff", borderRadius: 10, padding: "9px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>WhatsApp</button>
+            <button onClick={() => setPredRecap(null)} style={{ background: "var(--ink4)", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "9px 16px", fontSize: 12, cursor: "pointer" }}>Dismiss</button>
+          </div>
+        </div>
       </div>
     )}
 
