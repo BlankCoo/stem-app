@@ -334,6 +334,10 @@ export default function App() {
   const [lbTab, setLbTab] = useState("earners");
   const [topSupporters, setTopSupporters] = useState([]);
   const [isBannedFromChannel, setIsBannedFromChannel] = useState(false);
+  const [viewerTier, setViewerTier] = useState("guest");
+  const [streamerTier, setStreamerTier] = useState("none");
+  const streamEntryTimeRef = useRef(null);
+  const watchedStreamsRef = useRef(new Set());
 
   // Go Live state
   const [showGoLive, setShowGoLive] = useState(false);
@@ -560,6 +564,11 @@ export default function App() {
       setStreakDays(data.streak_days || 0);
       setReferralCode(data.referral_code || "");
       setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "", twitter: data.social_twitter || "", instagram: data.social_instagram || "", youtube: data.social_youtube || "", tiktok: data.social_tiktok || "" });
+      // Compute tiers (need auth session for email_confirmed_at)
+      const { data: { session } } = await supabase.auth.getSession();
+      const emailVerified = !!session?.user?.email_confirmed_at;
+      setViewerTier(computeViewerTier(data, emailVerified));
+      setStreamerTier(computeStreamerTier(data));
     }
     return data;
   };
@@ -1348,16 +1357,17 @@ export default function App() {
   };
   // ────────────────────────────────────────────────────────
 
-  // Coin earning — tick speed scales with streak (faster ticks = more coins/sec)
+  // Coin earning — tick speed scales with streak; guests earn nothing
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
+  const earnPerTick = viewerTier === "elite" ? 2 : 1;
   useEffect(() => {
-    if (page !== "stream") return;
+    if (page !== "stream" || viewerTier === "guest") return;
     const t = setInterval(() => {
-      setSess(s => s + 1);
-      setCoins(c => c + 1);
+      setSess(s => s + earnPerTick);
+      setCoins(c => c + earnPerTick);
     }, tickMs);
     return () => clearInterval(t);
-  }, [page, tickMs]);
+  }, [page, tickMs, viewerTier]);
 
   // Sync earned coins to Supabase every 15s while watching
   useEffect(() => {
@@ -1380,6 +1390,28 @@ export default function App() {
     supabase.rpc("increment_viewer_count", { stream_id: stream.id });
     return () => { supabase.rpc("decrement_viewer_count", { stream_id: stream.id }); };
   }, [page, stream?.id, stream?.isRealStream]);
+
+  // Track streams_watched + hours_watched for viewer tier progression
+  useEffect(() => {
+    if (page !== "stream" || !user || !stream?.isRealStream) return;
+    streamEntryTimeRef.current = Date.now();
+    // Count each unique stream once per session
+    if (!watchedStreamsRef.current.has(stream.id)) {
+      watchedStreamsRef.current.add(stream.id);
+      const newSw = (profile?.streams_watched || 0) + 1;
+      supabase.from("profiles").update({ streams_watched: newSw }).eq("id", user.id).then(() => {
+        setProfile(p => p ? { ...p, streams_watched: newSw } : p);
+      });
+    }
+    return () => {
+      if (!streamEntryTimeRef.current) return;
+      const hoursSpent = (Date.now() - streamEntryTimeRef.current) / 3600000;
+      if (hoursSpent < 0.01) return; // skip very short visits
+      const newHw = parseFloat(((profile?.hours_watched || 0) + hoursSpent).toFixed(4));
+      supabase.from("profiles").update({ hours_watched: newHw }).eq("id", user.id);
+      streamEntryTimeRef.current = null;
+    };
+  }, [page, stream?.id, user?.id]);
 
   // Real-time viewer count update on the stream page itself
   useEffect(() => {
@@ -1741,6 +1773,7 @@ export default function App() {
     if (!msg.trim()) return;
     if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
     if (isBannedFromChannel) { notify("You are banned from this channel's chat"); return; }
+    if (viewerTier === "guest") { notify("Chat unlocks at Active Viewer — watch 5 streams over 5 hours in 7 days"); return; }
     // Chat commands
     if (msg.trim().startsWith("!")) {
       const cmd = msg.trim().toLowerCase().split(" ")[0];
@@ -1850,6 +1883,22 @@ export default function App() {
   };
 
   const handleEndStream = async () => {
+    // Track streamer hours + unique streaming days
+    if (user && stream?.started_at) {
+      const hoursLive = (Date.now() - new Date(stream.started_at).getTime()) / 3600000;
+      const today = new Date().toISOString().slice(0, 10);
+      const isNewDay = (profile?.last_stream_date || "") !== today;
+      const newHs = parseFloat(((profile?.hours_streamed || 0) + hoursLive).toFixed(4));
+      const newSd = (profile?.streaming_days || 0) + (isNewDay ? 1 : 0);
+      await supabase.from("profiles").update({ hours_streamed: newHs, streaming_days: newSd, last_stream_date: today }).eq("id", user.id);
+      setProfile(p => p ? { ...p, hours_streamed: newHs, streaming_days: newSd, last_stream_date: today } : p);
+      const prevTier = streamerTier;
+      const newTier = computeStreamerTier({ ...profile, hours_streamed: newHs, streaming_days: newSd });
+      if (newTier !== prevTier && newTier !== "none") {
+        setStreamerTier(newTier);
+        notify(`🎉 You unlocked ${STREAMER_TIER_INFO[newTier]?.label} status!`);
+      }
+    }
     await savePastStream();
     if (muxStreamId) {
       await fetch("/api/mux-end", {
@@ -1935,6 +1984,56 @@ export default function App() {
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
   const rankEmoji = (i) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+
+  // ── Tier system ──────────────────────────────────────────────
+  const VIEWER_TIER_INFO = {
+    guest:           { label: "Guest",           emoji: "👤", color: "var(--muted)",   next: "active" },
+    active:          { label: "Active Viewer",   emoji: "🌱", color: "var(--green)",   next: "verified_earner" },
+    verified_earner: { label: "Verified Earner", emoji: "💎", color: "#0ea5e9",        next: "elite" },
+    elite:           { label: "Elite Viewer",    emoji: "👑", color: "var(--gold)",    next: null },
+  };
+  const STREAMER_TIER_INFO = {
+    none:      { label: "Aspiring",  emoji: "🎙", color: "var(--muted)",   next: "affiliate" },
+    affiliate: { label: "Affiliate", emoji: "⭐", color: "var(--orange)",  next: "partner" },
+    partner:   { label: "Partner",   emoji: "✅", color: "var(--purple)",  next: null },
+  };
+
+  const computeViewerTier = (p, emailVerified) => {
+    if (!p) return "guest";
+    const days = Math.floor((Date.now() - new Date(p.created_at)) / 86400000);
+    const hw = p.hours_watched || 0;
+    const sw = p.streams_watched || 0;
+    const ref = p.referral_count || 0;
+    // Grandfathering: users with coin history pre-dating the tier system get active status
+    const seasoned = days >= 7 && (p.coins || 0) > 500;
+    if (days >= 90 && hw >= 100 && ref >= 1) return "elite";
+    if (days >= 30 && (hw >= 20 || seasoned) && emailVerified && (sw >= 10 || seasoned)) return "verified_earner";
+    if (days >= 7 && (sw >= 5 || seasoned) && (hw >= 5 || seasoned)) return "active";
+    return "guest";
+  };
+
+  const computeStreamerTier = (p) => {
+    if (!p) return "none";
+    const days = Math.floor((Date.now() - new Date(p.created_at)) / 86400000);
+    const fl = p.follower_count || 0;
+    const hs = p.hours_streamed || 0;
+    const sd = p.streaming_days || 0;
+    if (fl >= 500 && hs >= 100 && sd >= 30) return "partner";
+    if (fl >= 100 && hs >= 20 && sd >= 14 && days >= 30) return "affiliate";
+    return "none";
+  };
+
+  const TierBar = ({ label, current, target, color = "var(--purple)" }) => (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+        <span style={{ fontSize: 11, color: "var(--muted)" }}>{label}</span>
+        <span style={{ fontSize: 11, color: current >= target ? "var(--green)" : "rgba(255,255,255,.5)" }}>{typeof current === "number" ? current.toLocaleString() : current} / {typeof target === "number" ? target.toLocaleString() : target} {current >= target ? "✓" : ""}</span>
+      </div>
+      <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 2 }}>
+        <div style={{ height: "100%", background: current >= target ? "var(--green)" : color, borderRadius: 2, width: `${Math.min(100, (current / target) * 100).toFixed(0)}%`, transition: "width .5s ease" }} />
+      </div>
+    </div>
+  );
 
   const isStreamOwner = user?.id === stream?.user_id;
 
@@ -2836,8 +2935,8 @@ export default function App() {
                     {streamEmotes.length > 0 && (
                       <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                     )}
-                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel} />
-                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel}>↑</button>
+                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
+                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
                   </div>
                 </>
               ) : (
@@ -2901,8 +3000,8 @@ export default function App() {
                 {streamEmotes.length > 0 && (
                   <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                 )}
-                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel} />
-                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel}>↑</button>
+                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
+                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
               </div>
             </>
           ) : (
@@ -3004,13 +3103,57 @@ export default function App() {
           <div style={{ fontSize: 10, color: "var(--muted)" }}>streak</div>
         </div>
       </div>
+
+      {/* Viewer Tier Card */}
+      {mode === "viewer" && (() => {
+        const ti = VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest;
+        const days = Math.floor((Date.now() - new Date(profile?.created_at || Date.now())) / 86400000);
+        const hw = profile?.hours_watched || 0;
+        const sw = profile?.streams_watched || 0;
+        const ref = profile?.referral_count || 0;
+        const nextTiers = {
+          guest: [["Account age", days, 7, "days"], ["Streams watched", sw, 5], ["Watch time", parseFloat(hw.toFixed(1)), 5, "hrs"]],
+          active: [["Account age", days, 30, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 20, "hrs"], ["Streams watched", sw, 10]],
+          verified_earner: [["Account age", days, 90, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 100, "hrs"], ["Referrals", ref, 1]],
+          elite: null,
+        };
+        const reqs = nextTiers[viewerTier];
+        const nextTi = ti.next ? VIEWER_TIER_INFO[ti.next] : null;
+        return (
+          <div style={{ background: "var(--card)", border: `1px solid ${ti.color}40`, borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: reqs ? 16 : 0 }}>
+              <div style={{ fontSize: 28 }}>{ti.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: ti.color }}>{ti.label}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                  {viewerTier === "guest" && "Watch streams to unlock chat and coin earning"}
+                  {viewerTier === "active" && "✓ Chat · ✓ Earn coins · ✓ Send gifts"}
+                  {viewerTier === "verified_earner" && "✓ Withdrawals · ✓ Referrals · ✓ Streak bonuses"}
+                  {viewerTier === "elite" && "✓ 2x coins · ✓ Elite badge · ✓ All features"}
+                </div>
+              </div>
+            </div>
+            {reqs && nextTi && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>Progress to {nextTi.label} {nextTi.emoji}</div>
+                {reqs.map(([label, cur, tgt, unit]) => (
+                  <TierBar key={label} label={`${label}${unit ? ` (${unit})` : ""}`} current={cur} target={tgt} color={ti.next === "elite" ? "var(--gold)" : ti.next === "verified_earner" ? "#0ea5e9" : "var(--green)"} />
+                ))}
+                {viewerTier === "active" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Also requires email verified</div>}
+              </div>
+            )}
+            {!reqs && <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🏆 Maximum viewer tier reached!</div>}
+          </div>
+        );
+      })()}
+
       <div className="wcards">
         <div className="wcard g">
           <div className="wcard-l">Withdrawable Balance</div>
           <div className="wcard-v">${(coins / 1000).toFixed(2)}</div>
           <div className="wcard-sub">{coins.toLocaleString()} coins · {Math.max(0, 20000 - coins).toLocaleString()} more needed</div>
-          <button className="wbtn" disabled={coins < 20000} onClick={() => coins >= 20000 && setShowWithdrawModal(true)}>
-            {coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
+          <button className="wbtn" disabled={coins < 20000 || viewerTier === "guest"} onClick={() => coins >= 20000 && viewerTier !== "guest" && setShowWithdrawModal(true)}>
+            {viewerTier === "guest" ? "Unlock at Active Viewer" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
           </button>
         </div>
         <div className="wcard y">
@@ -3344,6 +3487,47 @@ export default function App() {
           <div key={l} className={`kpi ${col}`}><div className="kpi-l">{l}</div><div className="kpi-v">{v}</div><div className="kpi-ch">{ch}</div></div>
         ))}
       </div>
+
+      {/* Streamer Tier Card */}
+      {(() => {
+        const ti = STREAMER_TIER_INFO[streamerTier] || STREAMER_TIER_INFO.none;
+        const days = Math.floor((Date.now() - new Date(profile?.created_at || Date.now())) / 86400000);
+        const fl = profile?.follower_count || 0;
+        const hs = parseFloat((profile?.hours_streamed || 0).toFixed(1));
+        const sd = profile?.streaming_days || 0;
+        const nextTiers = {
+          none: [["Followers", fl, 100], ["Hours streamed", hs, 20, "hrs"], ["Streaming days", sd, 14], ["Account age", days, 30, "days"]],
+          affiliate: [["Followers", fl, 500], ["Hours streamed", hs, 100, "hrs"], ["Streaming days", sd, 30]],
+          partner: null,
+        };
+        const reqs = nextTiers[streamerTier];
+        const nextTi = ti.next ? STREAMER_TIER_INFO[ti.next] : null;
+        return (
+          <div style={{ background: "var(--card)", border: `1px solid ${ti.color}40`, borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: reqs ? 16 : 0 }}>
+              <div style={{ fontSize: 28 }}>{ti.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: ti.color }}>{ti.label}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                  {streamerTier === "none" && "Build an audience to unlock Affiliate status"}
+                  {streamerTier === "affiliate" && "✓ Ad revenue share · ✓ Coin payouts · ✓ Virtual gifts"}
+                  {streamerTier === "partner" && "✓ Subscriptions · ✓ Brand deals · ✓ Verified badge"}
+                </div>
+              </div>
+              {streamerTier !== "none" && <span style={{ background: `${ti.color}20`, border: `1px solid ${ti.color}50`, color: ti.color, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 800 }}>{ti.emoji} {ti.label.toUpperCase()}</span>}
+            </div>
+            {reqs && nextTi && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>Progress to {nextTi.label} {nextTi.emoji}</div>
+                {reqs.map(([label, cur, tgt, unit]) => (
+                  <TierBar key={label} label={`${label}${unit ? ` (${unit})` : ""}`} current={cur} target={tgt} color={ti.next === "partner" ? "var(--purple)" : "var(--orange)"} />
+                ))}
+              </div>
+            )}
+            {!reqs && <div style={{ fontSize: 12, color: "var(--purple)", fontWeight: 700 }}>✅ Maximum streamer tier reached!</div>}
+          </div>
+        );
+      })()}
 
       {/* Revenue Breakdown — real data */}
       {(() => {
