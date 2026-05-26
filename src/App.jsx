@@ -459,6 +459,12 @@ export default function App() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
 
+  // Stream goal
+  const [streamGoal, setStreamGoal] = useState(null);
+  const [showGoalEditor, setShowGoalEditor] = useState(false);
+  const [goalForm, setGoalForm] = useState({ type: "followers", target: 500, label: "" });
+  const [savingGoal, setSavingGoal] = useState(false);
+
   // Stream polls
   const [activePoll, setActivePoll] = useState(null);
   const [pollVoted, setPollVoted] = useState(null);
@@ -573,6 +579,38 @@ export default function App() {
     if (!user || !channelId) { setIsBannedFromChannel(false); return; }
     const { data } = await supabase.from("chat_bans").select("id").eq("streamer_id", channelId).eq("banned_user_id", user.id).maybeSingle();
     setIsBannedFromChannel(!!data);
+  };
+
+  const fetchStreamGoal = async (streamId, streamUserId) => {
+    const { data } = await supabase.from("streams").select("goal_type,goal_target,goal_label,started_at").eq("id", streamId).maybeSingle();
+    if (!data?.goal_type) { setStreamGoal(null); return; }
+    let current = 0;
+    if (data.goal_type === "followers") {
+      const { count } = await supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", streamUserId);
+      current = count || 0;
+    } else if (data.goal_type === "viewers") {
+      const { data: sd } = await supabase.from("streams").select("viewer_count").eq("id", streamId).single();
+      current = sd?.viewer_count || 0;
+    }
+    setStreamGoal({ ...data, current });
+  };
+
+  const saveGoal = async () => {
+    const target = parseInt(goalForm.target);
+    if (!target || target < 1) { notify("Enter a valid target number"); return; }
+    setSavingGoal(true);
+    await supabase.from("streams").update({ goal_type: goalForm.type, goal_target: target, goal_label: goalForm.label.trim() || null }).eq("user_id", user.id);
+    const { count } = goalForm.type === "followers"
+      ? await supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", user.id)
+      : { count: stream?.viewers || 0 };
+    setStreamGoal({ goal_type: goalForm.type, goal_target: target, goal_label: goalForm.label.trim() || null, current: count || 0 });
+    setShowGoalEditor(false); notify("Goal set!");
+    setSavingGoal(false);
+  };
+
+  const clearGoal = async () => {
+    await supabase.from("streams").update({ goal_type: null, goal_target: null, goal_label: null }).eq("user_id", user.id);
+    setStreamGoal(null); setShowGoalEditor(false);
   };
 
   const fetchLiveStreams = async () => {
@@ -1450,6 +1488,9 @@ export default function App() {
     if (page === "stream") {
       checkFollowing(stream);
       if (stream?.user_id && user?.id !== stream?.user_id) checkMyBanStatus(stream.user_id);
+      if (stream?.isRealStream && stream?.id) fetchStreamGoal(stream.id, stream.user_id);
+    } else {
+      setStreamGoal(null);
     }
   }, [page, stream?.id, user?.id]);
 
@@ -1700,6 +1741,27 @@ export default function App() {
     if (!msg.trim()) return;
     if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
     if (isBannedFromChannel) { notify("You are banned from this channel's chat"); return; }
+    // Chat commands
+    if (msg.trim().startsWith("!")) {
+      const cmd = msg.trim().toLowerCase().split(" ")[0];
+      const uname = profile.full_name?.split(" ")[0] || profile.username || "Viewer";
+      let botMsg = null;
+      if (cmd === "!coins") botMsg = `🪙 @${uname} has ${coins.toLocaleString()} coins`;
+      else if (cmd === "!viewers") botMsg = `👁 ${(stream.viewers || 0).toLocaleString()} viewers watching`;
+      else if (cmd === "!top") {
+        const entries = Object.entries(topGifters || {}).sort((a, b) => b[1].total - a[1].total);
+        botMsg = entries.length ? `🏆 Top supporter: ${entries[0][1].username} · 🪙 ${entries[0][1].total.toLocaleString()}` : "🏆 No top supporter yet — send a gift!";
+      } else if (cmd === "!uptime" && stream.started_at) {
+        const mins = Math.floor((Date.now() - new Date(stream.started_at).getTime()) / 60000);
+        botMsg = `⏱ Live for ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`}`;
+      } else if (cmd === "!commands") {
+        botMsg = "📋 !coins · !viewers · !top · !uptime";
+      }
+      if (botMsg) {
+        await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: botMsg, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
+        setMsg(""); return;
+      }
+    }
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly) { notify("Subscriber-only chat — subscribe to chat"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
@@ -1757,6 +1819,7 @@ export default function App() {
         viewer_count: 0,
         mux_stream_id: streamId,
         mux_playback_id: playbackId,
+        started_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
 
@@ -1852,6 +1915,7 @@ export default function App() {
       bg: meta.bg,
       isRealStream: true,
       mux_playback_id: s.mux_playback_id || null,
+      started_at: s.started_at || null,
     };
   };
 
@@ -2716,6 +2780,19 @@ export default function App() {
               </div>
             </div>
           )}
+          {/* Goal widget — mobile */}
+          {streamGoal && streamGoal.goal_target > 0 && (
+            <div style={{ background: "rgba(124,58,237,.07)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple)" }}>🎯 {streamGoal.goal_label || (streamGoal.goal_type === "followers" ? "Follower Goal" : "Viewer Goal")}</span>
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>{streamGoal.current.toLocaleString()} / {streamGoal.goal_target.toLocaleString()}</span>
+              </div>
+              <div style={{ height: 5, background: "rgba(255,255,255,.08)", borderRadius: 3 }}>
+                <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 3, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%`, transition: "width .6s ease" }} />
+              </div>
+              {streamGoal.current >= streamGoal.goal_target && <div style={{ fontSize: 10, color: "var(--green)", fontWeight: 700, marginTop: 4 }}>🎉 Goal reached!</div>}
+            </div>
+          )}
           {/* Mobile chat */}
           <div className="chat-section">
             <div className="chat-hd">
@@ -2794,6 +2871,19 @@ export default function App() {
             </div>
           )}
         </div>
+        {/* Goal widget */}
+        {streamGoal && streamGoal.goal_target > 0 && (
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple)" }}>🎯 {streamGoal.goal_label || (streamGoal.goal_type === "followers" ? "Follower Goal" : "Viewer Goal")}</span>
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>{streamGoal.current.toLocaleString()} / {streamGoal.goal_target.toLocaleString()}</span>
+            </div>
+            <div style={{ height: 5, background: "rgba(255,255,255,.08)", borderRadius: 3 }}>
+              <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 3, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%`, transition: "width .6s ease" }} />
+            </div>
+            {streamGoal.current >= streamGoal.goal_target && <div style={{ fontSize: 10, color: "var(--green)", fontWeight: 700, marginTop: 4 }}>🎉 Goal reached!</div>}
+          </div>
+        )}
         <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }} ref={chatRef2}><ChatMessages /></div>
         <div style={{ padding: 12, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
           {user ? (
@@ -3189,6 +3279,34 @@ export default function App() {
             <button onClick={handleEndStream} className="btn-red" style={{ flex: 1, minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
               <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
             </button>
+          </div>
+          {/* Goal editor */}
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showGoalEditor ? 10 : 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: streamGoal ? "var(--purple)" : "var(--muted)" }}>
+                🎯 {streamGoal ? `Goal: ${streamGoal.current.toLocaleString()} / ${streamGoal.goal_target.toLocaleString()} ${streamGoal.goal_type}` : "Set a stream goal"}
+              </div>
+              <button onClick={() => { setGoalForm(streamGoal ? { type: streamGoal.goal_type, target: streamGoal.goal_target, label: streamGoal.goal_label || "" } : { type: "followers", target: 500, label: "" }); setShowGoalEditor(v => !v); }} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "rgba(255,255,255,.7)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{showGoalEditor ? "Cancel" : streamGoal ? "Edit" : "Set"}</button>
+            </div>
+            {showGoalEditor && (
+              <div>
+                <select value={goalForm.type} onChange={e => setGoalForm(f => ({ ...f, type: e.target.value }))} style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 6 }}>
+                  <option value="followers">Followers</option>
+                  <option value="viewers">Viewers</option>
+                </select>
+                <input type="number" min="1" value={goalForm.target} onChange={e => setGoalForm(f => ({ ...f, target: e.target.value }))} placeholder="Target (e.g. 500)" style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 6, boxSizing: "border-box" }} />
+                <input value={goalForm.label} onChange={e => setGoalForm(f => ({ ...f, label: e.target.value }))} placeholder="Label (optional — e.g. '500 followers to unlock emotes!')" style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={saveGoal} disabled={savingGoal} style={{ flex: 2, background: "var(--purple)", color: "#fff", border: "none", borderRadius: 8, padding: "9px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{savingGoal ? "Saving..." : "Save Goal"}</button>
+                  {streamGoal && <button onClick={clearGoal} style={{ flex: 1, background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "9px", fontSize: 12, cursor: "pointer" }}>Clear</button>}
+                </div>
+              </div>
+            )}
+            {streamGoal && !showGoalEditor && (
+              <div style={{ height: 4, background: "rgba(255,255,255,.08)", borderRadius: 2, marginTop: 8 }}>
+                <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 2, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%` }} />
+              </div>
+            )}
           </div>
         </div>
       ) : (
