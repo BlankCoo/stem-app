@@ -698,6 +698,13 @@ export default function App() {
   // Raid suggestions (shown after ending stream)
   const [showRaidSuggest, setShowRaidSuggest] = useState(false);
   const [raidSuggestions, setRaidSuggestions] = useState([]);
+  // Custom coin tip
+  const [customTipAmt, setCustomTipAmt] = useState("");
+  const [showTipInput, setShowTipInput] = useState(false);
+  // Coin Rain
+  const [coinRainActive, setCoinRainActive] = useState(false);
+  const [coinRainSecsLeft, setCoinRainSecsLeft] = useState(0);
+  const [coinRainClaimed, setCoinRainClaimed] = useState(false);
 
   // Top gifters this session
   const [topGifters, setTopGifters] = useState({});
@@ -1294,6 +1301,10 @@ export default function App() {
     setIsSubscribed(true); setSubTier(tier); setShowSubTierPicker(false);
     notify(`${t.badge} Subscribed ${t.label} to ${stream.streamer}!`);
     unlockAchievement("subscriber");
+    if (stream?.id) {
+      const viewerName = profile?.full_name || profile?.username || "Someone";
+      await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: `${t.badge} ${viewerName} just subscribed ${t.label}! Welcome!`, color: t.color, is_superchat: false, coins_spent: 0 });
+    }
     setSubscribing(false);
   };
 
@@ -1591,8 +1602,12 @@ export default function App() {
     const nc = coinsRef.current - reward.cost;
     setCoins(nc); coinsRef.current = nc;
     await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-    await supabase.from("reward_redemptions").insert({ reward_id: reward.id, viewer_id: user.id, streamer_id: reward.streamer_id, viewer_name: profile?.full_name || profile?.username || "Viewer", reward_title: reward.title, cost: reward.cost });
+    const viewerName = profile?.full_name || profile?.username || "Viewer";
+    await supabase.from("reward_redemptions").insert({ reward_id: reward.id, viewer_id: user.id, streamer_id: reward.streamer_id, viewer_name: viewerName, reward_title: reward.title, cost: reward.cost });
     await supabase.from("transactions").insert({ user_id: user.id, type: "reward_redemption", amount: -reward.cost, description: `Redeemed: ${reward.title}` });
+    if (stream?.id) {
+      await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: `🎁 ${viewerName} redeemed "${reward.title}"!`, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
+    }
     notify(`🎁 Redeemed: ${reward.title}!`);
   };
 
@@ -1752,12 +1767,13 @@ export default function App() {
   const viewVProfile = async (userId) => {
     if (!userId) return;
     setLoadingVProfile(true);
-    const [profRes, txnRes] = await Promise.all([
+    const [profRes, txnRes, achRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+      supabase.from("user_achievements").select("achievement_key").eq("user_id", userId),
     ]);
     if (profRes.data) {
-      setVProfile(profRes.data);
+      setVProfile({ ...profRes.data, _achievements: new Set((achRes.data || []).map(a => a.achievement_key)) });
       setVProfileTxns(txnRes.data || []);
       setPage("vprofile");
       window.scrollTo(0, 0);
@@ -2075,6 +2091,18 @@ export default function App() {
     return () => supabase.removeChannel(ch);
   }, [user?.id]);
 
+  // Real-time redemption queue for streamer dash
+  useEffect(() => {
+    if (!user || mode !== "streamer") return;
+    const ch = supabase.channel(`redemptions-${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reward_redemptions", filter: `streamer_id=eq.${user.id}` }, ({ new: r }) => {
+        setRewardRedemptions(prev => [...prev, r]);
+        notify(`🎁 ${r.viewer_name} redeemed: ${r.reward_title}`);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [user?.id, mode]);
+
   // Real-time chat subscription
   useEffect(() => {
     if (page !== "stream" || !stream?.id) return;
@@ -2100,6 +2128,17 @@ export default function App() {
           sc: m.is_superchat, amt: m.coins_spent ? `${m.coins_spent.toLocaleString()} coins` : null,
           uid: m.user_id, badge: m.badge || null,
         }]);
+      })
+      .on("broadcast", { event: "coin_rain" }, ({ payload }) => {
+        const secsLeft = Math.max(0, Math.round((payload.expires - Date.now()) / 1000));
+        if (secsLeft <= 0) return;
+        setCoinRainActive(true); setCoinRainSecsLeft(secsLeft); setCoinRainClaimed(false);
+        const iv = setInterval(() => {
+          setCoinRainSecsLeft(s => {
+            if (s <= 1) { clearInterval(iv); setCoinRainActive(false); return 0; }
+            return s - 1;
+          });
+        }, 1000);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -2296,7 +2335,11 @@ export default function App() {
         const rankPos = rankRows ? rankRows.findIndex(r => r.id === user.id) + 1 : 0;
         botMsg = rankPos > 0 ? `🏆 @${uname} is ranked #${rankPos} on the leaderboard` : `🏆 @${uname} — keep earning to climb the board!`;
       } else if (cmd === "!commands") {
-        botMsg = "📋 !coins · !viewers · !top · !uptime · !tier · !rank";
+        botMsg = "📋 !coins · !viewers · !top · !uptime · !tier · !rank · !rain";
+      } else if (cmd === "!rain") {
+        if (coinRainActive && !coinRainClaimed) { claimCoinRain(); }
+        else if (!coinRainActive) { botMsg = "🌧️ No coin rain active right now — watch for the streamer to trigger one!"; }
+        setMsg(""); return;
       }
       if (botMsg) {
         await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: botMsg, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
@@ -2310,7 +2353,8 @@ export default function App() {
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
     const nc = coinsRef.current + earned;
     const tierEmoji = viewerTier !== "guest" ? (VIEWER_TIER_INFO[viewerTier]?.emoji || null) : null;
-    const chatBadge = [tierEmoji, profile?.badge].filter(Boolean).join(" ") || null;
+    const subBadge = isSubscribed ? (SUB_TIERS.find(t => t.tier === subTier)?.badge || null) : null;
+    const chatBadge = [subBadge, tierEmoji, profile?.badge].filter(Boolean).join(" ") || null;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
@@ -2342,6 +2386,33 @@ export default function App() {
     showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} sent a ${name}!`, emoji, `${c.toLocaleString()} coins`);
     addHype(c);
     addGifter(c);
+  };
+
+  const sendCustomTip = async () => {
+    const amt = parseInt(customTipAmt, 10);
+    if (!amt || amt < 100) { notify("Minimum tip is 100 coins"); return; }
+    await sendGift(`${amt.toLocaleString()} coin tip`, amt.toLocaleString(), "💸");
+    setCustomTipAmt(""); setShowTipInput(false);
+  };
+
+  // ── Coin Rain ─────────────────────────────────────────────
+  const triggerCoinRain = async () => {
+    if (!stream?.id || !user) return;
+    await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: "🌧️ COIN RAIN! Type !rain in the next 30 seconds to claim free coins!", color: "#ffc800", is_superchat: false, coins_spent: 0 });
+    // Broadcast via Supabase realtime so all viewers receive it
+    supabase.channel(`stream-${stream.id}`).send({ type: "broadcast", event: "coin_rain", payload: { expires: Date.now() + 30000 } });
+    notify("🌧️ Coin Rain triggered!");
+  };
+
+  const claimCoinRain = async () => {
+    if (!user || coinRainClaimed) return;
+    setCoinRainClaimed(true);
+    const reward = Math.floor(Math.random() * 200) + 50;
+    const nc = coinsRef.current + reward;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    await supabase.from("transactions").insert({ user_id: user.id, type: "coin_rain", amount: reward, description: "Coin Rain bonus" });
+    notify(`🌧️ You caught ${reward} coins!`);
   };
 
   const handleGoLive = async () => {
@@ -3252,6 +3323,20 @@ export default function App() {
               </div>
             </div>
           )}
+          {coinRainActive && stream?.user_id !== user?.id && (
+            <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 25, background: "linear-gradient(135deg,#ffc800,#ff9500)", borderRadius: 12, padding: "10px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(255,200,0,.45)", animation: "popIn .3s ease" }}>
+              <span style={{ fontSize: 22 }}>🌧️</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#000" }}>Coin Rain! {coinRainSecsLeft}s left</div>
+                <div style={{ fontSize: 11, color: "rgba(0,0,0,.7)" }}>Type !rain in chat to claim</div>
+              </div>
+              {!coinRainClaimed ? (
+                <button onClick={claimCoinRain} style={{ background: "#000", color: "#ffc800", border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Claim!</button>
+              ) : (
+                <span style={{ fontSize: 11, color: "#000", fontWeight: 700 }}>Claimed!</span>
+              )}
+            </div>
+          )}
           {/* Back button — always visible over the player */}
           <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
             ← Home
@@ -3577,7 +3662,16 @@ export default function App() {
               {[["🌟", "Star", "1,000"], ["🏆", "Trophy", "5,000"], ["👑", "Crown", "10,000"], ["🚀", "Rocket", "2,500"]].map(([e, n, c]) => (
                 <div key={n} className="gift" onClick={() => sendGift(n, c, e)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
               ))}
+              <div className="gift" onClick={() => setShowTipInput(t => !t)} style={{ borderColor: showTipInput ? "rgba(255,200,0,.5)" : "" }}>
+                <span className="gift-e">💸</span><div className="gift-c">Custom</div><div className="gift-n">Tip</div>
+              </div>
             </div>
+            {showTipInput && (
+              <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                <input type="number" min={100} step={100} value={customTipAmt} onChange={e => setCustomTipAmt(e.target.value)} placeholder="e.g. 1500" style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 8, color: "#fff", padding: "7px 10px", fontSize: 13, outline: "none" }} onKeyDown={e => e.key === "Enter" && sendCustomTip()} />
+                <button className="btn-g" style={{ padding: "7px 14px", fontSize: 12 }} onClick={sendCustomTip}>Tip 🪙</button>
+              </div>
+            )}
             {/* Gift subs */}
             {stream?.user_id && stream.user_id !== user?.id && user && (
               <button onClick={() => setShowGiftSubModal(true)} style={{ width: "100%", marginTop: 8, background: "linear-gradient(135deg,rgba(168,85,247,.12),rgba(124,58,237,.07))", border: "1px solid rgba(168,85,247,.28)", color: "#a855f7", borderRadius: 10, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -4300,6 +4394,7 @@ export default function App() {
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={() => go("disc")} className="btn-g" style={{ flex: 1, minWidth: 120 }}>View on Discover</button>
+            <button onClick={triggerCoinRain} style={{ flex: 1, minWidth: 120, background: "linear-gradient(135deg,#ffc800,#ff9500)", color: "#000", border: "none", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>🌧️ Coin Rain</button>
             <button onClick={handleEndStream} className="btn-red" style={{ flex: 1, minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
               <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
             </button>
@@ -4861,6 +4956,17 @@ export default function App() {
                     <span key={label} className="badge-chip" style={{ background: bg, border: `1px solid ${color}44`, color }}>
                       {icon} {label}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Achievements */}
+            {vProfile._achievements?.size > 0 && (
+              <div className="panel" style={{ marginBottom: 16 }}>
+                <div className="panel-hd"><span className="panel-title">🏆 Achievements</span><span style={{ fontSize: 12, color: "var(--muted)" }}>{vProfile._achievements.size} earned</span></div>
+                <div style={{ padding: "10px 14px", display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {Object.entries(ACHIEVEMENTS).filter(([k]) => vProfile._achievements.has(k)).map(([k, a]) => (
+                    <span key={k} title={a.desc} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,200,0,.08)", border: "1px solid rgba(255,200,0,.22)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{a.emoji} {a.label}</span>
                   ))}
                 </div>
               </div>
