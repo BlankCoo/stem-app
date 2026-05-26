@@ -14,6 +14,23 @@ const DEMO_STREAMS = [
   { id: "stream-6", title: "Just Chatting — Story Time", streamer: "TalkWithKai", game: "Just Chatting", viewers: 3340, emoji: "💬", color: "#ec4899", bg: "135deg,#2e0a1e,#5a1442" },
 ];
 
+const ACHIEVEMENTS = {
+  first_stream:  { label: "First Stream",   emoji: "📺", desc: "Watched your first live stream" },
+  whale:         { label: "Whale",           emoji: "🐋", desc: "Accumulated 50,000+ coins" },
+  streak_legend: { label: "Streak Legend",   emoji: "🔥", desc: "Maintained a 14-day streak" },
+  first_follow:  { label: "First Follow",    emoji: "❤️", desc: "Followed your first streamer" },
+  verified:      { label: "Verified Earner", emoji: "✅", desc: "Reached Verified Earner tier" },
+  elite:         { label: "Elite",           emoji: "👑", desc: "Reached Elite Viewer tier" },
+  predictor:     { label: "Predictor",       emoji: "🔮", desc: "Won your first prediction" },
+  subscriber:    { label: "Subscriber",      emoji: "⭐", desc: "Subscribed to a channel" },
+};
+
+const SUB_TIERS = [
+  { tier: 1, cost: 1000,  label: "Tier 1", color: "#7c3aed", badge: "⭐" },
+  { tier: 2, cost: 2500,  label: "Tier 2", color: "#f59e0b", badge: "🌟" },
+  { tier: 3, cost: 5000,  label: "Tier 3", color: "#ef4444", badge: "💫" },
+];
+
 const CATS = ["All", "Gaming", "IRL", "Music", "Just Chatting", "Sports", "Food"];
 const STREAM_CATS = ["Gaming", "IRL", "Music", "Just Chatting", "Sports", "Food"];
 
@@ -427,7 +444,44 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
   .cat-art-grid{grid-template-columns:repeat(3,1fr)}
   .d-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 }
+/* Daily missions */
+.mission-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.mission-icon{font-size:20px;width:32px;text-align:center;flex-shrink:0}
+.mission-bar-wrap{flex:1;min-width:0}
+.mission-label{font-size:12px;font-weight:600;margin-bottom:4px}
+.mission-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.mission-bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.mission-prog{font-size:11px;color:var(--muted);margin-top:3px}
+/* Achievement badges */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;padding:14px}
+.ach-card{background:var(--ink3);border:1px solid var(--line2);border-radius:12px;padding:12px 8px;text-align:center;transition:transform .15s}
+.ach-card.earned{border-color:rgba(255,200,0,.35);background:rgba(255,200,0,.06)}
+.ach-card:hover{transform:translateY(-2px)}
+.ach-emoji{font-size:28px;margin-bottom:6px}
+.ach-label{font-size:11px;font-weight:700;margin-bottom:2px}
+.ach-desc{font-size:10px;color:var(--muted);line-height:1.3}
+/* Sub tier picker */
+.tier-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px}
+.tier-picker-box{background:var(--ink2);border:1px solid var(--line2);border-radius:20px;width:100%;max-width:340px;padding:24px}
+.tier-card{border-radius:12px;padding:14px;cursor:pointer;transition:all .15s;border:2px solid transparent;margin-bottom:8px}
+.tier-card:hover{transform:translateX(3px)}
+/* Clip vote buttons */
+.clip-votes{display:flex;align-items:center;gap:4px;margin-top:4px}
+.vote-btn{background:none;border:1px solid var(--line2);border-radius:6px;color:var(--muted);font-size:12px;padding:2px 8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:3px}
+.vote-btn:hover,.vote-btn.on{background:rgba(255,255,255,.06);color:#fff}
+.vote-btn.up.on{color:var(--green);border-color:rgba(0,245,160,.35)}
+.vote-btn.dn.on{color:var(--red);border-color:rgba(255,45,85,.35)}
+/* Channel rewards */
+.reward-card{background:var(--ink3);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.reward-card:hover{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.06)}
+/* Raid suggestions */
+.raid-suggest-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;display:flex;align-items:flex-end;justify-content:center;padding:20px}
+.raid-suggest-box{background:var(--ink2);border:1px solid var(--line2);border-radius:20px 20px 0 0;width:100%;max-width:560px;padding:24px}
+/* Automod */
+.word-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.25);border-radius:20px;padding:3px 10px;font-size:12px;margin:3px}
 `;
+
+
 
 
 export default function App() {
@@ -625,6 +679,26 @@ export default function App() {
   const [loadingPredHistory, setLoadingPredHistory] = useState(false);
   const [topPredictors, setTopPredictors] = useState([]);
 
+  // Daily missions
+  const [dailyMissions, setDailyMissions] = useState(null);
+  // Achievements
+  const [achievements, setAchievements] = useState(new Set());
+  // Clip votes
+  const [myClipVotes, setMyClipVotes] = useState({});
+  // Channel rewards
+  const [channelRewards, setChannelRewards] = useState([]);
+  const [rewardRedemptions, setRewardRedemptions] = useState([]);
+  const [newReward, setNewReward] = useState({ title: "", cost: 500 });
+  // Auto-mod
+  const [bannedWords, setBannedWords] = useState([]);
+  const [newBannedWord, setNewBannedWord] = useState("");
+  // Sub tiers
+  const [subTier, setSubTier] = useState(0);
+  const [showSubTierPicker, setShowSubTierPicker] = useState(false);
+  // Raid suggestions (shown after ending stream)
+  const [showRaidSuggest, setShowRaidSuggest] = useState(false);
+  const [raidSuggestions, setRaidSuggestions] = useState([]);
+
   // Top gifters this session
   const [topGifters, setTopGifters] = useState({});
 
@@ -650,7 +724,7 @@ export default function App() {
   useEffect(() => { coinsRef.current = coins; }, [coins]);
   useEffect(() => { sessRef.current = sess; }, [sess]);
 
-  // Coin milestone celebrations
+  // Coin milestone celebrations + whale achievement
   useEffect(() => {
     const milestones = [1000, 5000, 10000, 25000, 50000, 100000];
     const prev = coinMilestoneRef.current;
@@ -662,6 +736,7 @@ export default function App() {
       }
     }
     if (coins > coinMilestoneRef.current) coinMilestoneRef.current = coins;
+    if (coins >= 50000) unlockAchievement("whale");
   }, [coins]);
 
   // Parse all emoji in the DOM to Twemoji SVGs after every render
@@ -725,6 +800,8 @@ export default function App() {
       const storedTier = localStorage.getItem("stem_viewer_tier") || "guest";
       if (tierOrder[newViewerTier] > tierOrder[storedTier]) {
         setTimeout(() => notify(`🎉 You unlocked ${VIEWER_TIER_INFO[newViewerTier]?.label} status! ${VIEWER_TIER_INFO[newViewerTier]?.emoji}`), 1500);
+        if (newViewerTier === "verified_earner") unlockAchievement("verified");
+        if (newViewerTier === "elite") unlockAchievement("elite");
       }
       localStorage.setItem("stem_viewer_tier", newViewerTier);
       setViewerTier(newViewerTier);
@@ -865,7 +942,7 @@ export default function App() {
     if (!wasConsecutive && data.last_streak_date) notify("Streak reset — watch daily for bonus coins!");
     else if (newStreak === 3)  notify("🔥 3-day streak! Earning 1.25x coins!");
     else if (newStreak === 7)  notify("🔥 7-day streak! Earning 1.5x coins!");
-    else if (newStreak === 14) notify("🔥 14-day streak! Earning 2x coins — max bonus!");
+    else if (newStreak === 14) { notify("🔥 14-day streak! Earning 2x coins — max bonus!"); unlockAchievement("streak_legend"); }
     else if (newStreak > 1)    notify(`🔥 ${newStreak}-day streak! Keep it up!`);
   };
 
@@ -1193,27 +1270,30 @@ export default function App() {
 
   // ── Subscription ────────────────────────────────────────
   const checkSubscription = async (streamerId) => {
-    if (!user || !streamerId) { setIsSubscribed(false); return; }
-    const { data } = await supabase.from("subscriptions").select("expires_at").eq("subscriber_id", user.id).eq("streamer_id", streamerId).maybeSingle();
-    setIsSubscribed(!!data && new Date(data.expires_at) > new Date());
+    if (!user || !streamerId) { setIsSubscribed(false); setSubTier(0); return; }
+    const { data } = await supabase.from("subscriptions").select("expires_at,tier").eq("subscriber_id", user.id).eq("streamer_id", streamerId).maybeSingle();
+    const active = !!data && new Date(data.expires_at) > new Date();
+    setIsSubscribed(active);
+    setSubTier(active ? (data.tier || 1) : 0);
   };
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (tier = 1) => {
     if (!requireAuth()) return;
     if (!stream?.user_id || stream.user_id === user?.id) return;
-    const COST = 1000;
-    if (coinsRef.current < COST) { notify("Need 1,000 coins to subscribe!"); return; }
+    const t = SUB_TIERS.find(x => x.tier === tier) || SUB_TIERS[0];
+    if (coinsRef.current < t.cost) { notify(`Need ${t.cost.toLocaleString()} coins for ${t.label}!`); return; }
     setSubscribing(true);
-    const nc = coinsRef.current - COST;
+    const nc = coinsRef.current - t.cost;
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
     await supabase.from("subscriptions").upsert({
-      subscriber_id: user.id, streamer_id: stream.user_id,
+      subscriber_id: user.id, streamer_id: stream.user_id, tier,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     }, { onConflict: "subscriber_id,streamer_id" });
-    logTransaction("subscription", -COST, `Subscribed to ${stream.streamer}`);
-    setIsSubscribed(true);
-    notify(`Subscribed to ${stream.streamer}! ⭐`);
+    logTransaction("subscription", -t.cost, `${t.label} sub to ${stream.streamer}`);
+    setIsSubscribed(true); setSubTier(tier); setShowSubTierPicker(false);
+    notify(`${t.badge} Subscribed ${t.label} to ${stream.streamer}!`);
+    unlockAchievement("subscriber");
     setSubscribing(false);
   };
 
@@ -1387,6 +1467,7 @@ export default function App() {
     if (prof) { setCoins(prof.coins); coinsRef.current = prof.coins; }
     setActivePrediction(p => ({ ...p, status: "resolved", winning_option: winOption }));
     notify(`${winLabel} wins! Coins paid to ${winners.length} winner${winners.length !== 1 ? "s" : ""}`);
+    if (myPredBet?.option === winOption) unlockAchievement("predictor");
     setTimeout(() => { setActivePrediction(null); setPredEntries([]); setMyPredBet(null); }, 7000);
   };
 
@@ -1409,6 +1490,160 @@ export default function App() {
     predChRef.current?.send({ type: "broadcast", event: "pred_featured", payload: { is_featured: newFeatured } });
     fetchFeaturedPredictions();
     notify(newFeatured ? "Prediction featured on Discover!" : "Removed from Discover");
+  };
+
+  // ── Daily Missions ────────────────────────────────────────
+  const fetchDailyMissions = async () => {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase.from("daily_missions").select("*").eq("user_id", user.id).eq("date", today).maybeSingle();
+    if (data) setDailyMissions(data);
+    else {
+      const { data: created } = await supabase.from("daily_missions").insert({ user_id: user.id, date: today }).select().single();
+      setDailyMissions(created || { watch_mins: 0, chat_count: 0, followed_today: false, bonus_claimed: false });
+    }
+  };
+
+  const claimMissionBonus = async () => {
+    if (!dailyMissions || dailyMissions.bonus_claimed) return;
+    if (dailyMissions.watch_mins < 10 || dailyMissions.chat_count < 5 || !dailyMissions.followed_today) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from("daily_missions").update({ bonus_claimed: true }).eq("user_id", user.id).eq("date", today);
+    const bonus = 500;
+    const nc = coinsRef.current + bonus;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    await supabase.from("transactions").insert({ user_id: user.id, type: "daily_bonus", amount: bonus, description: "Daily missions complete!" });
+    setDailyMissions(m => ({ ...m, bonus_claimed: true }));
+    notify("🎉 Daily missions complete! +500 coins");
+  };
+
+  const incMissionChat = async () => {
+    if (!user || !dailyMissions || dailyMissions.chat_count >= 5) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const newCount = (dailyMissions.chat_count || 0) + 1;
+    await supabase.from("daily_missions").update({ chat_count: newCount }).eq("user_id", user.id).eq("date", today);
+    setDailyMissions(m => m ? { ...m, chat_count: newCount } : m);
+  };
+
+  const setMissionFollowed = async () => {
+    if (!user || !dailyMissions || dailyMissions.followed_today) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from("daily_missions").update({ followed_today: true }).eq("user_id", user.id).eq("date", today);
+    setDailyMissions(m => m ? { ...m, followed_today: true } : m);
+  };
+
+  // ── Achievements ─────────────────────────────────────────
+  const fetchAchievements = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("user_achievements").select("achievement_key").eq("user_id", user.id);
+    if (data) setAchievements(new Set(data.map(a => a.achievement_key)));
+  };
+
+  const unlockAchievement = async (key) => {
+    if (achievements.has(key) || !user) return;
+    const { error } = await supabase.from("user_achievements").insert({ user_id: user.id, achievement_key: key });
+    if (!error) {
+      setAchievements(prev => new Set([...prev, key]));
+      const ach = ACHIEVEMENTS[key];
+      if (ach) setTimeout(() => notify(`🏆 Achievement: ${ach.emoji} ${ach.label}!`), 400);
+    }
+  };
+
+  // ── Clip Voting ───────────────────────────────────────────
+  const fetchMyClipVotes = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("clip_votes").select("clip_id,vote").eq("user_id", user.id);
+    if (data) setMyClipVotes(Object.fromEntries(data.map(v => [v.clip_id, v.vote])));
+  };
+
+  const voteClip = async (e, clipId, vote) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
+    await supabase.rpc("vote_clip", { p_clip_id: clipId, p_user_id: user.id, p_vote: vote });
+    const existing = myClipVotes[clipId];
+    if (existing === vote) {
+      setMyClipVotes(v => { const n = { ...v }; delete n[clipId]; return n; });
+      setAllClips(clips => clips.map(c => c.id === clipId ? { ...c, score: (c.score || 0) - vote } : c));
+    } else {
+      const delta = existing ? (vote - existing) : vote;
+      setMyClipVotes(v => ({ ...v, [clipId]: vote }));
+      setAllClips(clips => clips.map(c => c.id === clipId ? { ...c, score: (c.score || 0) + delta } : c));
+    }
+  };
+
+  // ── Channel Rewards ───────────────────────────────────────
+  const fetchChannelRewards = async (streamerId) => {
+    if (!streamerId) return;
+    const { data } = await supabase.from("channel_rewards").select("*").eq("streamer_id", streamerId).eq("is_active", true).order("cost");
+    setChannelRewards(data || []);
+  };
+
+  const fetchRedemptionQueue = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("reward_redemptions").select("*").eq("streamer_id", user.id).eq("status", "pending").order("created_at");
+    setRewardRedemptions(data || []);
+  };
+
+  const redeemReward = async (reward) => {
+    if (!requireAuth()) return;
+    if (coinsRef.current < reward.cost) { notify("Not enough coins"); return; }
+    const nc = coinsRef.current - reward.cost;
+    setCoins(nc); coinsRef.current = nc;
+    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    await supabase.from("reward_redemptions").insert({ reward_id: reward.id, viewer_id: user.id, streamer_id: reward.streamer_id, viewer_name: profile?.full_name || profile?.username || "Viewer", reward_title: reward.title, cost: reward.cost });
+    await supabase.from("transactions").insert({ user_id: user.id, type: "reward_redemption", amount: -reward.cost, description: `Redeemed: ${reward.title}` });
+    notify(`🎁 Redeemed: ${reward.title}!`);
+  };
+
+  const addReward = async () => {
+    if (!newReward.title.trim() || !user) return;
+    await supabase.from("channel_rewards").insert({ streamer_id: user.id, title: newReward.title.trim(), cost: Math.max(50, Number(newReward.cost) || 500) });
+    setNewReward({ title: "", cost: 500 });
+    notify("Reward added!");
+    fetchChannelRewards(user.id);
+  };
+
+  const removeReward = async (rewardId) => {
+    await supabase.from("channel_rewards").update({ is_active: false }).eq("id", rewardId);
+    fetchChannelRewards(user.id);
+  };
+
+  const fulfillRedemption = async (redemptionId) => {
+    await supabase.from("reward_redemptions").update({ status: "fulfilled" }).eq("id", redemptionId);
+    setRewardRedemptions(r => r.filter(x => x.id !== redemptionId));
+  };
+
+  // ── Auto-mod Word Filter ──────────────────────────────────
+  const fetchBannedWords = async (streamerId) => {
+    if (!streamerId) return;
+    const { data } = await supabase.from("automod_words").select("word").eq("streamer_id", streamerId);
+    setBannedWords((data || []).map(w => w.word));
+  };
+
+  const addBannedWord = async () => {
+    const word = newBannedWord.trim().toLowerCase();
+    if (!word || !user) return;
+    if (bannedWords.includes(word)) { setNewBannedWord(""); return; }
+    await supabase.from("automod_words").insert({ streamer_id: user.id, word });
+    setBannedWords(w => [...w, word]);
+    setNewBannedWord("");
+  };
+
+  const removeBannedWord = async (word) => {
+    await supabase.from("automod_words").delete().eq("streamer_id", user.id).eq("word", word);
+    setBannedWords(w => w.filter(x => x !== word));
+  };
+
+  // ── Raid Suggestions (post-stream) ────────────────────────
+  const fetchRaidSuggestions = async () => {
+    const { data } = await supabase.from("streams").select("*, profiles(full_name, username)").eq("status", "live").neq("user_id", user.id).limit(6);
+    if (data && data.length > 0) {
+      const myGame = stream?.game;
+      const sorted = [...data].sort((a, b) => (b.category === myGame ? 1 : 0) - (a.category === myGame ? 1 : 0)).slice(0, 3);
+      setRaidSuggestions(sorted.map(s => formatDbStream(s)));
+      setShowRaidSuggest(true);
+    }
   };
 
   const clearChat = async () => {
@@ -1596,6 +1831,21 @@ export default function App() {
     }, tickMs);
     return () => clearInterval(t);
   }, [page, tickMs, viewerTier]);
+
+  // Daily mission: increment watch_mins every 60s while watching
+  useEffect(() => {
+    if (page !== "stream" || !user || !stream?.isRealStream) return;
+    const missionT = setInterval(() => {
+      const today = new Date().toISOString().slice(0, 10);
+      setDailyMissions(m => {
+        if (!m || m.watch_mins >= 10) return m;
+        const newMins = (m.watch_mins || 0) + 1;
+        supabase.from("daily_missions").update({ watch_mins: newMins }).eq("user_id", user.id).eq("date", today);
+        return { ...m, watch_mins: newMins };
+      });
+    }, 60000);
+    return () => clearInterval(missionT);
+  }, [page, user, stream?.isRealStream]);
 
   // Sync earned coins to Supabase every 15s while watching
   useEffect(() => {
@@ -1864,16 +2114,17 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); fetchRedemptionQueue(); fetchChannelRewards(user.id); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); }
-    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); }
+    if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
-      if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); }
+      if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); fetchChannelRewards(stream.user_id); fetchBannedWords(stream.user_id); }
       setTopGifters({}); setActivePoll(null); setPollVoted(null); setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
+      if (stream.isRealStream) unlockAchievement("first_stream");
     }
-    if (page === "clips") fetchAllClips();
+    if (page === "clips") { fetchAllClips(); fetchMyClipVotes(); }
     if (page === "channel" && channelUser?.id) fetchPastStreams(channelUser.id);
   }, [page, user]);
 
@@ -1996,6 +2247,8 @@ export default function App() {
             notify(`+${earned} coins for following!`);
             showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "❤️", stream.streamer);
             supabase.rpc("increment_follower_count", { profile_id: stream.user_id });
+            unlockAchievement("first_follow");
+            setMissionFollowed();
           }
         }
       } else {
@@ -2053,6 +2306,7 @@ export default function App() {
     if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
     if (subOnly && !isStreamOwner) { notify("Subscriber-only chat — subscribe to chat"); return; }
     if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat — follow this channel to chat"); return; }
+    if (bannedWords.length > 0 && bannedWords.some(w => msg.toLowerCase().includes(w))) { notify("Your message was blocked by auto-mod"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
     const nc = coinsRef.current + earned;
     const tierEmoji = viewerTier !== "guest" ? (VIEWER_TIER_INFO[viewerTier]?.emoji || null) : null;
@@ -2065,6 +2319,7 @@ export default function App() {
     setCoins(nc); coinsRef.current = nc;
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
     logTransaction("chat", earned, `Chatted in "${stream.title}"`);
+    incMissionChat();
     setMsg(""); notify(`+${earned} coins!`);
     startSlowCooldown();
   };
@@ -2174,6 +2429,7 @@ export default function App() {
     setIsStreaming(false);
     setMuxStreamId(""); setMuxStreamKey(""); setMuxPlaybackId("");
     notify("Stream ended.");
+    fetchRaidSuggestions();
     startRaid();
   };
 
@@ -2872,6 +3128,11 @@ export default function App() {
                             <div className="csc-body">
                               <div className="csc-title">{clip.title}</div>
                               <div className="csc-creator">{clip.profiles?.username || clip.profiles?.full_name || "Creator"}</div>
+                              <div className="clip-votes">
+                                <button className={`vote-btn up${myClipVotes[clip.id] === 1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, 1)}>▲ {Math.max(0, (clip.score || 0) + (myClipVotes[clip.id] === 1 ? 0 : 0))}</button>
+                                <button className={`vote-btn dn${myClipVotes[clip.id] === -1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, -1)}>▼</button>
+                                <span style={{ fontSize: 11, color: "var(--muted)" }}>{(clip.score || 0) > 0 ? `+${clip.score}` : clip.score || 0}</span>
+                              </div>
                             </div>
                           </div>
                         );
@@ -3047,8 +3308,8 @@ export default function App() {
             <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
             <button className="abtn" onClick={() => { if (!requireAuth()) return; setShowClipModal(true); }}>✂ Clip</button>
             {stream.user_id && stream.user_id !== user?.id && (
-              <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={handleSubscribe} disabled={subscribing || isSubscribed}>
-                {isSubscribed ? "⭐ Subscribed" : subscribing ? "…" : "⭐ Sub (1K coins)"}
+              <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={() => isSubscribed ? null : setShowSubTierPicker(true)} disabled={subscribing || isSubscribed}>
+                {isSubscribed ? `${SUB_TIERS.find(t => t.tier === subTier)?.badge || "⭐"} Subscribed T${subTier}` : subscribing ? "…" : "⭐ Subscribe"}
               </button>
             )}
           </div>
@@ -3347,6 +3608,23 @@ export default function App() {
               </div>
             </div>
           )}
+          {/* Channel Rewards */}
+          {channelRewards.length > 0 && !isStreamOwner && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>🎁 Channel Rewards</div>
+              {channelRewards.map(r => (
+                <div key={r.id} className="reward-card" onClick={() => redeemReward(r)}>
+                  <span style={{ fontSize: 20 }}>🎁</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{r.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--gold)" }}>🪙 {r.cost.toLocaleString()} coins</div>
+                  </div>
+                  <button style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Redeem</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Goal widget — mobile */}
           {streamGoal && streamGoal.goal_target > 0 && (
             <div style={{ background: "rgba(124,58,237,.07)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
@@ -3834,6 +4112,79 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Daily Missions */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">📋 Daily Missions</span>
+          <button onClick={fetchDailyMissions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+        </div>
+        {(() => {
+          const dm = dailyMissions;
+          if (!dm) return <div style={{ padding: "20px 16px", color: "var(--muted)", fontSize: 13 }}>Loading…</div>;
+          const allDone = dm.watch_mins >= 10 && dm.chat_count >= 5 && dm.followed_today;
+          return (
+            <>
+              <div className="mission-row">
+                <span className="mission-icon">📺</span>
+                <div className="mission-bar-wrap">
+                  <div className="mission-label">Watch 10 minutes of streams</div>
+                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: `${Math.min(100, (dm.watch_mins / 10) * 100)}%`, background: "linear-gradient(90deg,var(--purple),var(--blue))" }} /></div>
+                  <div className="mission-prog">{Math.min(10, dm.watch_mins)}/10 min</div>
+                </div>
+                <span style={{ fontSize: 18 }}>{dm.watch_mins >= 10 ? "✅" : ""}</span>
+              </div>
+              <div className="mission-row">
+                <span className="mission-icon">💬</span>
+                <div className="mission-bar-wrap">
+                  <div className="mission-label">Send 5 chat messages</div>
+                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: `${Math.min(100, (dm.chat_count / 5) * 100)}%`, background: "linear-gradient(90deg,var(--red),var(--orange))" }} /></div>
+                  <div className="mission-prog">{Math.min(5, dm.chat_count)}/5 messages</div>
+                </div>
+                <span style={{ fontSize: 18 }}>{dm.chat_count >= 5 ? "✅" : ""}</span>
+              </div>
+              <div className="mission-row" style={{ borderBottom: "none" }}>
+                <span className="mission-icon">❤️</span>
+                <div className="mission-bar-wrap">
+                  <div className="mission-label">Follow a streamer</div>
+                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: dm.followed_today ? "100%" : "0%", background: "linear-gradient(90deg,var(--green),var(--blue))" }} /></div>
+                  <div className="mission-prog">{dm.followed_today ? "Done!" : "Not yet"}</div>
+                </div>
+                <span style={{ fontSize: 18 }}>{dm.followed_today ? "✅" : ""}</span>
+              </div>
+              <div style={{ padding: "12px 16px" }}>
+                {dm.bonus_claimed ? (
+                  <div style={{ textAlign: "center", fontSize: 13, color: "var(--green)", fontWeight: 700 }}>🎉 Bonus claimed! Come back tomorrow.</div>
+                ) : (
+                  <button onClick={claimMissionBonus} disabled={!allDone} style={{ width: "100%", background: allDone ? "linear-gradient(135deg,var(--green),var(--blue))" : "var(--ink3)", border: allDone ? "none" : "1px solid var(--line)", color: allDone ? "#000" : "var(--muted)", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, cursor: allDone ? "pointer" : "default" }}>
+                    {allDone ? "🎁 Claim 500 Coins!" : "Complete all missions to claim 500 coins"}
+                  </button>
+                )}
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
+      {/* Achievements */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🏆 Achievements</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{achievements.size}/{Object.keys(ACHIEVEMENTS).length} earned</span>
+        </div>
+        <div className="ach-grid">
+          {Object.entries(ACHIEVEMENTS).map(([key, ach]) => {
+            const earned = achievements.has(key);
+            return (
+              <div key={key} className={`ach-card${earned ? " earned" : ""}`} title={ach.desc}>
+                <div className="ach-emoji" style={{ opacity: earned ? 1 : 0.25 }}>{ach.emoji}</div>
+                <div className="ach-label" style={{ color: earned ? "var(--gold)" : "var(--muted)" }}>{ach.label}</div>
+                <div className="ach-desc">{ach.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>}
 
     {/* PROFILE */}
@@ -4270,6 +4621,73 @@ export default function App() {
         </div>
       </div>
 
+      {/* Auto-mod Word Filter */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🛡 Auto-mod Word Filter</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{bannedWords.length} words</span>
+        </div>
+        <div style={{ padding: "12px 16px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Add banned word…" value={newBannedWord} onChange={e => setNewBannedWord(e.target.value)} onKeyDown={e => e.key === "Enter" && addBannedWord()} />
+            <button onClick={addBannedWord} style={{ background: "var(--red)", border: "none", color: "#fff", borderRadius: 10, padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
+          </div>
+          {bannedWords.length === 0 ? (
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>No banned words. Messages containing added words will be auto-blocked.</div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap" }}>
+              {bannedWords.map(w => (
+                <span key={w} className="word-chip">
+                  {w}
+                  <button onClick={() => removeBannedWord(w)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Channel Rewards Manager */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🎁 Channel Rewards</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{channelRewards.length} active</span>
+        </div>
+        <div style={{ padding: "12px 16px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Reward title (e.g. Pick my next game)" value={newReward.title} onChange={e => setNewReward(r => ({ ...r, title: e.target.value }))} />
+            <input className="fi" style={{ margin: 0, width: 90, fontSize: 13 }} type="number" placeholder="Cost" value={newReward.cost} onChange={e => setNewReward(r => ({ ...r, cost: e.target.value }))} />
+            <button onClick={addReward} style={{ background: "var(--purple)", border: "none", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
+          </div>
+          {channelRewards.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{r.title}</span>
+              <span style={{ fontSize: 12, color: "var(--gold)" }}>🪙 {r.cost.toLocaleString()}</span>
+              <button onClick={() => removeReward(r.id)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 16 }}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Redemption Queue */}
+      {rewardRedemptions.length > 0 && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div className="panel-hd">
+            <span className="panel-title">📬 Redemption Queue</span>
+            <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 700 }}>{rewardRedemptions.length} pending</span>
+          </div>
+          {rewardRedemptions.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{r.reward_title}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>by {r.viewer_name} · {r.cost?.toLocaleString()} 🪙 · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+              </div>
+              <button onClick={() => fulfillRedemption(r.id)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Done</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Chat Bans */}
       {chatBans.size > 0 && (
         <div className="panel" style={{ marginTop: 16 }}>
@@ -4362,23 +4780,39 @@ export default function App() {
             <div style={{ fontSize: 13 }}>Watch streams and click ✂ Clip to save moments.</div>
           </div>
         ) : (
-          <div className="clips-grid">
-            {allClips.map(clip => {
-              const meta = CAT_META[clip.category] || { emoji: "🎮", color: "#7c3aed" };
-              return (
-                <div key={clip.id} className="clip-card" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?clip=${clip.id}`); notify("Clip link copied!"); }}>
-                  <div style={{ background: `linear-gradient(135deg,${meta.color}33,${meta.color}11)`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, borderBottom: "1px solid var(--line)" }}>
-                    {meta.emoji}
-                  </div>
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)" }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}</div>
-                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
-                  </div>
+          <>
+            {allClips.some(c => c.score > 0) && (
+              <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,200,0,.03))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🏆</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>Top Clip</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{[...allClips].sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.title}</div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+            <div className="clips-grid">
+              {[...allClips].sort((a, b) => (b.score || 0) - (a.score || 0)).map(clip => {
+                const meta = CAT_META[clip.category] || { emoji: "🎮", color: "#7c3aed" };
+                return (
+                  <div key={clip.id} className="clip-card" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?clip=${clip.id}`); notify("Clip link copied!"); }}>
+                    <div style={{ background: `linear-gradient(135deg,${meta.color}33,${meta.color}11)`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, borderBottom: "1px solid var(--line)", position: "relative" }}>
+                      {meta.emoji}
+                      {(clip.score || 0) > 0 && <span style={{ position: "absolute", top: 6, right: 8, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>+{clip.score}</span>}
+                    </div>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                        <button className={`vote-btn up${myClipVotes[clip.id] === 1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, 1)}>▲ {clip.score > 0 ? clip.score : 0}</button>
+                        <button className={`vote-btn dn${myClipVotes[clip.id] === -1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, -1)}>▼</button>
+                        <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     )}
@@ -5025,5 +5459,49 @@ export default function App() {
     )}
 
     {toast && <div className="toast">🪙 {toast}</div>}
+
+    {/* SUB TIER PICKER */}
+    {showSubTierPicker && (
+      <div className="tier-picker-overlay" onClick={() => setShowSubTierPicker(false)}>
+        <div className="tier-picker-box" onClick={e => e.stopPropagation()}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: 1, marginBottom: 4 }}>Subscribe to {stream?.streamer}</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18 }}>Pick a tier — supports the streamer directly!</div>
+          {SUB_TIERS.map(t => (
+            <div key={t.tier} className="tier-card" style={{ background: `${t.color}14`, borderColor: `${t.color}40` }} onClick={() => handleSubscribe(t.tier)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28 }}>{t.badge}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: t.color }}>{t.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.cost.toLocaleString()} coins · 30 days</div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.color }}>🪙 {t.cost.toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+          <button onClick={() => setShowSubTierPicker(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "10px", fontSize: 13, cursor: "pointer", marginTop: 4 }}>Cancel</button>
+        </div>
+      </div>
+    )}
+
+    {/* RAID SUGGESTIONS */}
+    {showRaidSuggest && raidSuggestions.length > 0 && (
+      <div className="raid-suggest-overlay" onClick={() => setShowRaidSuggest(false)}>
+        <div className="raid-suggest-box" onClick={e => e.stopPropagation()}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: 1, marginBottom: 4 }}>Raid a Channel 🚀</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Send your viewers to support another streamer!</div>
+          {raidSuggestions.map(s => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--line)", cursor: "pointer" }} onClick={() => { setShowRaidSuggest(false); notify(`Raiding ${s.streamer}!`); go("stream", s); }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{s.streamer}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.game} · {s.viewers.toLocaleString()} viewers</div>
+              </div>
+              <button style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Raid →</button>
+            </div>
+          ))}
+          <button onClick={() => setShowRaidSuggest(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "10px", fontSize: 13, cursor: "pointer", marginTop: 14 }}>Skip Raid</button>
+        </div>
+      </div>
+    )}
   </>);
 }
