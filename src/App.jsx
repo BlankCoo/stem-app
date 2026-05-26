@@ -1880,34 +1880,36 @@ export default function App() {
   const handleSignUp = async () => {
     if (!formData.fullName || !formData.email || !formData.password) { setAuthError("Please fill in all fields"); return; }
     setLoading(true); setAuthError("");
-    const { data, error } = await supabase.auth.signUp({ email: formData.email, password: formData.password });
-    if (error) { setAuthError(error.message); setLoading(false); return; }
-    if (data.user) {
-      const username = await generateUniqueUsername(formData.fullName);
-      const refCode = `${username.toUpperCase().slice(0, 8)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-      const { error: pe } = await supabase.from("profiles").insert({
-        id: data.user.id, full_name: formData.fullName, username, role, coins: 1000, total_earned: 0, bio: "", follower_count: 0, referral_code: refCode,
-      });
-      if (pe) {
-        await supabase.auth.signOut();
-        setAuthError("Account setup failed — please try again.");
-        setLoading(false);
-        return;
+    try {
+      const { data, error } = await supabase.auth.signUp({ email: formData.email, password: formData.password });
+      if (error) { setAuthError(error.message); return; }
+      if (data.user) {
+        const username = await generateUniqueUsername(formData.fullName);
+        const refCode = `${username.toUpperCase().slice(0, 8)}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const { error: pe } = await supabase.from("profiles").insert({
+          id: data.user.id, full_name: formData.fullName, username, role, coins: 1000, total_earned: 0, bio: "", follower_count: 0, referral_code: refCode,
+        });
+        if (pe) {
+          await supabase.auth.signOut();
+          setAuthError("Account setup failed — please try again.");
+          return;
+        }
+        await supabase.from("transactions").insert({ user_id: data.user.id, type: "signup_bonus", amount: 1000, description: "Welcome bonus" });
+        const finalCoins = await applyReferral(data.user.id, formData.fullName, 1000);
+        setProfile({ id: data.user.id, full_name: formData.fullName, username, role, coins: finalCoins, referral_code: refCode });
+        setCoins(finalCoins);
+        coinsRef.current = finalCoins;
+        setReferralCode(refCode);
+        setMode(role);
+        setEditProfile({ fullName: formData.fullName, username, bio: "" });
+        notify("Welcome to STEM! You got 1,000 bonus coins!");
+        go(role === "streamer" ? "dash" : "disc");
       }
-      // Log signup bonus
-      await supabase.from("transactions").insert({ user_id: data.user.id, type: "signup_bonus", amount: 1000, description: "Welcome bonus" });
-      // Apply referral if present
-      const finalCoins = await applyReferral(data.user.id, formData.fullName, 1000);
-      setProfile({ id: data.user.id, full_name: formData.fullName, username, role, coins: finalCoins, referral_code: refCode });
-      setCoins(finalCoins);
-      coinsRef.current = finalCoins;
-      setReferralCode(refCode);
-      setMode(role);
-      setEditProfile({ fullName: formData.fullName, username, bio: "" });
-      notify("Welcome to STEM! You got 1,000 bonus coins!");
-      go(role === "streamer" ? "dash" : "disc");
+    } catch (err) {
+      setAuthError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogin = async () => {
@@ -1931,9 +1933,14 @@ export default function App() {
   const handleForgotPassword = async () => {
     if (!formData.email) { setAuthError("Enter your email address first"); return; }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(formData.email, { redirectTo: `${window.location.origin}/reset-password` });
-    if (error) { setAuthError(error.message); } else { notify("Password reset email sent!"); }
-    setLoading(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, { redirectTo: `${window.location.origin}/reset-password` });
+      if (error) { setAuthError(error.message); } else { notify("Password reset email sent!"); }
+    } catch {
+      setAuthError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -2519,7 +2526,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", padding: "0 24px", borderBottom: "1px solid var(--line)" }}>
           {["signup", "login"].map(m => (
-            <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); }} style={{ flex: 1, background: "none", border: "none", borderBottom: authMode === m ? "2px solid var(--red)" : "2px solid transparent", color: authMode === m ? "#fff" : "var(--muted)", fontSize: 14, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>
+            <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); setLoading(false); }} style={{ flex: 1, background: "none", border: "none", borderBottom: authMode === m ? "2px solid var(--red)" : "2px solid transparent", color: authMode === m ? "#fff" : "var(--muted)", fontSize: 14, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>
               {m === "signup" ? "Sign Up" : "Log In"}
             </button>
           ))}
