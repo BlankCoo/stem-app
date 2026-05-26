@@ -1167,11 +1167,13 @@ export default function App() {
   // ── Past streams ──────────────────────────────────────────
   const savePastStream = async () => {
     if (!user) return;
-    const { data: sd } = await supabase.from("streams").select("title,category,mux_playback_id,viewer_count").eq("user_id", user.id).single();
+    const { data: sd } = await supabase.from("streams").select("title,category,mux_stream_id,viewer_count").eq("user_id", user.id).single();
     if (sd) {
+      // mux_playback_id starts null — the Mux webhook fills it in once the VOD is processed
       await supabase.from("past_streams").insert({
         user_id: user.id, streamer_name: profile?.full_name || profile?.username || "Streamer",
-        title: sd.title, category: sd.category, mux_playback_id: sd.mux_playback_id, peak_viewers: sd.viewer_count || 0,
+        title: sd.title, category: sd.category, mux_stream_id: sd.mux_stream_id,
+        mux_playback_id: null, peak_viewers: sd.viewer_count || 0,
       });
     }
   };
@@ -1179,6 +1181,23 @@ export default function App() {
   const fetchPastStreams = async (userId) => {
     const { data } = await supabase.from("past_streams").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(12);
     setPastStreams(data || []);
+  };
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
+    if (!data) return;
+    const dbNotifs = data.map(n => ({
+      id: n.id, dbId: n.id, title: n.title, body: n.body,
+      data: n.data, read: n.read, time: new Date(n.created_at),
+    }));
+    setNotifications(prev => {
+      const dbIds = new Set(dbNotifs.map(n => n.dbId));
+      const memOnly = prev.filter(n => !n.dbId && !dbIds.has(n.id));
+      return [...dbNotifs, ...memOnly].slice(0, 20);
+    });
+    const unread = data.filter(n => !n.read).length;
+    if (unread > 0) setUnreadNotifs(c => Math.max(c, unread));
   };
 
   // ── Coin shop ──────────────────────────────────────────
@@ -1453,6 +1472,21 @@ export default function App() {
     if (user) fetchMyFollows(user.id);
   }, [following]);
 
+  // Load DB notifications + subscribe to realtime new ones
+  useEffect(() => {
+    if (!user) return;
+    fetchNotifications();
+    const ch = supabase.channel(`notifs-${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, ({ new: n }) => {
+        const newNotif = { id: n.id, dbId: n.id, title: n.title, body: n.body, data: n.data, read: false, time: new Date(n.created_at) };
+        setNotifications(prev => [newNotif, ...prev].slice(0, 20));
+        setUnreadNotifs(c => c + 1);
+        notify(`🔴 ${n.title}`);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [user?.id]);
+
   // Real-time chat subscription
   useEffect(() => {
     if (page !== "stream" || !stream?.id) return;
@@ -1701,6 +1735,18 @@ export default function App() {
 
       if (error) throw new Error(error.message);
 
+      // Fan out live notifications to all followers (fire-and-forget)
+      supabase.from("streams").select("id").eq("user_id", user.id).single().then(({ data: sr }) => {
+        if (sr?.id) {
+          supabase.rpc("notify_followers_stream_live", {
+            p_streamer_id: user.id,
+            p_stream_title: goLiveForm.title.trim(),
+            p_streamer_name: profile?.full_name || profile?.username || "Streamer",
+            p_stream_id: sr.id,
+          });
+        }
+      });
+
       setMuxStreamId(streamId);
       setMuxStreamKey(streamKey);
       setMuxPlaybackId(playbackId);
@@ -1872,7 +1918,7 @@ export default function App() {
             <button className={`mode-btn ${mode === "streamer" ? "on" : ""}`} onClick={() => switchMode("streamer")}>🎙</button>
           </div>
           {/* Notification bell */}
-          <div style={{ position: "relative", cursor: "pointer", lineHeight: 1 }} onClick={() => { setShowNotifs(v => !v); setUnreadNotifs(0); }}>
+          <div style={{ position: "relative", cursor: "pointer", lineHeight: 1 }} onClick={() => { setShowNotifs(v => !v); setUnreadNotifs(0); if (user) supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false).then(() => {}); }}>
             <span style={{ fontSize: 19 }}>🔔</span>
             {unreadNotifs > 0 && (
               <span style={{ position: "absolute", top: -4, right: -5, background: "var(--red)", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: "50%", minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
@@ -1908,7 +1954,7 @@ export default function App() {
           ) : (
             <div style={{ maxHeight: 360, overflowY: "auto" }}>
               {notifications.map((n, i) => (
-                <div key={i} onClick={() => { go("stream", n.stream); setShowNotifs(false); }} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", cursor: "pointer", display: "flex", gap: 12, alignItems: "flex-start", transition: "background .15s" }}
+                <div key={i} onClick={() => { const streamerId = n.data?.streamer_id || n.stream?.user_id; const live = liveStreams.find(s => s.user_id === streamerId); if (live) go("stream", formatDbStream(live)); else if (streamerId) viewChannel(streamerId); setShowNotifs(false); }} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", cursor: "pointer", display: "flex", gap: 12, alignItems: "flex-start", transition: "background .15s" }}
                   onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.03)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                   <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>🔴</span>
