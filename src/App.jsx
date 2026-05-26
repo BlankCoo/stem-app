@@ -345,6 +345,9 @@ export default function App() {
 
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
+  const [discTab, setDiscTab] = useState("all");
+  const [searchProfiles, setSearchProfiles] = useState([]);
+  const [followedStreamers, setFollowedStreamers] = useState([]);
 
   // Streak
   const [streakDays, setStreakDays] = useState(0);
@@ -640,6 +643,25 @@ export default function App() {
   const fetchMyFollows = async (userId) => {
     const { data } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
     if (data) setMyFollows(data.map(f => f.following_id));
+  };
+
+  const searchStreamers = async (query) => {
+    if (!query.trim()) { setSearchProfiles([]); return; }
+    const q = query.trim();
+    const { data } = await supabase.from("profiles")
+      .select("id,full_name,username")
+      .eq("role", "streamer")
+      .or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
+      .limit(5);
+    setSearchProfiles(data || []);
+  };
+
+  const fetchFollowedStreamers = async () => {
+    if (!user || myFollows.length === 0) { setFollowedStreamers([]); return; }
+    const { data } = await supabase.from("profiles")
+      .select("id,full_name,username")
+      .in("id", myFollows);
+    setFollowedStreamers(data || []);
   };
 
   // --- TRANSACTION HISTORY ---
@@ -1415,6 +1437,17 @@ export default function App() {
     prevLiveIdsRef.current = currentIds;
   }, [liveStreams]);
 
+  // Streamer search debounce
+  useEffect(() => {
+    const t = setTimeout(() => searchStreamers(search), 280);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Load followed streamers when switching to Following tab
+  useEffect(() => {
+    if (discTab === "following" && user) fetchFollowedStreamers();
+  }, [discTab, myFollows.length]);
+
   // Refresh follows list when follow/unfollow happens (so notifications stay accurate)
   useEffect(() => {
     if (user) fetchMyFollows(user.id);
@@ -2047,9 +2080,124 @@ export default function App() {
         </div>
       </div>
       <div className="search-bar">
-        <input className="search-input" placeholder="🔍 Search streams, games, streamers..." value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="search-input" placeholder="🔍 Search streams, streamers, games..." value={search} onChange={e => { setSearch(e.target.value); if (discTab === "following") setDiscTab("all"); }} />
         {search && <button onClick={() => setSearch("")} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 10, padding: "0 14px", cursor: "pointer", fontSize: 13 }}>Clear</button>}
       </div>
+
+      {/* Streamer search results */}
+      {search && searchProfiles.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 16, letterSpacing: .5, marginBottom: 8 }}>Channels</div>
+          {searchProfiles.map(sp => {
+            const isLive = liveStreams.some(s => s.user_id === sp.id);
+            const ini = sp.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2) || "?";
+            return (
+              <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 6, cursor: "pointer", transition: "border-color .15s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{ini}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>@{sp.username}</div>
+                </div>
+                {isLive
+                  ? <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 6, padding: "3px 8px" }}>🔴 LIVE</span>
+                  : <span style={{ fontSize: 12, color: "var(--muted)" }}>View →</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tab switcher — only for logged-in users */}
+      {user && !search && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          <button onClick={() => setDiscTab("all")} style={{ background: discTab === "all" ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (discTab === "all" ? "var(--line2)" : "transparent"), color: discTab === "all" ? "#fff" : "var(--muted)", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🏠 All</button>
+          <button onClick={() => setDiscTab("following")} style={{ background: discTab === "following" ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (discTab === "following" ? "var(--line2)" : "transparent"), color: discTab === "following" ? "#fff" : "var(--muted)", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            ❤️ Following {myFollows.length > 0 && <span style={{ fontSize: 10, opacity: .7 }}>({myFollows.length})</span>}
+          </button>
+        </div>
+      )}
+
+      {/* ── FOLLOWING FEED ── */}
+      {discTab === "following" && !search && (() => {
+        if (!user) return (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Sign in to see your feed</div>
+            <div style={{ fontSize: 13, marginBottom: 20 }}>Follow streamers and see them all in one place.</div>
+            <button className="btn-g" onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
+          </div>
+        );
+        if (myFollows.length === 0) return (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nobody followed yet</div>
+            <div style={{ fontSize: 13 }}>Go to any stream and hit Follow to build your feed.</div>
+          </div>
+        );
+        const followingLive = liveStreams.filter(s => myFollows.includes(s.user_id)).map(formatDbStream);
+        const offlineFollowed = followedStreamers.filter(sp => !liveStreams.some(s => s.user_id === sp.id));
+        return (
+          <>
+            {followingLive.length > 0 ? (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div className="live-dot" />
+                  <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Live Now</span>
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>{followingLive.length} stream{followingLive.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="sg">{followingLive.map(s => (
+                  <div key={s.id} className={`sc ${s.isRealStream ? "real" : ""}`} onClick={() => go("stream", s)}>
+                    <div className="sc-thumb">
+                      <div className="sc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
+                      <div className="sc-ov" /><div className="sc-emoji">{s.emoji}</div>
+                      <div className="sc-badges"><span className="lpip"><span className="lpip-dot" />LIVE</span></div>
+                      <div className="sc-viewers">👁 {s.viewers.toLocaleString()}</div>
+                    </div>
+                    <div className="sc-body">
+                      <div className="sc-row">
+                        <div className="sc-av" style={{ background: s.color }}>{s.emoji}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}><div className="sc-title">{s.title}</div><div className="sc-name">{s.streamer}</div></div>
+                      </div>
+                      <span className="stag">{s.game}</span>
+                    </div>
+                  </div>
+                ))}</div>
+              </div>
+            ) : (
+              <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, padding: "18px 20px", marginBottom: 20, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>😴</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Nobody you follow is live right now</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>Check back later — you'll get a notification when they go live.</div>
+              </div>
+            )}
+            {offlineFollowed.length > 0 && (
+              <div>
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 16, letterSpacing: .5, color: "var(--muted)", marginBottom: 10 }}>Offline</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {offlineFollowed.map(sp => {
+                    const ini = sp.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2) || "?";
+                    return (
+                      <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--ink4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0, opacity: .6 }}>{ini}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{sp.full_name}</div>
+                          <div style={{ fontSize: 11, color: "var(--muted)" }}>@{sp.username}</div>
+                        </div>
+                        <span style={{ fontSize: 10, color: "var(--muted)", background: "var(--ink4)", borderRadius: 6, padding: "3px 8px" }}>Offline</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* ── ALL STREAMS (default tab) ── */}
+      {(discTab === "all" || search) && <>
       <div className="cats">{CATS.map(c => {
         const count = c === "All" ? allStreams.length : allStreams.filter(s => s.game === c || s.game.includes(c)).length;
         return (
@@ -2152,6 +2300,7 @@ export default function App() {
           </div>
         ))}</div>
       )}
+      </>}
     </div>}
 
     {/* STREAM */}
