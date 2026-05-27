@@ -20,9 +20,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  if (!SUPABASE_SERVICE_ROLE_KEY || !RESEND_API_KEY) {
-    console.warn('notify-live: missing SUPABASE_SERVICE_ROLE_KEY or RESEND_API_KEY — skipping email');
-    return res.status(200).json({ sent: 0, skipped: true });
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('notify-live: missing SUPABASE_SERVICE_ROLE_KEY — cannot query followers');
+    return res.status(200).json({ sent: 0, push: 0, skipped: true });
   }
 
   try {
@@ -37,26 +37,60 @@ export default async function handler(req, res) {
       .eq('following_id', streamer_id);
 
     if (fErr || !followers?.length) {
-      return res.status(200).json({ sent: 0 });
+      return res.status(200).json({ sent: 0, push: 0 });
     }
 
-    // Fetch emails in batches of 50 via admin API
+    const followerIds = followers.map(f => f.follower_id);
+    const streamUrl = 'https://www.stemapp.online';
+
+    // ── Push notifications (runs even when no emails) ──────────────
+    let pushSent = 0;
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      const { data: pushSubs } = await sbAdmin
+        .from('push_subscriptions')
+        .select('subscription')
+        .in('user_id', followerIds);
+
+      if (pushSubs?.length) {
+        const payload = JSON.stringify({
+          title: `🔴 ${streamer_name} is live!`,
+          body: stream_title,
+          url: streamUrl,
+          streamer_id: streamer_id,
+        });
+        const results = await Promise.allSettled(
+          pushSubs.map(row =>
+            webpush.sendNotification(row.subscription, payload).catch(err => {
+              if (err.statusCode === 410 || err.statusCode === 404) {
+                // Expired subscription — clean it up
+                sbAdmin.from('push_subscriptions').delete().eq('subscription->>endpoint', row.subscription.endpoint).then(() => {});
+              }
+            })
+          )
+        );
+        pushSent = results.filter(r => r.status === 'fulfilled').length;
+      }
+    }
+
+    // ── Email notifications ────────────────────────────────────────
+    if (!RESEND_API_KEY) {
+      return res.status(200).json({ sent: 0, push: pushSent });
+    }
+
     const emails = [];
     const batchSize = 50;
     for (let i = 0; i < followers.length; i += batchSize) {
-      const batch = followers.slice(i, i + batchSize).map(f => f.follower_id);
+      const batch = followerIds.slice(i, i + batchSize);
       await Promise.all(batch.map(async (id) => {
         const { data } = await sbAdmin.auth.admin.getUserById(id);
         if (data?.user?.email) emails.push(data.user.email);
       }));
     }
 
-    if (!emails.length) return res.status(200).json({ sent: 0 });
+    if (!emails.length) return res.status(200).json({ sent: 0, push: pushSent });
 
     const resend = new Resend(RESEND_API_KEY);
-    const streamUrl = 'https://www.stemapp.online';
 
-    // Send in batches to stay within Resend rate limits
     let sent = 0;
     for (let i = 0; i < emails.length; i += 10) {
       const chunk = emails.slice(i, i + 10);
@@ -87,35 +121,7 @@ export default async function handler(req, res) {
       sent += chunk.length;
     }
 
-    // Send push notifications to subscribed followers
-    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && followers.length > 0) {
-      const followerIds = followers.map(f => f.follower_id);
-      const { data: pushSubs } = await sbAdmin
-        .from('push_subscriptions')
-        .select('subscription')
-        .in('user_id', followerIds);
-
-      if (pushSubs?.length) {
-        const payload = JSON.stringify({
-          title: `🔴 ${streamer_name} is live!`,
-          body: stream_title,
-          url: `https://www.stemapp.online`,
-          streamer_id: streamer_id,
-        });
-        await Promise.allSettled(
-          pushSubs.map(row =>
-            webpush.sendNotification(row.subscription, payload).catch(err => {
-              if (err.statusCode === 410 || err.statusCode === 404) {
-                // Subscription expired — clean it up
-                sbAdmin.from('push_subscriptions').delete().eq('subscription->endpoint', row.subscription.endpoint).then(() => {});
-              }
-            })
-          )
-        );
-      }
-    }
-
-    return res.status(200).json({ sent });
+    return res.status(200).json({ sent, push: pushSent });
   } catch (err) {
     console.error('notify-live error:', err.message);
     return res.status(500).json({ error: err.message });

@@ -11,6 +11,7 @@ async function getUserId(req) {
   if (!token) return null;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
   });
   const { data: { user } } = await sb.auth.getUser();
   return user?.id || null;
