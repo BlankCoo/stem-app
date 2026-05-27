@@ -548,6 +548,7 @@ export default function App() {
   const [savingGoLive, setSavingGoLive] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // Mux state
   const [muxStreamId, setMuxStreamId] = useState("");
@@ -787,6 +788,9 @@ export default function App() {
         fetchProfile(session.user.id);
         fetchMyFollows(session.user.id);
         setPage("disc");
+        if (event === "SIGNED_IN" && !localStorage.getItem("stem_onboarded")) {
+          setShowWelcome(true);
+        }
       } else {
         setUser(null); setProfile(null); setCoins(0); coinsRef.current = 0;
         setStreakDays(0); setMyFollows([]); setNotifications([]); setUnreadNotifs(0); setReferralCode("");
@@ -2686,6 +2690,8 @@ export default function App() {
     notifications,
     // signup prompt
     showSignupPrompt, setShowSignupPrompt,
+    // welcome onboarding
+    showWelcome, setShowWelcome,
     // stream recap
     streamRecap, setStreamRecap,
     // toast

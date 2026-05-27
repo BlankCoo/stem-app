@@ -20,6 +20,7 @@ export default function Modals() {
     streamRecap, setStreamRecap,
     showReportModal, setShowReportModal, reportType, reportTargetMeta,
     reportReason, setReportReason, submitReport, submittingReport,
+    showWelcome, setShowWelcome,
   } = useApp();
 
   return (
@@ -383,6 +384,47 @@ export default function Modals() {
               {submittingReport ? "Submitting…" : "Submit Report"}
             </button>
             <button onClick={() => setShowReportModal(false)} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", padding: 8 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {/* WELCOME / ONBOARDING MODAL */}
+      {showWelcome && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }}>
+          <div style={{ background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 24, width: "100%", maxWidth: 440, overflow: "hidden", animation: "popIn .35s cubic-bezier(.34,1.56,.64,1)" }}>
+            {/* Header */}
+            <div style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55)", padding: "28px 24px 22px", textAlign: "center" }}>
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 34, letterSpacing: 3, color: "#fff", marginBottom: 6 }}>STEM</div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Welcome aboard! 🎉</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,.82)", lineHeight: 1.5 }}>You just joined the first platform that pays <strong>both streamers and viewers</strong>. Here's how it works.</div>
+            </div>
+            {/* Steps */}
+            <div style={{ padding: "18px 18px 6px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                ["📺", "Watch & Earn Coins", "Every minute you watch earns coins. Chat, follow streamers, and create clips for bonus coins."],
+                ["🪙", "Coins = Real Money", "1,000 coins = $1.00. Your balance grows every session — no tricks, no expiry."],
+                ["💸", "Withdraw Anytime", "Reach 20,000 coins ($20 minimum) and get paid via PayPal within 24 hours."],
+              ].map(([icon, title, desc]) => (
+                <div key={title} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "rgba(255,255,255,.04)", border: "1px solid var(--line)", borderRadius: 14, padding: "13px 15px" }}>
+                  <div style={{ fontSize: 26, flexShrink: 0, marginTop: 1 }}>{icon}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{title}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55 }}>{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* CTA */}
+            <div style={{ padding: "14px 18px 22px" }}>
+              <button
+                onClick={() => { localStorage.setItem("stem_onboarded", "1"); setShowWelcome(false); }}
+                style={{ width: "100%", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 16, fontWeight: 800, cursor: "pointer", letterSpacing: .3 }}
+              >
+                Start Earning →
+              </button>
+              <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: "var(--muted)" }}>
+                You start with 0 coins — your first stream session changes that.
+              </div>
+            </div>
           </div>
         </div>
       )}
