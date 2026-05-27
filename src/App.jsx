@@ -14,20 +14,13 @@ const DEMO_STREAMS = [
 ];
 
 const ACHIEVEMENTS = {
-  first_stream:  { label: "First Stream",   emoji: "📺", desc: "Watched your first live stream" },
-  whale:         { label: "Whale",           emoji: "🐋", desc: "Accumulated 50,000+ coins" },
-  streak_legend: { label: "Streak Legend",   emoji: "🔥", desc: "Maintained a 14-day streak" },
-  first_follow:  { label: "First Follow",    emoji: "❤️", desc: "Followed your first streamer" },
-  verified:      { label: "Verified Earner", emoji: "✅", desc: "Reached Verified Earner tier" },
-  elite:         { label: "Elite",           emoji: "👑", desc: "Reached Elite Viewer tier" },
-  predictor:     { label: "Predictor",       emoji: "🔮", desc: "Won your first prediction" },
-  subscriber:    { label: "Subscriber",      emoji: "⭐", desc: "Subscribed to a channel" },
+  first_stream:      { label: "First Stream",      emoji: "📺", desc: "Watched your first live stream" },
+  first_withdrawal:  { label: "First Withdrawal",  emoji: "💸", desc: "Made your first withdrawal" },
+  predictor:         { label: "Predictor",          emoji: "🔮", desc: "Won your first prediction" },
 };
 
 const SUB_TIERS = [
-  { tier: 1, cost: 1000,  label: "Tier 1", color: "#7c3aed", badge: "⭐" },
-  { tier: 2, cost: 2500,  label: "Tier 2", color: "#f59e0b", badge: "🌟" },
-  { tier: 3, cost: 5000,  label: "Tier 3", color: "#ef4444", badge: "💫" },
+  { tier: 1, cost: 1000, label: "Tier 1", color: "#7c3aed", badge: "⭐" },
 ];
 
 const CATS = ["All", "Gaming", "IRL", "Music", "Just Chatting", "Sports", "Food"];
@@ -477,6 +470,9 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .raid-suggest-box{background:var(--ink2);border:1px solid var(--line2);border-radius:20px 20px 0 0;width:100%;max-width:560px;padding:24px}
 /* Automod */
 .word-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.25);border-radius:20px;padding:3px 10px;font-size:12px;margin:3px}
+/* Stream recap */
+.recap-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp .2s ease}
+.recap-box{background:var(--ink2);border:1px solid var(--line2);border-radius:20px;width:100%;max-width:480px;padding:26px;animation:popIn .2s ease}
 `;
 
 
@@ -577,11 +573,6 @@ export default function App() {
   const [clipTitle, setClipTitle] = useState("");
   const [savingClip, setSavingClip] = useState(false);
 
-  // Gift subs
-  const [showGiftSubModal, setShowGiftSubModal] = useState(false);
-  const [giftSubUsername, setGiftSubUsername] = useState("");
-  const [giftSubQty, setGiftSubQty] = useState(1);
-  const [giftingSubTo, setGiftingSubTo] = useState(false);
 
   // Withdrawals
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -600,7 +591,6 @@ export default function App() {
   // Gift animations
   const [giftAnims, setGiftAnims] = useState([]);
 
-  // Real-time viewer count via presence
   const [viewerCount, setViewerCount] = useState(0);
 
   // Chat moderation
@@ -628,9 +618,6 @@ export default function App() {
   const [hypeCelebrating, setHypeCelebrating] = useState(false);
   const hypeGiftsRef = useRef([]);
 
-  // Raid system
-  const [showRaidModal, setShowRaidModal] = useState(false);
-  const [raidTargets, setRaidTargets] = useState([]);
 
   // Admin panel
   const [adminWithdrawals, setAdminWithdrawals] = useState([]);
@@ -676,7 +663,6 @@ export default function App() {
   const [predRecap, setPredRecap] = useState(null);
   const [predHistory, setPredHistory] = useState([]);
   const [loadingPredHistory, setLoadingPredHistory] = useState(false);
-  const [topPredictors, setTopPredictors] = useState([]);
 
   // Daily missions
   const [dailyMissions, setDailyMissions] = useState(null);
@@ -684,26 +670,15 @@ export default function App() {
   const [achievements, setAchievements] = useState(new Set());
   // Clip votes
   const [myClipVotes, setMyClipVotes] = useState({});
-  // Channel rewards
-  const [channelRewards, setChannelRewards] = useState([]);
-  const [rewardRedemptions, setRewardRedemptions] = useState([]);
-  const [newReward, setNewReward] = useState({ title: "", cost: 500 });
   // Auto-mod
   const [bannedWords, setBannedWords] = useState([]);
   const [newBannedWord, setNewBannedWord] = useState("");
-  // Sub tiers
+  // Sub tier
   const [subTier, setSubTier] = useState(0);
   const [showSubTierPicker, setShowSubTierPicker] = useState(false);
-  // Raid suggestions (shown after ending stream)
-  const [showRaidSuggest, setShowRaidSuggest] = useState(false);
-  const [raidSuggestions, setRaidSuggestions] = useState([]);
   // Custom coin tip
   const [customTipAmt, setCustomTipAmt] = useState("");
   const [showTipInput, setShowTipInput] = useState(false);
-  // Coin Rain
-  const [coinRainActive, setCoinRainActive] = useState(false);
-  const [coinRainSecsLeft, setCoinRainSecsLeft] = useState(0);
-  const [coinRainClaimed, setCoinRainClaimed] = useState(false);
 
   // Top gifters this session
   const [topGifters, setTopGifters] = useState({});
@@ -717,6 +692,12 @@ export default function App() {
   const [selectedVod, setSelectedVod] = useState(null);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
+  // Stream recap (shown after ending stream)
+  const [streamRecap, setStreamRecap] = useState(null);
+  // Ad revenue earned this stream (streamer side)
+  const [adRevenue, setAdRevenue] = useState(0);
+  // Discover sort mode
+  const [discoverSort, setDiscoverSort] = useState("top");
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
@@ -725,6 +706,7 @@ export default function App() {
   const prevLiveIdsRef = useRef(new Set());
   const emoteFileRef = useRef(null);
   const slowTimerRef = useRef(null);
+  const peakViewersRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
@@ -742,7 +724,6 @@ export default function App() {
       }
     }
     if (coins > coinMilestoneRef.current) coinMilestoneRef.current = coins;
-    if (coins >= 50000) unlockAchievement("whale");
   }, [coins]);
 
 
@@ -819,8 +800,6 @@ export default function App() {
       const storedTier = localStorage.getItem("stem_viewer_tier") || "guest";
       if (tierOrder[newViewerTier] > tierOrder[storedTier]) {
         setTimeout(() => notify(`🎉 You unlocked ${VIEWER_TIER_INFO[newViewerTier]?.label} status! ${VIEWER_TIER_INFO[newViewerTier]?.emoji}`), 1500);
-        if (newViewerTier === "verified_earner") unlockAchievement("verified");
-        if (newViewerTier === "elite") unlockAchievement("elite");
       }
       localStorage.setItem("stem_viewer_tier", newViewerTier);
       setViewerTier(newViewerTier);
@@ -831,14 +810,12 @@ export default function App() {
 
   const fetchLeaderboard = async () => {
     setLoadingLb(true);
-    const [earnerRes, supporterRes, predictorRes] = await Promise.all([
+    const [earnerRes, supporterRes] = await Promise.all([
       supabase.from("profiles").select("id,full_name,username,coins").eq("role", "viewer").order("coins", { ascending: false }).limit(20),
       supabase.rpc("get_top_supporters", { limit_n: 20 }),
-      supabase.rpc("get_top_predictors", { limit_n: 20 }),
     ]);
     if (earnerRes.data) setLeaderboard(earnerRes.data);
     if (supporterRes.data) setTopSupporters(supporterRes.data);
-    if (predictorRes.data) setTopPredictors(predictorRes.data);
     setLoadingLb(false);
   };
 
@@ -961,7 +938,7 @@ export default function App() {
     if (!wasConsecutive && data.last_streak_date) notify("Streak reset — watch daily for bonus coins!");
     else if (newStreak === 3)  notify("🔥 3-day streak! Earning 1.25x coins!");
     else if (newStreak === 7)  notify("🔥 7-day streak! Earning 1.5x coins!");
-    else if (newStreak === 14) { notify("🔥 14-day streak! Earning 2x coins — max bonus!"); unlockAchievement("streak_legend"); }
+    else if (newStreak === 14) { notify("🔥 14-day streak! Earning 2x coins — max bonus!"); }
     else if (newStreak > 1)    notify(`🔥 ${newStreak}-day streak! Keep it up!`);
   };
 
@@ -1095,6 +1072,7 @@ export default function App() {
     }
     setSavingClip(false);
   };
+
 
   // ── Withdrawals ─────────────────────────────────────────
   const fetchWithdrawHistory = async () => {
@@ -1281,11 +1259,6 @@ export default function App() {
     notify("Rejected — coins refunded");
   };
 
-  // ── Raid system ──────────────────────────────────────────
-  const startRaid = async () => {
-    const { data } = await supabase.from("streams").select("id,title,streamer_name,viewer_count,mux_playback_id,category,user_id").eq("status", "live").neq("user_id", user?.id);
-    if (data && data.length > 0) { setRaidTargets(data); setShowRaidModal(true); }
-  };
 
   // ── Subscription ────────────────────────────────────────
   const checkSubscription = async (streamerId) => {
@@ -1312,7 +1285,6 @@ export default function App() {
     logTransaction("subscription", -t.cost, `${t.label} sub to ${stream.streamer}`);
     setIsSubscribed(true); setSubTier(tier); setShowSubTierPicker(false);
     notify(`${t.badge} Subscribed ${t.label} to ${stream.streamer}!`);
-    unlockAchievement("subscriber");
     if (stream?.id) {
       const viewerName = profile?.full_name || profile?.username || "Someone";
       await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: `${t.badge} ${viewerName} just subscribed ${t.label}! Welcome!`, color: t.color, is_superchat: false, coins_spent: 0 });
@@ -1320,51 +1292,6 @@ export default function App() {
     setSubscribing(false);
   };
 
-  const handleGiftSub = async () => {
-    if (!requireAuth()) return;
-    if (!stream?.user_id) { notify("Gift subs only work on real streams"); return; }
-    if (stream.user_id === user.id) { notify("You can't gift subs on your own stream"); return; }
-    const cost = giftSubQty * 1000;
-    if (coinsRef.current < cost) { notify(`Need ${cost.toLocaleString()} coins to gift ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""}`); return; }
-    setGiftingSubTo(true);
-
-    let recipientId = null;
-    let recipientName = null;
-    if (giftSubUsername.trim()) {
-      const uname = giftSubUsername.trim().replace(/^@/, "");
-      const { data: recipient } = await supabase.from("profiles").select("id,full_name,username").eq("username", uname).maybeSingle();
-      if (!recipient) { notify("User not found"); setGiftingSubTo(false); return; }
-      if (recipient.id === user.id) { notify("You can't gift a sub to yourself"); setGiftingSubTo(false); return; }
-      recipientId = recipient.id;
-      recipientName = recipient.full_name?.split(" ")[0] || recipient.username;
-    }
-
-    const nc = coinsRef.current - cost;
-    setCoins(nc); coinsRef.current = nc;
-    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-
-    if (recipientId) {
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000 * giftSubQty).toISOString();
-      await supabase.from("subscriptions").upsert(
-        { subscriber_id: recipientId, streamer_id: stream.user_id, expires_at: expiresAt },
-        { onConflict: "subscriber_id,streamer_id" }
-      );
-    }
-
-    const gifterName = profile?.full_name?.split(" ")[0] || profile?.username || "Someone";
-    const targetText = recipientName ? `to ${recipientName}` : "to the community";
-    await supabase.from("messages").insert({
-      stream_id: stream.id, user_id: user.id, username: gifterName,
-      content: `gifted ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""} ${targetText}! 🎁`,
-      color: "#a855f7", is_superchat: true, coins_spent: cost,
-    });
-
-    logTransaction("gift_sent", -cost, `Gifted ${giftSubQty} sub${giftSubQty > 1 ? "s" : ""} in ${stream.title}`);
-    addHype(cost);
-    notify(`${giftSubQty > 1 ? `${giftSubQty} subs` : "Sub"} gifted! 🎁`);
-    setShowGiftSubModal(false); setGiftSubUsername(""); setGiftSubQty(1);
-    setGiftingSubTo(false);
-  };
 
   // ── Top gifters ──────────────────────────────────────────
   const addGifter = (amount) => {
@@ -1595,51 +1522,6 @@ export default function App() {
     }
   };
 
-  // ── Channel Rewards ───────────────────────────────────────
-  const fetchChannelRewards = async (streamerId) => {
-    if (!streamerId) return;
-    const { data } = await supabase.from("channel_rewards").select("*").eq("streamer_id", streamerId).eq("is_active", true).order("cost");
-    setChannelRewards(data || []);
-  };
-
-  const fetchRedemptionQueue = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("reward_redemptions").select("*").eq("streamer_id", user.id).eq("status", "pending").order("created_at");
-    setRewardRedemptions(data || []);
-  };
-
-  const redeemReward = async (reward) => {
-    if (!requireAuth()) return;
-    if (coinsRef.current < reward.cost) { notify("Not enough coins"); return; }
-    const nc = coinsRef.current - reward.cost;
-    setCoins(nc); coinsRef.current = nc;
-    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-    const viewerName = profile?.full_name || profile?.username || "Viewer";
-    await supabase.from("reward_redemptions").insert({ reward_id: reward.id, viewer_id: user.id, streamer_id: reward.streamer_id, viewer_name: viewerName, reward_title: reward.title, cost: reward.cost });
-    await supabase.from("transactions").insert({ user_id: user.id, type: "reward_redemption", amount: -reward.cost, description: `Redeemed: ${reward.title}` });
-    if (stream?.id) {
-      await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: `🎁 ${viewerName} redeemed "${reward.title}"!`, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
-    }
-    notify(`🎁 Redeemed: ${reward.title}!`);
-  };
-
-  const addReward = async () => {
-    if (!newReward.title.trim() || !user) return;
-    await supabase.from("channel_rewards").insert({ streamer_id: user.id, title: newReward.title.trim(), cost: Math.max(50, Number(newReward.cost) || 500) });
-    setNewReward({ title: "", cost: 500 });
-    notify("Reward added!");
-    fetchChannelRewards(user.id);
-  };
-
-  const removeReward = async (rewardId) => {
-    await supabase.from("channel_rewards").update({ is_active: false }).eq("id", rewardId);
-    fetchChannelRewards(user.id);
-  };
-
-  const fulfillRedemption = async (redemptionId) => {
-    await supabase.from("reward_redemptions").update({ status: "fulfilled" }).eq("id", redemptionId);
-    setRewardRedemptions(r => r.filter(x => x.id !== redemptionId));
-  };
 
   // ── Auto-mod Word Filter ──────────────────────────────────
   const fetchBannedWords = async (streamerId) => {
@@ -1662,16 +1544,6 @@ export default function App() {
     setBannedWords(w => w.filter(x => x !== word));
   };
 
-  // ── Raid Suggestions (post-stream) ────────────────────────
-  const fetchRaidSuggestions = async () => {
-    const { data } = await supabase.from("streams").select("*, profiles(full_name, username)").eq("status", "live").neq("user_id", user.id).limit(6);
-    if (data && data.length > 0) {
-      const myGame = stream?.game;
-      const sorted = [...data].sort((a, b) => (b.category === myGame ? 1 : 0) - (a.category === myGame ? 1 : 0)).slice(0, 3);
-      setRaidSuggestions(sorted.map(s => formatDbStream(s)));
-      setShowRaidSuggest(true);
-    }
-  };
 
   const clearChat = async () => {
     if (!stream?.id) return;
@@ -1764,16 +1636,6 @@ export default function App() {
     notify(`${name} unlocked! ✨`);
   };
 
-  const executeRaid = (target) => {
-    setShowRaidModal(false);
-    notify(`Raiding ${target.streamer_name}!`);
-    go("stream", {
-      id: target.id, title: target.title, streamer: target.streamer_name,
-      isRealStream: true, mux_playback_id: target.mux_playback_id,
-      user_id: target.user_id, viewers: target.viewer_count || 0,
-      game: target.category || "Live", bg: "135deg,#1a1a2e,#16213e", emoji: "🎙", color: "#7c3aed",
-    });
-  };
 
   // ── Viewer profiles ──────────────────────────────────────
   const viewVProfile = async (userId) => {
@@ -1919,45 +1781,7 @@ export default function App() {
     };
   }, [page, stream?.id, user?.id]);
 
-  // Real-time viewer count update on the stream page itself
-  useEffect(() => {
-    if (page !== "stream" || !stream?.isRealStream) return;
-    const ch = supabase.channel(`stream-view-${stream.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "streams", filter: `id=eq.${stream.id}` }, (payload) => {
-        setStream(s => ({ ...s, viewers: payload.new.viewer_count }));
-      })
-      .subscribe();
-    return () => supabase.removeChannel(ch);
-  }, [page, stream?.id, stream?.isRealStream]);
 
-  // Presence-based live viewer count
-  useEffect(() => {
-    if (page !== "stream" || !stream?.isRealStream) { setViewerCount(0); return; }
-    const guestKey = sessionStorage.getItem("guestKey") || (() => { const k = `guest-${Math.random().toString(36).slice(2)}`; sessionStorage.setItem("guestKey", k); return k; })();
-    const key = user?.id || guestKey;
-    const presenceCh = supabase.channel(`pres-${stream.id}`, { config: { presence: { key } } })
-      .on("presence", { event: "sync" }, () => {
-        setViewerCount(Object.keys(presenceCh.presenceState()).length);
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") await presenceCh.track({ joined: Date.now() });
-      });
-    return () => supabase.removeChannel(presenceCh);
-  }, [page, stream?.id, stream?.isRealStream]);
-
-  // Poll broadcast channel
-  useEffect(() => {
-    if (page !== "stream" || !stream?.id) { pollChRef.current = null; return; }
-    const ch = supabase.channel(`polls-${stream.id}`)
-      .on("broadcast", { event: "poll_start" }, ({ payload }) => { setActivePoll(payload); setPollVoted(null); })
-      .on("broadcast", { event: "poll_vote" }, ({ payload }) => {
-        setActivePoll(p => p ? { ...p, votes: { ...p.votes, [payload.opt]: (p.votes[payload.opt] || 0) + 1 } } : p);
-      })
-      .on("broadcast", { event: "poll_end" }, () => { setActivePoll(null); setPollVoted(null); })
-      .subscribe();
-    pollChRef.current = ch;
-    return () => { supabase.removeChannel(ch); pollChRef.current = null; };
-  }, [page, stream?.id]);
 
   // Prediction countdown
   useEffect(() => {
@@ -1974,11 +1798,23 @@ export default function App() {
     return () => clearInterval(t);
   }, [activePrediction?.id, activePrediction?.status, activePrediction?.ends_at]);
 
-  // Prediction broadcast channel
+  // Unified stream broadcast channel (polls + predictions + viewer count)
   useEffect(() => {
-    if (page !== "stream" || !stream?.id) { predChRef.current = null; return; }
+    if (page !== "stream" || !stream?.id) { pollChRef.current = null; predChRef.current = null; return; }
     const streamId = stream.id;
-    const ch = supabase.channel(`preds-${streamId}`)
+    const ch = supabase.channel(`stream-bc-${streamId}`)
+      // Viewer count updates
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "streams", filter: `id=eq.${streamId}` }, (payload) => {
+        setStream(s => ({ ...s, viewers: payload.new.viewer_count }));
+        setViewerCount(payload.new.viewer_count || 0);
+      })
+      // Poll events
+      .on("broadcast", { event: "poll_start" }, ({ payload }) => { setActivePoll(payload); setPollVoted(null); })
+      .on("broadcast", { event: "poll_vote" }, ({ payload }) => {
+        setActivePoll(p => p ? { ...p, votes: { ...p.votes, [payload.opt]: (p.votes[payload.opt] || 0) + 1 } } : p);
+      })
+      .on("broadcast", { event: "poll_end" }, () => { setActivePoll(null); setPollVoted(null); })
+      // Prediction events
       .on("broadcast", { event: "pred_new" }, ({ payload }) => {
         setActivePrediction(payload.prediction); setPredEntries([]); setMyPredBet(null);
       })
@@ -2007,9 +1843,10 @@ export default function App() {
         setActivePrediction(p => p ? { ...p, is_featured: payload.is_featured } : p);
       })
       .subscribe();
+    pollChRef.current = ch;
     predChRef.current = ch;
     fetchActivePrediction(streamId);
-    return () => { supabase.removeChannel(ch); predChRef.current = null; };
+    return () => { supabase.removeChannel(ch); pollChRef.current = null; predChRef.current = null; };
   }, [page, stream?.id]);
 
   // Load moderation state when entering a stream as the streamer
@@ -2031,6 +1868,26 @@ export default function App() {
     if (!stream?.id || !stream?.isRealStream || user?.id !== stream?.user_id) return;
     supabase.from("streams").update({ slow_mode: slowModeSecs, sub_only_chat: subOnly, follower_only_chat: followerOnly }).eq("id", stream.id);
   }, [slowModeSecs, subOnly, followerOnly]);
+
+  // Track peak viewers during active stream
+  useEffect(() => {
+    if (viewerCount > peakViewersRef.current) peakViewersRef.current = viewerCount;
+  }, [viewerCount]);
+
+  // Ad revenue: streamer earns coins per viewer while live (~4 coins/hr per viewer)
+  useEffect(() => {
+    if (!isStreaming || mode !== "streamer") return;
+    const t = setInterval(() => {
+      const vc = viewerCount || 0;
+      if (vc < 1) return;
+      const earned = Math.max(1, Math.round(vc * 0.067));
+      setAdRevenue(r => r + earned);
+      setCoins(c => c + earned);
+      coinsRef.current += earned;
+    }, 60000);
+    return () => clearInterval(t);
+  }, [isStreaming, mode, viewerCount]);
+
 
   // Check follow status + ban status whenever we enter a stream
   useEffect(() => {
@@ -2103,17 +1960,6 @@ export default function App() {
     return () => supabase.removeChannel(ch);
   }, [user?.id]);
 
-  // Real-time redemption queue for streamer dash
-  useEffect(() => {
-    if (!user || mode !== "streamer") return;
-    const ch = supabase.channel(`redemptions-${user.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reward_redemptions", filter: `streamer_id=eq.${user.id}` }, ({ new: r }) => {
-        setRewardRedemptions(prev => [...prev, r]);
-        notify(`🎁 ${r.viewer_name} redeemed: ${r.reward_title}`);
-      })
-      .subscribe();
-    return () => supabase.removeChannel(ch);
-  }, [user?.id, mode]);
 
   // Real-time chat subscription
   useEffect(() => {
@@ -2141,17 +1987,6 @@ export default function App() {
           uid: m.user_id, badge: m.badge || null,
         }]);
       })
-      .on("broadcast", { event: "coin_rain" }, ({ payload }) => {
-        const secsLeft = Math.max(0, Math.round((payload.expires - Date.now()) / 1000));
-        if (secsLeft <= 0) return;
-        setCoinRainActive(true); setCoinRainSecsLeft(secsLeft); setCoinRainClaimed(false);
-        const iv = setInterval(() => {
-          setCoinRainSecsLeft(s => {
-            if (s <= 1) { clearInterval(iv); setCoinRainActive(false); return 0; }
-            return s - 1;
-          });
-        }, 1000);
-      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [page, stream?.id]);
@@ -2165,19 +2000,23 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); fetchRedemptionQueue(); fetchChannelRewards(user.id); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
     if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); }
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
-      if (stream.user_id) { fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); fetchChannelRewards(stream.user_id); fetchBannedWords(stream.user_id); }
+      if (stream.user_id) {
+        fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id);
+        fetchBannedWords(stream.user_id);
+      }
       setTopGifters({}); setActivePoll(null); setPollVoted(null); setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
       if (stream.isRealStream) unlockAchievement("first_stream");
     }
     if (page === "clips") { fetchAllClips(); fetchMyClipVotes(); }
     if (page === "channel" && channelUser?.id) fetchPastStreams(channelUser.id);
   }, [page, user]);
+
 
   const handleSignUp = async () => {
     if (!formData.fullName || !formData.email || !formData.password) { setAuthError("Please fill in all fields"); return; }
@@ -2298,7 +2137,6 @@ export default function App() {
             notify(`+${earned} coins for following!`);
             showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "❤️", stream.streamer);
             supabase.rpc("increment_follower_count", { profile_id: stream.user_id });
-            unlockAchievement("first_follow");
             setMissionFollowed();
           }
         }
@@ -2347,11 +2185,7 @@ export default function App() {
         const rankPos = rankRows ? rankRows.findIndex(r => r.id === user.id) + 1 : 0;
         botMsg = rankPos > 0 ? `🏆 @${uname} is ranked #${rankPos} on the leaderboard` : `🏆 @${uname} — keep earning to climb the board!`;
       } else if (cmd === "!commands") {
-        botMsg = "📋 !coins · !viewers · !top · !uptime · !tier · !rank · !rain";
-      } else if (cmd === "!rain") {
-        if (coinRainActive && !coinRainClaimed) { claimCoinRain(); }
-        else if (!coinRainActive) { botMsg = "🌧️ No coin rain active right now — watch for the streamer to trigger one!"; }
-        setMsg(""); return;
+        botMsg = `📋 !coins · !viewers · !top · !uptime · !tier · !rank`;
       }
       if (botMsg) {
         await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: botMsg, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
@@ -2407,25 +2241,6 @@ export default function App() {
     setCustomTipAmt(""); setShowTipInput(false);
   };
 
-  // ── Coin Rain ─────────────────────────────────────────────
-  const triggerCoinRain = async () => {
-    if (!stream?.id || !user) return;
-    await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: "🌧️ COIN RAIN! Type !rain in the next 30 seconds to claim free coins!", color: "#ffc800", is_superchat: false, coins_spent: 0 });
-    // Broadcast via Supabase realtime so all viewers receive it
-    supabase.channel(`stream-${stream.id}`).send({ type: "broadcast", event: "coin_rain", payload: { expires: Date.now() + 30000 } });
-    notify("🌧️ Coin Rain triggered!");
-  };
-
-  const claimCoinRain = async () => {
-    if (!user || coinRainClaimed) return;
-    setCoinRainClaimed(true);
-    const reward = Math.floor(Math.random() * 200) + 50;
-    const nc = coinsRef.current + reward;
-    setCoins(nc); coinsRef.current = nc;
-    await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-    await supabase.from("transactions").insert({ user_id: user.id, type: "coin_rain", amount: reward, description: "Coin Rain bonus" });
-    notify(`🌧️ You caught ${reward} coins!`);
-  };
 
   const handleGoLive = async () => {
     if (!goLiveForm.title.trim()) { notify("Enter a stream title first!"); return; }
@@ -2479,9 +2294,19 @@ export default function App() {
   };
 
   const handleEndStream = async () => {
+    const startedAt = stream?.started_at ? new Date(stream.started_at) : null;
+    const durationMs = startedAt ? Date.now() - startedAt.getTime() : 0;
+    const durationMins = Math.round(durationMs / 60000);
+    const peak = peakViewersRef.current || viewerCount || 0;
+    const topGiftersList = Object.entries(topGifters)
+      .sort(([, a], [, b]) => b - a).slice(0, 3)
+      .map(([name, coins]) => ({ name, coins }));
+    const recapAdRevenue = adRevenue;
+    const recapSess = sessRef.current;
+
     // Track streamer hours + unique streaming days
-    if (user && stream?.started_at) {
-      const hoursLive = (Date.now() - new Date(stream.started_at).getTime()) / 3600000;
+    if (user && startedAt) {
+      const hoursLive = durationMs / 3600000;
       const today = new Date().toISOString().slice(0, 10);
       const isNewDay = (profile?.last_stream_date || "") !== today;
       const newHs = parseFloat(((profile?.hours_streamed || 0) + hoursLive).toFixed(4));
@@ -2504,16 +2329,14 @@ export default function App() {
       });
     }
     await supabase.from("streams").update({
-      status: "offline",
-      mux_stream_id: null,
-      mux_playback_id: null,
+      status: "offline", mux_stream_id: null, mux_playback_id: null,
       updated_at: new Date().toISOString(),
     }).eq("user_id", user.id);
     setIsStreaming(false);
     setMuxStreamId(""); setMuxStreamKey(""); setMuxPlaybackId("");
-    notify("Stream ended.");
-    fetchRaidSuggestions();
-    startRaid();
+    setAdRevenue(0); peakViewersRef.current = 0;
+    // Show stream recap
+    setStreamRecap({ durationMins, peak, adRevenue: recapAdRevenue, viewerEarnings: recapSess, topGifters: topGiftersList, title: stream?.title || "Stream" });
   };
 
   const switchMode = async (newMode) => {
@@ -3169,9 +2992,17 @@ export default function App() {
                         <span className="d-section-title">Live Channels</span>
                         {liveStreams.length > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>{liveStreams.length} REAL</span>}
                       </div>
+                      <div style={{ display: "flex", background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 20, padding: 2, gap: 2 }}>
+                        {["top", "trending"].map(s => (
+                          <button key={s} onClick={() => setDiscoverSort(s)} style={{ background: discoverSort === s ? "linear-gradient(135deg,var(--purple),var(--red))" : "none", border: "none", color: discoverSort === s ? "#fff" : "var(--muted)", borderRadius: 16, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>{s === "trending" ? "🔥 Trending" : "⬆ Top"}</button>
+                        ))}
+                      </div>
                     </div>
                     <div className="d-grid">
-                      {allStreams.slice(1).map(s => <LiveCard key={s.id} s={s} />)}
+                      {(discoverSort === "trending"
+                        ? [...allStreams.slice(1)].sort((a, b) => (b.viewers || 0) - (a.viewers || 0))
+                        : allStreams.slice(1)
+                      ).map(s => <LiveCard key={s.id} s={s} />)}
                     </div>
                   </div>
                 )}
@@ -3185,9 +3016,11 @@ export default function App() {
                     <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
                       {upcomingSchedule.map(s => {
                         const d = new Date(s.scheduled_at);
+                        const minsUntil = Math.round((d.getTime() - Date.now()) / 60000);
+                        const countdown = minsUntil <= 0 ? "Starting soon!" : minsUntil < 60 ? `in ${minsUntil}m` : minsUntil < 1440 ? `in ${Math.floor(minsUntil / 60)}h ${minsUntil % 60}m` : `in ${Math.floor(minsUntil / 1440)}d`;
                         return (
                           <div key={s.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 180, flexShrink: 0 }}>
-                            <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
+                            <div style={{ fontSize: 10, color: minsUntil <= 60 ? "var(--red)" : "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{countdown}</div>
                             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
                             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.profiles?.full_name || "Streamer"}</div>
                             <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
@@ -3345,20 +3178,6 @@ export default function App() {
               </div>
             </div>
           )}
-          {coinRainActive && stream?.user_id !== user?.id && (
-            <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 25, background: "linear-gradient(135deg,#ffc800,#ff9500)", borderRadius: 12, padding: "10px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(255,200,0,.45)", animation: "popIn .3s ease" }}>
-              <span style={{ fontSize: 22 }}>🌧️</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#000" }}>Coin Rain! {coinRainSecsLeft}s left</div>
-                <div style={{ fontSize: 11, color: "rgba(0,0,0,.7)" }}>Type !rain in chat to claim</div>
-              </div>
-              {!coinRainClaimed ? (
-                <button onClick={claimCoinRain} style={{ background: "#000", color: "#ffc800", border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Claim!</button>
-              ) : (
-                <span style={{ fontSize: 11, color: "#000", fontWeight: 700 }}>Claimed!</span>
-              )}
-            </div>
-          )}
           {/* Back button — always visible over the player */}
           <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
             ← Home
@@ -3416,7 +3235,7 @@ export default function App() {
             <button className="abtn" onClick={() => { if (!requireAuth()) return; setShowClipModal(true); }}>✂ Clip</button>
             {stream.user_id && stream.user_id !== user?.id && (
               <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={() => isSubscribed ? null : setShowSubTierPicker(true)} disabled={subscribing || isSubscribed}>
-                {isSubscribed ? `${SUB_TIERS.find(t => t.tier === subTier)?.badge || "⭐"} Subscribed T${subTier}` : subscribing ? "…" : "⭐ Subscribe"}
+                {isSubscribed ? `⭐ Subscribed` : subscribing ? "…" : "⭐ Subscribe"}
               </button>
             )}
           </div>
@@ -3694,12 +3513,6 @@ export default function App() {
                 <button className="btn-g" style={{ padding: "7px 14px", fontSize: 12 }} onClick={sendCustomTip}>Tip 🪙</button>
               </div>
             )}
-            {/* Gift subs */}
-            {stream?.user_id && stream.user_id !== user?.id && user && (
-              <button onClick={() => setShowGiftSubModal(true)} style={{ width: "100%", marginTop: 8, background: "linear-gradient(135deg,rgba(168,85,247,.12),rgba(124,58,237,.07))", border: "1px solid rgba(168,85,247,.28)", color: "#a855f7", borderRadius: 10, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                🎁 Gift a Sub <span style={{ color: "rgba(168,85,247,.6)", fontWeight: 400 }}>· 1,000 🪙 each</span>
-              </button>
-            )}
             {/* Quick reactions — free, just for fun */}
             <div className="react-bar">
               {["👍","❤️","😂","😮","🔥"].map(e => (
@@ -3724,23 +3537,6 @@ export default function App() {
               </div>
             </div>
           )}
-          {/* Channel Rewards */}
-          {channelRewards.length > 0 && !isStreamOwner && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>🎁 Channel Rewards</div>
-              {channelRewards.map(r => (
-                <div key={r.id} className="reward-card" onClick={() => redeemReward(r)}>
-                  <span style={{ fontSize: 20 }}>🎁</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{r.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--gold)" }}>🪙 {r.cost.toLocaleString()} coins</div>
-                  </div>
-                  <button style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Redeem</button>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Goal widget — mobile */}
           {streamGoal && streamGoal.goal_target > 0 && (
             <div style={{ background: "rgba(124,58,237,.07)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
@@ -3901,13 +3697,13 @@ export default function App() {
       )}
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"], ["predictors", "🔮 Top Predictors"]].map(([t, label]) => (
+        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"]].map(([t, label]) => (
           <button key={t} onClick={() => setLbTab(t)} style={{ background: lbTab === t ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (lbTab === t ? "var(--line2)" : "transparent"), color: lbTab === t ? "#fff" : "var(--muted)", borderRadius: 20, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{label}</button>
         ))}
       </div>
       <div className="panel">
         <div className="panel-hd">
-          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : lbTab === "supporters" ? "🎁 Most Coins Spent" : "🔮 Best Predictors"}</span>
+          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : "🎁 Most Coins Spent"}</span>
           <button onClick={fetchLeaderboard} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
         </div>
         {loadingLb ? (
@@ -3926,7 +3722,7 @@ export default function App() {
               <div className="lb-coins">🪙 {(u.coins || 0).toLocaleString()}</div>
             </div>
           ))
-        ) : lbTab === "supporters" ? (
+        ) : (
           topSupporters.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🎁</div>No supporters yet — send a gift or superchat to appear here!</div>
           ) : topSupporters.map((u, i) => (
@@ -3938,22 +3734,6 @@ export default function App() {
                 <div className="lb-role">🎁 Supporter · @{u.username}</div>
               </div>
               <div className="lb-coins" style={{ color: "var(--purple)" }}>🪙 {(u.total_spent || 0).toLocaleString()}</div>
-            </div>
-          ))
-        ) : (
-          topPredictors.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🔮</div>No prediction data yet — place bets to appear here!</div>
-          ) : topPredictors.map((u, i) => (
-            <div key={u.user_id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.user_id)}>
-              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
-              <div style={{ flex: 1 }}>
-                <div className="lb-name">{u.full_name || "Anonymous"}</div>
-                <div className="lb-role">🔮 {u.wins || 0}/{u.total_bets || 0} wins · {u.win_rate || 0}% · @{u.username}</div>
-              </div>
-              <div className="lb-coins" style={{ color: (u.total_profit || 0) >= 0 ? "var(--green)" : "var(--red)" }}>
-                {(u.total_profit || 0) >= 0 ? "+" : ""}{(u.total_profit || 0).toLocaleString()} 🪙
-              </div>
             </div>
           ))
         )}
@@ -4414,9 +4194,19 @@ export default function App() {
               <button onClick={() => { navigator.clipboard?.writeText(muxStreamKey); notify("Stream key copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
             </div>
           )}
+          {/* Live ad revenue ticker */}
+          {adRevenue > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+              <span style={{ fontSize: 20 }}>📺</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--green)" }}>Ad Revenue This Stream</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>~4 coins/hr per viewer · 40% your share</div>
+              </div>
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, color: "var(--green)" }}>+{adRevenue} 🪙</div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={() => go("disc")} className="btn-g" style={{ flex: 1, minWidth: 120 }}>View on Discover</button>
-            <button onClick={triggerCoinRain} style={{ flex: 1, minWidth: 120, background: "linear-gradient(135deg,#ffc800,#ff9500)", color: "#000", border: "none", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>🌧️ Coin Rain</button>
             <button onClick={handleEndStream} className="btn-red" style={{ flex: 1, minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
               <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
             </button>
@@ -4763,47 +4553,6 @@ export default function App() {
           )}
         </div>
       </div>
-
-      {/* Channel Rewards Manager */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🎁 Channel Rewards</span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{channelRewards.length} active</span>
-        </div>
-        <div style={{ padding: "12px 16px" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Reward title (e.g. Pick my next game)" value={newReward.title} onChange={e => setNewReward(r => ({ ...r, title: e.target.value }))} />
-            <input className="fi" style={{ margin: 0, width: 90, fontSize: 13 }} type="number" placeholder="Cost" value={newReward.cost} onChange={e => setNewReward(r => ({ ...r, cost: e.target.value }))} />
-            <button onClick={addReward} style={{ background: "var(--purple)", border: "none", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
-          </div>
-          {channelRewards.map(r => (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{r.title}</span>
-              <span style={{ fontSize: 12, color: "var(--gold)" }}>🪙 {r.cost.toLocaleString()}</span>
-              <button onClick={() => removeReward(r.id)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 16 }}>×</button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Redemption Queue */}
-      {rewardRedemptions.length > 0 && (
-        <div className="panel" style={{ marginTop: 16 }}>
-          <div className="panel-hd">
-            <span className="panel-title">📬 Redemption Queue</span>
-            <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 700 }}>{rewardRedemptions.length} pending</span>
-          </div>
-          {rewardRedemptions.map(r => (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{r.reward_title}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>by {r.viewer_name} · {r.cost?.toLocaleString()} 🪙 · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-              </div>
-              <button onClick={() => fulfillRedemption(r.id)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Done</button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Chat Bans */}
       {chatBans.size > 0 && (
@@ -5255,36 +5004,6 @@ export default function App() {
       )}
     </div>}
 
-    {/* GIFT SUB MODAL */}
-    {showGiftSubModal && (
-      <div className="modal-overlay" onClick={() => setShowGiftSubModal(false)}>
-        <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
-          <div className="modal-title">🎁 Gift a Subscription</div>
-          <div className="modal-sub" style={{ marginBottom: 20 }}>Gift a sub to a viewer — they get 30 days free in this channel!</div>
-          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: .6, display: "block", marginBottom: 6 }}>Recipient username</label>
-          <input className="fi" placeholder="@username — blank = community gift" value={giftSubUsername} onChange={e => setGiftSubUsername(e.target.value)} style={{ margin: "0 0 18px" }} />
-          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: .6, display: "block", marginBottom: 8 }}>Quantity</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 22 }}>
-            {[[1, "1,000"], [3, "3,000"], [5, "5,000"]].map(([qty, cost]) => (
-              <button key={qty} onClick={() => setGiftSubQty(qty)} style={{ flex: 1, background: giftSubQty === qty ? "rgba(168,85,247,.15)" : "var(--ink3)", border: `1px solid ${giftSubQty === qty ? "rgba(168,85,247,.5)" : "var(--line)"}`, color: giftSubQty === qty ? "#a855f7" : "var(--muted)", borderRadius: 12, padding: "12px 0", cursor: "pointer", transition: "all .15s" }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: giftSubQty === qty ? "#a855f7" : "#fff" }}>{qty}</div>
-                <div style={{ fontSize: 10, marginTop: 3, color: "var(--muted)" }}>{cost} 🪙</div>
-              </button>
-            ))}
-          </div>
-          <button onClick={handleGiftSub} disabled={giftingSubTo || coinsRef.current < giftSubQty * 1000} className="btn-g" style={{ width: "100%", padding: 14, fontSize: 15, opacity: coinsRef.current < giftSubQty * 1000 ? .5 : 1 }}>
-            {giftingSubTo ? "Gifting…" : `Gift ${giftSubQty} Sub${giftSubQty > 1 ? "s" : ""} · ${(giftSubQty * 1000).toLocaleString()} 🪙`}
-          </button>
-          {coinsRef.current < giftSubQty * 1000 && (
-            <div style={{ textAlign: "center", fontSize: 12, color: "var(--red)", marginTop: 8 }}>
-              Need {(giftSubQty * 1000 - coinsRef.current).toLocaleString()} more coins
-            </div>
-          )}
-          <button onClick={() => setShowGiftSubModal(false)} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", padding: 8 }}>Cancel</button>
-        </div>
-      </div>
-    )}
-
     {/* CLIP MODAL */}
     {showClipModal && (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowClipModal(false)}>
@@ -5506,35 +5225,6 @@ export default function App() {
       </div>
     )}
 
-    {/* RAID MODAL */}
-    {showRaidModal && (
-      <div className="raid-overlay" onClick={() => setShowRaidModal(false)}>
-        <div onClick={e => e.stopPropagation()} style={{ background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 20, padding: 24, width: "100%", maxWidth: 460 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, letterSpacing: 1, marginBottom: 6 }}>🚂 Raid a Channel</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>Send your viewers to another live stream.</div>
-          {raidTargets.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>😴</div>
-              <div style={{ fontSize: 13 }}>No other live streams right now.</div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-              {raidTargets.map(t => (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{t.streamer_name}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.title} · {(t.viewer_count || 0).toLocaleString()} viewers</div>
-                  </div>
-                  <button onClick={() => executeRaid(t)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Raid →</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <button onClick={() => setShowRaidModal(false)} style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 12, fontSize: 14, cursor: "pointer" }}>Skip Raid</button>
-        </div>
-      </div>
-    )}
-
     {/* GIFT ANIMATIONS */}
     {giftAnims.length > 0 && (
       <div className="gift-anim-wrap">
@@ -5611,25 +5301,42 @@ export default function App() {
       </div>
     )}
 
-    {/* RAID SUGGESTIONS */}
-    {showRaidSuggest && raidSuggestions.length > 0 && (
-      <div className="raid-suggest-overlay" onClick={() => setShowRaidSuggest(false)}>
-        <div className="raid-suggest-box" onClick={e => e.stopPropagation()}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: 1, marginBottom: 4 }}>Raid a Channel 🚀</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Send your viewers to support another streamer!</div>
-          {raidSuggestions.map(s => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--line)", cursor: "pointer" }} onClick={() => { setShowRaidSuggest(false); notify(`Raiding ${s.streamer}!`); go("stream", s); }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.emoji}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{s.streamer}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.game} · {s.viewers.toLocaleString()} viewers</div>
+    {/* STREAM RECAP MODAL */}
+    {streamRecap && (
+      <div className="recap-overlay" onClick={() => setStreamRecap(null)}>
+        <div className="recap-box" onClick={e => e.stopPropagation()}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, marginBottom: 2 }}>Stream Recap 📺</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{streamRecap.title}"</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+            {[
+              ["⏱", "Duration", `${streamRecap.durationMins}m`],
+              ["👥", "Peak Viewers", (streamRecap.peak || 0).toLocaleString()],
+              ["📺", "Ad Revenue", `+${streamRecap.adRevenue || 0} 🪙`],
+              ["🪙", "You Earned", `+${streamRecap.viewerEarnings || 0} 🪙`],
+            ].map(([icon, label, val]) => (
+              <div key={label} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: .5, color: "var(--gold)" }}>{val}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{label}</div>
               </div>
-              <button style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Raid →</button>
+            ))}
+          </div>
+          {streamRecap.topGifters && streamRecap.topGifters.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Top Gifters</div>
+              {streamRecap.topGifters.map((g, i) => (
+                <div key={g.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 14 }}>{["🥇","🥈","🥉"][i] || "🎁"}</span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{g.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🪙 {g.coins.toLocaleString()}</span>
+                </div>
+              ))}
             </div>
-          ))}
-          <button onClick={() => setShowRaidSuggest(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "10px", fontSize: 13, cursor: "pointer", marginTop: 14 }}>Skip Raid</button>
+          )}
+          <button onClick={() => setStreamRecap(null)} className="btn-g" style={{ width: "100%" }}>Done</button>
         </div>
       </div>
     )}
+
   </>);
 }
