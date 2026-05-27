@@ -2372,6 +2372,29 @@ export default function App() {
     setSavingProfile(false);
   };
 
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const uploadAvatar = async (file) => {
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) { notify("Image must be under 5 MB"); return; }
+    if (!file.type.startsWith("image/")) { notify("Please select an image file"); return; }
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split(".").pop().toLowerCase() || "jpg";
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) { notify("Upload failed — make sure the avatars bucket exists in Supabase Storage"); return; }
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = `${publicUrl}?t=${Date.now()}`;
+      await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      setProfile(p => p ? { ...p, avatar_url: url } : p);
+      notify("Profile photo updated!");
+    } catch {
+      notify("Upload failed — please try again");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleFollow = async () => {
     if (!requireAuth()) return;
     setLoadingFollow(true);
@@ -2808,7 +2831,7 @@ export default function App() {
     // profile
     profile, setProfile, coins, setCoins, coinsRef,
     firstName, initials, editProfile, setEditProfile,
-    profileMsg, savingProfile, handleSaveProfile,
+    profileMsg, savingProfile, handleSaveProfile, uploadAvatar, uploadingAvatar,
     referralCode,
     // stream
     stream, setStream, sess, setSess, viewerCount,

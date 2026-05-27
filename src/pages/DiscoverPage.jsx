@@ -79,8 +79,11 @@ export default function DiscoverPage() {
               const ini = s.profiles?.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
               return (
                 <div key={s.id} className="sb-ch" onClick={() => go("stream", fs)}>
-                  <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)` }}>
-                    {ini}
+                  <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)`, overflow: "hidden", padding: 0 }}>
+                    {s.profiles?.avatar_url
+                      ? <img src={s.profiles.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      : ini
+                    }
                     <span className="sb-live-dot" />
                   </div>
                   <div className="sb-ch-info">
@@ -95,7 +98,12 @@ export default function DiscoverPage() {
               const ini = sp.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
               return (
                 <div key={sp.id} className="sb-ch" style={{ opacity: .45 }} onClick={() => viewChannel(sp.id)}>
-                  <div className="sb-ch-av" style={{ background: "var(--ink4)", color: "var(--muted)" }}>{ini}</div>
+                  <div className="sb-ch-av" style={{ background: "var(--ink4)", color: "var(--muted)", overflow: "hidden", padding: 0 }}>
+                    {sp.avatar_url
+                      ? <img src={sp.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      : ini
+                    }
+                  </div>
                   <div className="sb-ch-info">
                     <div className="sb-ch-name">{sp.full_name || sp.username}</div>
                     <div className="sb-ch-sub">Offline</div>

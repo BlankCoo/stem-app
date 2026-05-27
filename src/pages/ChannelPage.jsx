@@ -18,8 +18,11 @@ export default function ChannelPage() {
     <div className="page" style={{ maxWidth: 760, margin: "0 auto", paddingTop: 16 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
-        <div style={{ width: 72, height: 72, borderRadius: 18, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, flexShrink: 0 }}>
-          {channelUser.full_name?.charAt(0) || "?"}
+        <div style={{ width: 72, height: 72, borderRadius: 18, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+          {channelUser.avatar_url
+            ? <img src={channelUser.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            : (channelUser.full_name?.charAt(0) || "?")
+          }
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>

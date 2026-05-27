@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 
 export default function NavBar() {
   const {
-    go, page, user, isApp, mode, coins, initials,
+    go, page, user, isApp, mode, coins, initials, profile,
     search, setSearch, setAuthMode,
     showNotifs, setShowNotifs, unreadNotifs, setUnreadNotifs,
     notifications, liveStreams, formatDbStream, viewChannel,
@@ -64,7 +64,12 @@ export default function NavBar() {
               )}
             </div>
             <div className="coin-badge" onClick={() => go("wallet")}>🪙 {coins.toLocaleString()}</div>
-            <div className="av" onClick={() => go("profile")}>{initials}</div>
+            <div className="av" onClick={() => go("profile")} style={{ padding: 0, overflow: "hidden" }}>
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                : initials
+              }
+            </div>
           </>}
           {!user && <>
             <button className="btn-o" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useApp } from "../AppContext";
 
 export default function ProfilePage() {
@@ -8,21 +9,37 @@ export default function ProfilePage() {
     editProfile, setEditProfile,
     profileMsg, savingProfile,
     handleSaveProfile, handleLogout, switchMode,
+    uploadAvatar, uploadingAvatar,
   } = useApp();
+
+  const fileRef = useRef(null);
 
   return (
     <div className="profile-page page">
       <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>My Profile</div>
       <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 28 }}>Manage your account and view your stats</div>
       <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div className="profile-avatar">{initials}</div>
+        {/* Avatar */}
+        <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
+          {profile?.avatar_url
+            ? <img src={profile.avatar_url} alt="avatar" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,.12)", display: "block" }} />
+            : <div className="profile-avatar">{initials}</div>
+          }
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadingAvatar}
+            style={{ position: "absolute", bottom: 0, right: 0, background: "var(--purple)", border: "2px solid var(--ink)", color: "#fff", borderRadius: "50%", width: 26, height: 26, fontSize: 13, cursor: uploadingAvatar ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: uploadingAvatar ? 0.6 : 1 }}
+          >
+            {uploadingAvatar ? "…" : "✎"}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ""; }} />
+        </div>
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{profile?.full_name || "Your Name"}</div>
         <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>@{profile?.username || "username"}</div>
         {profile?.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.6)", marginBottom: 8, maxWidth: 300, margin: "0 auto 10px" }}>{profile.bio}</div>}
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: profile?.role === "streamer" ? "rgba(124,58,237,.1)" : "rgba(0,245,160,.1)", border: profile?.role === "streamer" ? "1px solid rgba(124,58,237,.3)" : "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, color: profile?.role === "streamer" ? "var(--purple)" : "var(--green)" }}>
           {profile?.role === "streamer" ? "🎙 Streamer" : "👁 Viewer"}
         </div>
-        {/* Tier badge */}
         {(() => {
           const ti = mode === "viewer" ? (VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest) : (streamerTier !== "none" ? STREAMER_TIER_INFO[streamerTier] : null);
           if (!ti) return null;
