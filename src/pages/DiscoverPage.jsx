@@ -7,7 +7,10 @@ function LiveCard({ s }) {
   return (
     <div className="lgc" onClick={() => go("stream", s)}>
       <div className="lgc-thumb">
-        <div className="lgc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
+        {s.thumbnail_url
+          ? <img src={s.thumbnail_url} alt={s.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} />
+          : <div className="lgc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
+        }
         <div className="lgc-ov" />
         <span className="lgc-emoji">{s.emoji}</span>
         <span className="lgc-live-badge"><span className="lgc-live-dot" />LIVE</span>

@@ -4,6 +4,7 @@ export default function AdminPage() {
   const {
     user, adminWithdrawals, loadingAdmin,
     fetchAdminWithdrawals, approveWithdrawal, rejectWithdrawal,
+    reports, loadingReports, fetchReports, resolveReport,
   } = useApp();
 
   if (user?.email !== "blankcoojnr@gmail.com") return null;
@@ -55,6 +56,55 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {/* Reports */}
+      <div className="panel" style={{ marginTop: 24 }}>
+        <div className="panel-hd">
+          <span className="panel-title">⚑ Reports</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 700 }}>{reports.filter(r => r.status === "pending").length} pending</span>
+            <button onClick={fetchReports} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+          </div>
+        </div>
+        {loadingReports ? (
+          <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+        ) : reports.length === 0 ? (
+          <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
+            <div style={{ fontSize: 13 }}>No reports yet.</div>
+          </div>
+        ) : (
+          <div>
+            {reports.map(r => {
+              const sc = { pending: "var(--orange)", approved: "var(--green)", dismissed: "var(--muted)" };
+              const typeIcon = { stream: "📺", message: "💬", user: "👤" };
+              return (
+                <div key={r.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 16 }}>{typeIcon[r.type] || "⚑"}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: .5 }}>{r.type} report</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: sc[r.status], background: `${sc[r.status]}18`, border: `1px solid ${sc[r.status]}44`, borderRadius: 20, padding: "2px 10px" }}>{r.status}</span>
+                      </div>
+                      {r.target_meta?.title && <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{r.target_meta.title}</div>}
+                      {r.target_meta?.author && <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>From: {r.target_meta.author}</div>}
+                      {r.target_meta?.message && <div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", marginBottom: 4 }}>"{r.target_meta.message}"</div>}
+                      <div style={{ fontSize: 13, color: "#fff", marginBottom: 4 }}>{r.reason}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{new Date(r.created_at).toLocaleString()}</div>
+                    </div>
+                    {r.status === "pending" && (
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => resolveReport(r.id, "approved")} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                        <button onClick={() => resolveReport(r.id, "dismissed")} style={{ background: "rgba(255,255,255,.06)", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Dismiss</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

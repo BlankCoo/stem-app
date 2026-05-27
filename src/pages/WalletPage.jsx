@@ -45,6 +45,18 @@ export default function WalletPage() {
         </div>
       </div>
 
+      {/* Buy Coins */}
+      <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,149,0,.05))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ fontSize: 32 }}>🪙</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>Buy Coins</div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Top up your coin balance instantly. Purchase coins to gift streamers, place predictions, and subscribe.</div>
+        </div>
+        <button disabled style={{ background: "linear-gradient(135deg,rgba(255,200,0,.2),rgba(255,149,0,.15))", border: "1px solid rgba(255,200,0,.3)", color: "var(--gold)", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "not-allowed", flexShrink: 0, opacity: .8 }}>
+          Coming Soon
+        </button>
+      </div>
+
       {/* Viewer Tier Card */}
       {mode === "viewer" && (() => {
         const ti = VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest;

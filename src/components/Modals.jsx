@@ -18,6 +18,8 @@ export default function Modals() {
     toast,
     showSubTierPicker, setShowSubTierPicker, SUB_TIERS, handleSubscribe,
     streamRecap, setStreamRecap,
+    showReportModal, setShowReportModal, reportType, reportTargetMeta,
+    reportReason, setReportReason, submitReport, submittingReport,
   } = useApp();
 
   return (
@@ -352,6 +354,35 @@ export default function Modals() {
               </div>
             )}
             <button onClick={() => setStreamRecap(null)} className="btn-g" style={{ width: "100%" }}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT MODAL */}
+      {showReportModal && (
+        <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <div className="modal-title">⚑ Submit a Report</div>
+            <div className="modal-sub" style={{ marginBottom: 16 }}>
+              {reportType === "stream" && `Reporting stream${reportTargetMeta?.title ? `: "${reportTargetMeta.title}"` : ""}`}
+              {reportType === "message" && `Reporting message from ${reportTargetMeta?.author || "user"}`}
+              {reportType === "user" && `Reporting user ${reportTargetMeta?.username || ""}`}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+              {["Spam or scam", "Hate speech", "Harassment", "Inappropriate content", "Impersonation", "Other"].map(r => (
+                <button key={r} onClick={() => setReportReason(r)} style={{ background: reportReason === r ? "rgba(124,58,237,.2)" : "var(--ink3)", border: `1px solid ${reportReason === r ? "rgba(124,58,237,.5)" : "var(--line)"}`, color: reportReason === r ? "var(--purple)" : "var(--muted)", borderRadius: 20, padding: "5px 12px", fontSize: 12, cursor: "pointer" }}>{r}</button>
+              ))}
+            </div>
+            <textarea
+              placeholder="Add more detail (optional)..."
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              style={{ width: "100%", background: "var(--ink4)", border: "1px solid var(--line2)", borderRadius: 10, color: "#fff", padding: "10px 12px", fontSize: 13, outline: "none", resize: "vertical", minHeight: 80, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 14 }}
+            />
+            <button onClick={submitReport} disabled={submittingReport || !reportReason.trim()} className="btn-g" style={{ width: "100%", opacity: !reportReason.trim() ? .5 : 1 }}>
+              {submittingReport ? "Submitting…" : "Submit Report"}
+            </button>
+            <button onClick={() => setShowReportModal(false)} style={{ width: "100%", marginTop: 8, background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", padding: 8 }}>Cancel</button>
           </div>
         </div>
       )}

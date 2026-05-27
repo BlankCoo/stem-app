@@ -24,6 +24,17 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer style={{ borderTop: "1px solid var(--line)", padding: "32px 24px", textAlign: "center" }}>
+        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: 2, background: "linear-gradient(90deg,var(--purple),var(--red))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 16 }}>STEM</div>
+        <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <button onClick={() => go("tos")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>Terms of Service</button>
+          <button onClick={() => go("privacy")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>Privacy Policy</button>
+          <a href="mailto:support@stemapp.online" style={{ color: "var(--muted)", fontSize: 13, textDecoration: "none" }}>Contact</a>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--muted)", opacity: .6 }}>© 2026 STEM. All rights reserved.</div>
+      </footer>
     </div>
   );
 }

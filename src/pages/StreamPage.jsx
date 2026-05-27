@@ -24,6 +24,7 @@ export default function StreamPage() {
     msg, setMsg, sendChat, isBannedFromChannel, viewerTier,
     setShowSignupPrompt, setAuthMode,
     editingStreamInfo, setEditingStreamInfo, streamInfoDraft, setStreamInfoDraft, updateStreamInfo,
+    openReport,
   } = useApp();
 
   return (
@@ -95,6 +96,9 @@ export default function StreamPage() {
             </button>
             <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
             <button className="abtn" onClick={() => { if (!user) { setShowSignupPrompt(true); return; } setShowClipModal(true); }}>✂ Clip</button>
+            {stream.user_id && stream.user_id !== user?.id && (
+              <button className="abtn" style={{ color: "var(--muted)" }} onClick={() => openReport("stream", stream.id || stream.user_id, { title: stream.title, streamer: stream.streamer })}>⚑ Report</button>
+            )}
             {stream.user_id && stream.user_id !== user?.id && (
               <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={() => isSubscribed ? null : setShowSubTierPicker(true)} disabled={subscribing || isSubscribed}>
                 {isSubscribed ? `⭐ Subscribed` : subscribing ? "…" : "⭐ Subscribe"}

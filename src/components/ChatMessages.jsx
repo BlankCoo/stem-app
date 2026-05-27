@@ -4,7 +4,7 @@ export default function ChatMessages() {
   const {
     chat, chatBans, user, isStreamOwner,
     viewVProfile, parseMessage, msgMenuId, setMsgMenuId,
-    timeoutUser, banUser,
+    timeoutUser, banUser, openReport,
   } = useApp();
 
   return (
@@ -27,16 +27,22 @@ export default function ChatMessages() {
                 onClick={() => m.uid && viewVProfile(m.uid)}>{m.a}</span>
               <span className="cmsg-t" style={{ marginLeft: 6 }}>{parseMessage(m.t)}</span>
             </div>
-            {isStreamOwner && m.uid && m.uid !== user.id && (
+            {user && m.uid && m.uid !== user.id && (
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <button onClick={() => setMsgMenuId(msgMenuId === i ? null : i)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px" }}>⋮</button>
                 {msgMenuId === i && (
                   <>
                     <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setMsgMenuId(null)} />
                     <div className="mod-menu">
-                      <button className="mod-menu-btn" style={{ color: "var(--orange)" }} onClick={() => timeoutUser(m.uid, m.a, 5)}>Timeout 5 min</button>
-                      <button className="mod-menu-btn" style={{ color: "var(--orange)", borderTop: "1px solid var(--line)" }} onClick={() => timeoutUser(m.uid, m.a, 60)}>Timeout 1 hr</button>
-                      <button className="mod-menu-btn" style={{ color: "var(--red)", borderTop: "1px solid var(--line)" }} onClick={() => banUser(m.uid, m.a)}>Ban User</button>
+                      {isStreamOwner && <>
+                        <button className="mod-menu-btn" style={{ color: "var(--orange)" }} onClick={() => timeoutUser(m.uid, m.a, 5)}>Timeout 5 min</button>
+                        <button className="mod-menu-btn" style={{ color: "var(--orange)", borderTop: "1px solid var(--line)" }} onClick={() => timeoutUser(m.uid, m.a, 60)}>Timeout 1 hr</button>
+                        <button className="mod-menu-btn" style={{ color: "var(--red)", borderTop: "1px solid var(--line)" }} onClick={() => banUser(m.uid, m.a)}>Ban User</button>
+                        <button className="mod-menu-btn" style={{ color: "var(--muted)", borderTop: "1px solid var(--line)" }} onClick={() => { setMsgMenuId(null); openReport("message", m.uid, { author: m.a, message: m.t }); }}>Report Message</button>
+                      </>}
+                      {!isStreamOwner && (
+                        <button className="mod-menu-btn" style={{ color: "var(--muted)" }} onClick={() => { setMsgMenuId(null); openReport("message", m.uid, { author: m.a, message: m.t }); }}>Report Message</button>
+                      )}
                     </div>
                   </>
                 )}

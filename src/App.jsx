@@ -17,6 +17,8 @@ const AdminPage      = lazy(() => import("./pages/AdminPage"));
 const ClipsPage      = lazy(() => import("./pages/ClipsPage"));
 const ViewerProfilePage = lazy(() => import("./pages/ViewerProfilePage"));
 const ChannelPage    = lazy(() => import("./pages/ChannelPage"));
+const TermsPage      = lazy(() => import("./pages/TermsPage"));
+const PrivacyPage    = lazy(() => import("./pages/PrivacyPage"));
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
 
@@ -714,6 +716,16 @@ export default function App() {
   const [adRevenue, setAdRevenue] = useState(0);
   // Discover sort mode
   const [discoverSort, setDiscoverSort] = useState("top");
+
+  // Reports
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState("stream");
+  const [reportTargetId, setReportTargetId] = useState("");
+  const [reportTargetMeta, setReportTargetMeta] = useState({});
+  const [reportReason, setReportReason] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
@@ -1518,6 +1530,30 @@ export default function App() {
   };
 
   // â”€â”€ Clip Voting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Reports
+  const openReport = (type, targetId, targetMeta = {}) => {
+    if (!user) { setShowSignupPrompt(true); return; }
+    setReportType(type); setReportTargetId(targetId); setReportTargetMeta(targetMeta); setReportReason(""); setShowReportModal(true);
+  };
+  const submitReport = async () => {
+    if (!reportReason.trim()) { notify("Please describe the issue"); return; }
+    setSubmittingReport(true);
+    const { error } = await supabase.from("reports").insert({ reporter_id: user.id, type: reportType, target_id: reportTargetId, target_meta: reportTargetMeta, reason: reportReason.trim() });
+    setSubmittingReport(false);
+    if (error) { notify("Failed to submit report"); return; }
+    setShowReportModal(false); notify("Report submitted — we'll review it shortly");
+  };
+  const fetchReports = async () => {
+    setLoadingReports(true);
+    const { data } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
+    if (data) setReports(data);
+    setLoadingReports(false);
+  };
+  const resolveReport = async (id, status) => {
+    await supabase.from("reports").update({ status }).eq("id", id);
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+
   const fetchMyClipVotes = async () => {
     if (!user) return;
     const { data } = await supabase.from("clip_votes").select("clip_id,vote").eq("user_id", user.id);
@@ -2018,7 +2054,7 @@ export default function App() {
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
-    if (page === "admin" && user?.email === "blankcoojnr@gmail.com") fetchAdminWithdrawals();
+    if (page === "admin" && user?.email === "blankcoojnr@gmail.com") { fetchAdminWithdrawals(); fetchReports(); }
     if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); }
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
@@ -2280,6 +2316,7 @@ export default function App() {
         viewer_count: 0,
         mux_stream_id: streamId,
         mux_playback_id: playbackId,
+        thumbnail_url: `https://image.mux.com/${playbackId}/thumbnail.png`,
         started_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
@@ -2632,6 +2669,11 @@ export default function App() {
     // admin
     adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
     approveWithdrawal, rejectWithdrawal,
+    // reports
+    reports, loadingReports, fetchReports, resolveReport,
+    showReportModal, setShowReportModal,
+    reportReason, setReportReason, reportType, reportTargetMeta,
+    openReport, submitReport, submittingReport,
     // constants
     DEMO_STREAMS, ACHIEVEMENTS, CAT_META, STREAM_CATS,
   };
@@ -2654,6 +2696,8 @@ export default function App() {
       {page === "clips"    && <ClipsPage />}
       {page === "vprofile" && <ViewerProfilePage />}
       {page === "channel"  && channelUser && <ChannelPage />}
+      {page === "tos"      && <TermsPage />}
+      {page === "privacy"  && <PrivacyPage />}
     </Suspense>
 
     <Modals />
