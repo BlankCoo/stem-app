@@ -40,7 +40,7 @@ export default function DiscoverPage() {
     discoverSort, setDiscoverSort, discTab, setDiscTab,
     upcomingSchedule, allClips, myClipVotes, voteClip,
     featuredPreds, user, mode, setAuthMode, notify,
-    DEMO_STREAMS, CAT_META, searchProfiles, page,
+    CAT_META, searchProfiles, page, setShowGoLive, DEMO_STREAMS,
   } = useApp();
 
   // Sidebar channel list
@@ -130,24 +130,12 @@ export default function DiscoverPage() {
           </>
         )}
 
-        {/* Demo streams in sidebar when nothing real */}
+        {/* No real streams live */}
         {!showFollowing && sidebarRec.length === 0 && (
-          <>
-            <div className="sb-hd">Recommended</div>
-            {DEMO_STREAMS.slice(0, 6).map(s => (
-              <div key={s.id} className="sb-ch" onClick={() => go("stream", s)}>
-                <div className="sb-ch-av" style={{ background: `linear-gradient(${s.bg})` }}>
-                  {s.emoji}
-                  <span className="sb-live-dot" />
-                </div>
-                <div className="sb-ch-info">
-                  <div className="sb-ch-name">{s.streamer}</div>
-                  <div className="sb-ch-sub">{s.game}</div>
-                </div>
-                <div className="sb-ch-vc">{s.viewers.toLocaleString()}</div>
-              </div>
-            ))}
-          </>
+          <div style={{ padding: "20px 16px", textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8, opacity: .5 }}>📡</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>No streams live right now</div>
+          </div>
         )}
       </div>
 
@@ -231,6 +219,36 @@ export default function DiscoverPage() {
         {/* ── HOME CONTENT (no search, no category filter) ── */}
         {!search && cat === "All" && (
           <>
+            {/* EMPTY STATE — no real streams live */}
+            {allStreams.length === 0 && (
+              <div style={{ padding: "56px 24px 40px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
+                <div style={{ fontSize: 60, marginBottom: 18, opacity: .75 }}>📡</div>
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 30, letterSpacing: 1, marginBottom: 10 }}>No streams live right now</div>
+                <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 28 }}>
+                  {mode === "streamer"
+                    ? "Go live and be the first — your viewers earn coins just from watching, which brings more people in."
+                    : "Check back soon. Or sign up and follow streamers to get notified the moment they go live."}
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  {mode === "streamer" && user && (
+                    <button className="btn-g" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => setShowGoLive(true)}>🔴 Go Live Now</button>
+                  )}
+                  {mode === "viewer" && user && (
+                    <>
+                      <button className="btn-g" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => go("clips")}>🎬 Watch Clips</button>
+                      <button className="btn-o" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => go("leaderboard")}>🏆 Top Earners</button>
+                    </>
+                  )}
+                  {!user && (
+                    <>
+                      <button className="btn-g" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
+                      <button className="btn-o" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => go("clips")}>🎬 Watch Clips</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* FEATURED HERO BANNER */}
             {allStreams.length > 0 && (() => {
               const hero = allStreams[0];

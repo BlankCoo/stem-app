@@ -2487,7 +2487,7 @@ export default function App() {
     };
   };
 
-  const allStreams = [...liveStreams.map(formatDbStream), ...DEMO_STREAMS];
+  const allStreams = liveStreams.map(formatDbStream);
 
   const filteredStreams = allStreams.filter(s => {
     const matchCat = cat === "All" || s.game === cat || s.game.includes(cat);
