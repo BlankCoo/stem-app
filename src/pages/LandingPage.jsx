@@ -1,7 +1,7 @@
 import { useApp } from "../AppContext";
 
 export default function LandingPage() {
-  const { go, setAuthMode, setRole } = useApp();
+  const { go, setAuthMode, setRole, liveStreams, landingStats } = useApp();
   return (
     <div style={{ paddingTop: 56 }}>
       <div className="hero">
@@ -18,7 +18,11 @@ export default function LandingPage() {
             <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => { setRole("streamer"); setAuthMode("signup"); go("auth"); }}>I am a Streamer</button>
           </div>
           <div className="hero-stats">
-            {[["2,841", "Streams live"], ["$48K", "Paid today"], ["127K", "Earning"]].map(([v, l]) => (
+            {[
+              [liveStreams.length > 0 ? liveStreams.length.toLocaleString() : "—", "Streams live"],
+              [landingStats.members > 0 ? landingStats.members.toLocaleString() : "—", "Members"],
+              [landingStats.totalEarned > 0 ? `$${(landingStats.totalEarned / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—", "Paid out"],
+            ].map(([v, l]) => (
               <div key={l} className="hstat"><div className="hstat-v">{v}</div><div className="hstat-l">{l}</div></div>
             ))}
           </div>

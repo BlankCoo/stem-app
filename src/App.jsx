@@ -549,6 +549,7 @@ export default function App() {
 
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
+  const [landingStats, setLandingStats] = useState({ members: 0, totalEarned: 0 });
   const [discTab, setDiscTab] = useState("all");
   const [featuredPreds, setFeaturedPreds] = useState([]);
   const [searchProfiles, setSearchProfiles] = useState([]);
@@ -794,6 +795,7 @@ export default function App() {
     // don't trigger a full refetch on every tick
     fetchLiveStreams();
     fetchFeaturedPredictions();
+    fetchLandingStats();
     let streamsDebounce = null;
     const streamCh = supabase.channel("live-streams")
       .on("postgres_changes", { event: "*", schema: "public", table: "streams" }, () => {
@@ -892,6 +894,18 @@ export default function App() {
       .eq("status", "live")
       .order("viewer_count", { ascending: false });
     if (data) setLiveStreams(data);
+  };
+
+  const fetchLandingStats = async () => {
+    const [countRes, earnedRes] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("total_earned"),
+    ]);
+    const members = countRes.count || 0;
+    const totalEarned = earnedRes.data
+      ? earnedRes.data.reduce((sum, r) => sum + (r.total_earned || 0), 0)
+      : 0;
+    setLandingStats({ members, totalEarned });
   };
 
   const fetchFeaturedPredictions = async () => {
@@ -1252,7 +1266,7 @@ export default function App() {
     const avgPeakViewers = peaks.length > 0 ? Math.round(peaks.reduce((a, b) => a + b, 0) / peaks.length) : 0;
 
     setStreamerAnalytics({
-      streamCount: recentStreams.length,
+      streamCount: streamIdsRes.data?.length || 0,
       peakViewers,
       avgPeakViewers,
       newFollowers30d: newFollowersRes.count || 0,
@@ -1601,7 +1615,7 @@ export default function App() {
   const clearChat = async () => {
     if (!stream?.id) return;
     await supabase.from("messages").delete().eq("stream_id", stream.id);
-    setMessages([]);
+    setChat([]);
     notify("Chat cleared");
   };
 
@@ -2447,6 +2461,7 @@ export default function App() {
       bg: meta.bg,
       isRealStream: true,
       mux_playback_id: s.mux_playback_id || null,
+      thumbnail_url: s.thumbnail_url || null,
       started_at: s.started_at || null,
     };
   };
@@ -2589,7 +2604,7 @@ export default function App() {
     streamAlert, isStreamOwner, isStreaming,
     editingStreamInfo, setEditingStreamInfo, streamInfoDraft, setStreamInfoDraft, updateStreamInfo,
     // discover / search
-    liveStreams, myFollows, setMyFollows, followedStreamers,
+    liveStreams, landingStats, myFollows, setMyFollows, followedStreamers,
     cat, setCat, search, setSearch,
     allStreams, filteredStreams, formatDbStream,
     discoverSort, setDiscoverSort, discTab, setDiscTab,
