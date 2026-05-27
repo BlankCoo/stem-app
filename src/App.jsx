@@ -825,6 +825,12 @@ export default function App() {
   const fetchProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) {
+      if (!data.referral_code) {
+        const base = (data.username || userId.slice(0, 8)).toUpperCase().slice(0, 8);
+        const refCode = `${base}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        await supabase.from("profiles").update({ referral_code: refCode }).eq("id", userId);
+        data.referral_code = refCode;
+      }
       setProfile(data);
       const c = data.coins || 0;
       setCoins(c);
@@ -1049,11 +1055,12 @@ export default function App() {
     const rc = (referrer.coins || 0) + 500;
     await supabase.from("profiles").update({ coins: rc, referral_count: (referrer.referral_count || 0) + 1 }).eq("id", referrer.id);
     await supabase.from("transactions").insert({ user_id: referrer.id, type: "referral_reward", amount: 500, description: `${newUserName} signed up with your referral link` });
+    await supabase.from("notifications").insert({ user_id: referrer.id, title: `${newUserName} joined STEM!`, body: "They used your referral link — you earned 500 coins! 🎉", data: { type: "referral" }, read: false });
     // Reward new user (on top of signup bonus)
     await supabase.from("profiles").update({ referred_by: ref, coins: startCoins + 500 }).eq("id", newUserId);
     await supabase.from("transactions").insert({ user_id: newUserId, type: "referral_bonus", amount: 500, description: "Joined via referral link" });
     sessionStorage.removeItem("stem_ref");
-    notify("ðŸŽ‰ Referral bonus! You and your friend both earned 500 coins!");
+    notify("🎉 Referral bonus! You and your friend both earned 500 coins!");
     return startCoins + 500;
   };
 

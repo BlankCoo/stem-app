@@ -403,6 +403,7 @@ export default function Modals() {
                 ["📺", "Watch & Earn Coins", "Every minute you watch earns coins. Chat, follow streamers, and create clips for bonus coins."],
                 ["🪙", "Coins = Real Money", "1,000 coins = $1.00. Your balance grows every session — no tricks, no expiry."],
                 ["💸", "Withdraw Anytime", "Reach 20,000 coins ($20 minimum) and get paid via PayPal within 24 hours."],
+                ["🔗", "Invite Friends, Earn Together", "Share your referral link from Wallet — you and every friend you invite both earn 500 coins."],
               ].map(([icon, title, desc]) => (
                 <div key={title} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "rgba(255,255,255,.04)", border: "1px solid var(--line)", borderRadius: 14, padding: "13px 15px" }}>
                   <div style={{ fontSize: 26, flexShrink: 0, marginTop: 1 }}>{icon}</div>

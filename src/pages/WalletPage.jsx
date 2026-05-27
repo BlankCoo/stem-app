@@ -196,7 +196,7 @@ export default function WalletPage() {
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>Referral code not set — log out and back in to generate one.</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Generating your referral code… refresh the page in a moment.</div>
           )}
         </div>
       </div>
