@@ -107,6 +107,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .hero-stats{display:flex;flex-wrap:wrap;gap:16px}
 .hstat{padding-right:20px;border-right:1px solid rgba(255,255,255,.1)}
 .hstat:last-child{border-right:none;padding-right:0}
+.hstat:last-child{border-right:none;padding-right:0}
 .hstat-v{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.5px;background:linear-gradient(90deg,#fff,rgba(255,255,255,.65));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hstat-l{font-size:11px;color:var(--muted);margin-top:2px}
 .disc-page{padding:20px 16px;padding-bottom:80px;max-width:1400px;margin:0 auto}
@@ -274,10 +275,16 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
   .leaderboard-page{padding:32px 44px;max-width:700px}
 }
 @media(max-width:767px){
-  .bottom-nav{display:block}
+  .bottom-nav{display:block;padding-bottom:max(12px,env(safe-area-inset-bottom))}
   .nav-c{display:none}
   .chat-panel-desktop{display:none}
   .hero{padding:30px 16px;min-height:calc(100vh - 56px)}
+  .modal-box{padding:20px 16px}
+  .ecells{grid-template-columns:1fr 1fr}
+  .abtn{padding:9px 12px}
+  .chat-send{width:44px;height:44px;font-size:18px}
+  .fs-btn{width:44px;height:44px}
+  .recap-box,.tier-picker-box{padding:20px 16px}
 }
 @keyframes giftFloat{0%{opacity:1;transform:translateY(0) scale(1)}60%{opacity:1;transform:translateY(-180px) scale(1.3)}100%{opacity:0;transform:translateY(-340px) scale(0.9)}}
 .gift-anim-wrap{position:fixed;inset:0;pointer-events:none;z-index:8000;overflow:hidden}

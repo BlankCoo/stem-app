@@ -31,7 +31,7 @@ export default function ViewerProfilePage() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, color: "var(--green)" }}>👁 Viewer</div>
           </div>
           {/* Stat grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 22 }}>
             {[["🪙", vCoins.toLocaleString(), "Coins"], ["🔥", `${vStreak}d`, "Streak"], ["💸", `$${(vCoins/1000).toFixed(2)}`, "Value"]].map(([icon, v, l]) => (
               <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
