@@ -93,8 +93,8 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .bn-icon{font-size:20px}
 .bn-label{font-size:10px;font-weight:600}
 .hero{position:relative;min-height:calc(100vh - 56px);display:flex;align-items:center;padding:40px 20px;overflow:hidden}
-.hero-mesh{position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(255,45,85,.12) 50%,rgba(255,149,0,.08))}
-.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:60px 60px}
+.hero-mesh{position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(255,45,85,.12) 50%,rgba(255,149,0,.08));pointer-events:none}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
 .hero-orb1{position:absolute;top:-80px;left:-80px;width:350px;height:350px;background:radial-gradient(circle,rgba(124,58,237,.35),transparent 70%);pointer-events:none}
 .hero-orb2{position:absolute;bottom:-60px;right:5%;width:280px;height:280px;background:radial-gradient(circle,rgba(255,45,85,.25),transparent 70%);pointer-events:none}
 .hero-content{position:relative;z-index:2;max-width:660px;width:100%}
@@ -510,7 +510,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 export default function App() {
   const [page, setPage] = useState("land");
   const [authReady, setAuthReady] = useState(false);
-  const [mode, setMode] = useState("viewer");
+  const [mode, setMode] = useState(() => localStorage.getItem("stem_mode") || "viewer");
   const [role, setRole] = useState("viewer");
   const [cat, setCat] = useState("All");
   const [search, setSearch] = useState("");
@@ -605,6 +605,9 @@ export default function App() {
   const [clipTitle, setClipTitle] = useState("");
   const [savingClip, setSavingClip] = useState(false);
 
+
+  // Buy Coins
+  const [buyingCoins, setBuyingCoins] = useState(false);
 
   // Withdrawals
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -774,12 +777,18 @@ export default function App() {
 
   // Auth init + streams subscription
   useEffect(() => {
-    const refParam = new URLSearchParams(window.location.search).get("ref");
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get("ref");
     if (refParam) sessionStorage.setItem("stem_ref", refParam);
-    const streamParam = new URLSearchParams(window.location.search).get("s");
+    const streamParam = params.get("s");
     if (streamParam) {
       sessionStorage.setItem("stem_deep_stream", streamParam);
       window.history.replaceState({}, "", window.location.pathname);
+    }
+    const coinsPurchased = parseInt(params.get("coins_purchased") || "0", 10);
+    if (coinsPurchased > 0) {
+      window.history.replaceState({}, "", window.location.pathname);
+      sessionStorage.setItem("stem_coins_purchased", String(coinsPurchased));
     }
 
     // getSession is the authoritative initial check â€” sets authReady when done
@@ -811,7 +820,7 @@ export default function App() {
         setShowScheduleModal(false); setShowGoLive(false); setShowEmotePicker(false);
         setShowWithdrawModal(false); setWithdrawHistory([]);
         setChatBans(new Set()); setSlowModeSecs(0); setSlowCooldown(0); setSubOnly(false);
-        setVProfile(null); setGiftAnims([]); setPage("land");
+        setVProfile(null); setGiftAnims([]); setPage("land"); setAuthMode("login");
       }
     });
 
@@ -887,7 +896,9 @@ export default function App() {
       const c = data.coins || 0;
       setCoins(c);
       coinsRef.current = c;
-      setMode(data.role || "viewer");
+      const resolvedMode = data.role || "viewer";
+      setMode(resolvedMode);
+      localStorage.setItem("stem_mode", resolvedMode);
       setStreakDays(data.streak_days || 0);
       setReferralCode(data.referral_code || "");
       setEditProfile({ fullName: data.full_name || "", username: data.username || "", bio: data.bio || "", twitter: data.social_twitter || "", instagram: data.social_instagram || "", youtube: data.social_youtube || "", tiktok: data.social_tiktok || "" });
@@ -903,6 +914,13 @@ export default function App() {
       localStorage.setItem("stem_viewer_tier", newViewerTier);
       setViewerTier(newViewerTier);
       setStreamerTier(computeStreamerTier(data));
+      // Handle Stripe success redirect
+      const pending = sessionStorage.getItem("stem_coins_purchased");
+      if (pending) {
+        sessionStorage.removeItem("stem_coins_purchased");
+        const n = parseInt(pending, 10);
+        if (n > 0) setTimeout(() => notify(`🪙 ${n.toLocaleString()} coins added to your wallet!`), 800);
+      }
     }
     return data;
   };
@@ -1187,6 +1205,33 @@ export default function App() {
 
 
   // â”€â”€ Withdrawals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const COIN_PACKAGES = [
+    { id: "starter", coins: 1000,  price: "$0.99",  label: "Starter",  bonus: 0 },
+    { id: "popular", coins: 5500,  price: "$4.49",  label: "Popular",  bonus: 500,  tag: "Best Value" },
+    { id: "value",   coins: 12000, price: "$7.99",  label: "Value",    bonus: 2000, tag: "20% Bonus" },
+    { id: "mega",    coins: 55000, price: "$29.99", label: "Mega",     bonus: 5000, tag: "Top Pick" },
+  ];
+
+  const handleBuyCoins = async (packageId) => {
+    if (!user) { go("auth"); return; }
+    setBuyingCoins(packageId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ packageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { notify(data.error || "Could not start checkout"); return; }
+      window.location.href = data.url;
+    } catch {
+      notify("Network error — please try again");
+    } finally {
+      setBuyingCoins(false);
+    }
+  };
+
   const fetchWithdrawHistory = async () => {
     if (!user) return;
     const { data } = await supabase.from("withdrawal_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
@@ -1390,7 +1435,14 @@ export default function App() {
     setSubscribing(true);
     const nc = coinsRef.current - t.cost;
     setCoins(nc); coinsRef.current = nc;
+    // 70% goes to streamer, 30% platform cut
+    const streamerCut = Math.floor(t.cost * 0.7);
     supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
+    const { data: sp } = await supabase.from("profiles").select("coins").eq("id", stream.user_id).single();
+    if (sp) {
+      await supabase.from("profiles").update({ coins: (sp.coins || 0) + streamerCut }).eq("id", stream.user_id);
+      await supabase.from("transactions").insert({ user_id: stream.user_id, type: "sub_income", amount: streamerCut, description: `${t.label} sub from ${profile?.username || "viewer"}` });
+    }
     await supabase.from("subscriptions").upsert({
       subscriber_id: user.id, streamer_id: stream.user_id, tier,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -2436,6 +2488,14 @@ export default function App() {
       content: `Sent a ${name}!`, color: "#ffc800", is_superchat: true, coins_spent: c,
     });
     logTransaction("gift_sent", -c, `Sent ${name} to ${stream.streamer}`);
+    // Credit streamer
+    if (stream?.user_id) {
+      const { data: sp } = await supabase.from("profiles").select("coins").eq("id", stream.user_id).single();
+      if (sp) {
+        await supabase.from("profiles").update({ coins: (sp.coins || 0) + c }).eq("id", stream.user_id);
+        await supabase.from("transactions").insert({ user_id: stream.user_id, type: "gift_received", amount: c, description: `${name} from ${profile?.username || "viewer"}` });
+      }
+    }
     notify(`${name} sent!`);
     triggerGiftAnim(emoji, name);
     showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} sent a ${name}!`, emoji, `${c.toLocaleString()} coins`);
@@ -2559,6 +2619,7 @@ export default function App() {
 
   const switchMode = async (newMode) => {
     setMode(newMode);
+    localStorage.setItem("stem_mode", newMode);
     if (profile && user) {
       await supabase.from("profiles").update({ role: newMode }).eq("id", user.id);
       setProfile(p => ({ ...p, role: newMode }));
@@ -2822,6 +2883,7 @@ export default function App() {
     showWithdrawModal, setShowWithdrawModal,
     withdrawCoins, setWithdrawCoins, withdrawPaypal, setWithdrawPaypal,
     handleWithdraw, processingWithdraw,
+    COIN_PACKAGES, handleBuyCoins, buyingCoins,
     // tier system
     viewerTier, streamerTier,
     VIEWER_TIER_INFO, STREAMER_TIER_INFO,

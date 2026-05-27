@@ -15,6 +15,7 @@ export default function WalletPage() {
     waitlistEmail, setWaitlistEmail, waitlistDone, joinWaitlist,
     buyShopItem, notify,
     referralCode,
+    COIN_PACKAGES, handleBuyCoins, buyingCoins,
   } = useApp();
 
   return (
@@ -46,15 +47,44 @@ export default function WalletPage() {
       </div>
 
       {/* Buy Coins */}
-      <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,149,0,.05))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ fontSize: 32 }}>🪙</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>Buy Coins</div>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>Top up your coin balance instantly. Purchase coins to gift streamers, place predictions, and subscribe.</div>
+      <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,149,0,.05))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 16, padding: "20px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 28 }}>🪙</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 2 }}>Buy Coins</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Top up instantly — gift streamers, place predictions, subscribe.</div>
+          </div>
         </div>
-        <button disabled style={{ background: "linear-gradient(135deg,rgba(255,200,0,.2),rgba(255,149,0,.15))", border: "1px solid rgba(255,200,0,.3)", color: "var(--gold)", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "not-allowed", flexShrink: 0, opacity: .8 }}>
-          Coming Soon
-        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
+          {COIN_PACKAGES.map(pkg => (
+            <button
+              key={pkg.id}
+              onClick={() => handleBuyCoins(pkg.id)}
+              disabled={!!buyingCoins}
+              style={{
+                background: pkg.tag ? "linear-gradient(135deg,rgba(255,200,0,.15),rgba(255,149,0,.1))" : "var(--ink3)",
+                border: pkg.tag ? "1px solid rgba(255,200,0,.35)" : "1px solid var(--line2)",
+                borderRadius: 12, padding: "12px 10px", cursor: "pointer",
+                position: "relative", textAlign: "center", opacity: buyingCoins === pkg.id ? 0.6 : 1,
+              }}
+            >
+              {pkg.tag && (
+                <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", background: "var(--gold)", color: "#000", fontSize: 9, fontWeight: 800, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap" }}>{pkg.tag}</div>
+              )}
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, color: "var(--gold)", lineHeight: 1.2 }}>
+                {(pkg.coins).toLocaleString()}
+              </div>
+              {pkg.bonus > 0 && (
+                <div style={{ fontSize: 10, color: "var(--green)", marginBottom: 4 }}>+{pkg.bonus.toLocaleString()} bonus</div>
+              )}
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>coins</div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>
+                {buyingCoins === pkg.id ? "Opening…" : pkg.price}
+              </div>
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 10, textAlign: "center" }}>Secure checkout via Stripe · Coins credited instantly</div>
       </div>
 
       {/* Viewer Tier Card */}
@@ -217,9 +247,9 @@ export default function WalletPage() {
         ) : (
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {transactions.map(t => {
-              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗", withdrawal: "💸" };
-              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)", withdrawal: "var(--red)" };
-              const isOut = t.type === "withdrawal";
+              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", gift_received: "🎁", sub_income: "⭐", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗", withdrawal: "💸", coins_purchased: "🪙" };
+              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", gift_received: "var(--green)", sub_income: "var(--green)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)", withdrawal: "var(--red)", coins_purchased: "var(--gold)" };
+              const isOut = t.type === "withdrawal" || t.type === "gift_sent" || t.type === "subscription";
               return (
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
                   <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
@@ -227,7 +257,7 @@ export default function WalletPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{t.amount.toLocaleString()} 🪙</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{Math.abs(t.amount).toLocaleString()} 🪙</div>
                 </div>
               );
             })}
