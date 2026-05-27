@@ -490,6 +490,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .vote-btn:hover,.vote-btn.on{background:rgba(255,255,255,.06);color:#fff}
 .vote-btn.up.on{color:var(--green);border-color:rgba(0,245,160,.35)}
 .vote-btn.dn.on{color:var(--red);border-color:rgba(255,45,85,.35)}
+.clip-card:hover .clip-play-ov{opacity:1}
 /* Channel rewards */
 .reward-card{background:var(--ink3);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer;transition:all .15s}
 .reward-card:hover{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.06)}
@@ -701,6 +702,9 @@ export default function App() {
   const [achievements, setAchievements] = useState(new Set());
   // Clip votes
   const [myClipVotes, setMyClipVotes] = useState({});
+  // Push notifications
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
   // Auto-mod
   const [bannedWords, setBannedWords] = useState([]);
   const [newBannedWord, setNewBannedWord] = useState("");
@@ -830,6 +834,15 @@ export default function App() {
       clearTimeout(streamsDebounce);
     };
   }, []);
+
+  // Check push subscription state when user logs in
+  useEffect(() => {
+    if (!user || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    navigator.serviceWorker.ready.then(async reg => {
+      const sub = await reg.pushManager.getSubscription();
+      setPushEnabled(!!sub);
+    }).catch(() => {});
+  }, [user]);
 
   // Handle ?s=STREAM_ID deep links — navigate to stream once liveStreams loads
   useEffect(() => {
@@ -1590,6 +1603,56 @@ export default function App() {
     if (data) setAchievements(new Set(data.map(a => a.achievement_key)));
   };
 
+  const enablePushNotifications = async () => {
+    if (!user || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      notify("Push notifications are not supported in this browser.");
+      return;
+    }
+    setPushLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") { notify("Notification permission denied."); setPushLoading(false); return; }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+        });
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch("/api/push-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session?.access_token },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+      setPushEnabled(true);
+      notify("Notifications enabled! You'll get notified when followed streamers go live.");
+    } catch (err) {
+      notify("Could not enable notifications — try again.");
+    }
+    setPushLoading(false);
+  };
+
+  const disablePushNotifications = async () => {
+    if (!("serviceWorker" in navigator)) return;
+    setPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await sub.unsubscribe();
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch("/api/push-subscribe", {
+          method: "DELETE",
+          headers: { "Authorization": "Bearer " + session?.access_token },
+        });
+      }
+      setPushEnabled(false);
+    } catch (err) { console.error(err); }
+    setPushLoading(false);
+  };
+
   const unlockAchievement = async (key) => {
     if (achievements.has(key) || !user) return;
     const { error } = await supabase.from("user_achievements").insert({ user_id: user.id, achievement_key: key });
@@ -1698,8 +1761,30 @@ export default function App() {
   // â”€â”€ Clips gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAllClips = async () => {
     setLoadingClips(true);
-    const { data } = await supabase.from("clips").select("*, profiles(username, full_name)").order("created_at", { ascending: false }).limit(50);
-    setAllClips(data || []); setLoadingClips(false);
+    const { data: clips } = await supabase
+      .from("clips")
+      .select("*, profiles(username, full_name), streams(mux_stream_id, title, category)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (clips) {
+      const muxIds = [...new Set(clips.filter(c => c.streams && c.streams.mux_stream_id).map(c => c.streams.mux_stream_id))];
+      let vodMap = {};
+      if (muxIds.length) {
+        const { data: pasts } = await supabase
+          .from("past_streams")
+          .select("mux_stream_id, mux_playback_id")
+          .in("mux_stream_id", muxIds);
+        if (pasts) pasts.forEach(ps => { if (ps.mux_playback_id) vodMap[ps.mux_stream_id] = ps.mux_playback_id; });
+      }
+      setAllClips(clips.map(c => ({
+        ...c,
+        vod_playback_id: (c.streams && c.streams.mux_stream_id) ? (vodMap[c.streams.mux_stream_id] || null) : null,
+        stream_category: (c.streams && c.streams.category) ? c.streams.category : (c.category || null),
+      })));
+    } else {
+      setAllClips([]);
+    }
+    setLoadingClips(false);
   };
 
   // â”€â”€ Past streams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2701,6 +2786,8 @@ export default function App() {
     // clips
     allClips, loadingClips, myClipVotes, voteClip, streamClips,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
+    // push notifications
+    pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
     // follow
     following, loadingFollow, handleFollow,
     // subscribe

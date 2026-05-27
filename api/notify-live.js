@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import webpush from 'web-push';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails('mailto:support@stemapp.online', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -78,6 +85,34 @@ export default async function handler(req, res) {
         }).catch(e => console.error('Email send error:', e.message))
       ));
       sent += chunk.length;
+    }
+
+    // Send push notifications to subscribed followers
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && followers.length > 0) {
+      const followerIds = followers.map(f => f.follower_id);
+      const { data: pushSubs } = await sbAdmin
+        .from('push_subscriptions')
+        .select('subscription')
+        .in('user_id', followerIds);
+
+      if (pushSubs?.length) {
+        const payload = JSON.stringify({
+          title: `🔴 ${streamer_name} is live!`,
+          body: stream_title,
+          url: `https://www.stemapp.online`,
+          streamer_id: streamer_id,
+        });
+        await Promise.allSettled(
+          pushSubs.map(row =>
+            webpush.sendNotification(row.subscription, payload).catch(err => {
+              if (err.statusCode === 410 || err.statusCode === 404) {
+                // Subscription expired — clean it up
+                sbAdmin.from('push_subscriptions').delete().eq('subscription->endpoint', row.subscription.endpoint).then(() => {});
+              }
+            })
+          )
+        );
+      }
     }
 
     return res.status(200).json({ sent });

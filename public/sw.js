@@ -15,15 +15,11 @@ self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Network-first for HTML navigation — always serve fresh app shell
   if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match("/"))
-    );
+    e.respondWith(fetch(e.request).catch(() => caches.match("/")));
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, fonts, images)
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -34,6 +30,38 @@ self.addEventListener("fetch", e => {
         }
         return res;
       });
+    })
+  );
+});
+
+// Push notification received
+self.addEventListener("push", e => {
+  let data = { title: "STEM", body: "Someone you follow is live!", url: "/" };
+  try { data = { ...data, ...e.data.json() }; } catch {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/favicon.svg",
+      badge: "/favicon.svg",
+      tag: data.streamer_id || "stem-notif",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+// Notification click — open the app
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/";
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(windowClients => {
+      for (const c of windowClients) {
+        if (c.url.startsWith(self.location.origin) && "focus" in c) {
+          c.postMessage({ type: "PUSH_CLICK", url });
+          return c.focus();
+        }
+      }
+      return clients.openWindow(url);
     })
   );
 });
