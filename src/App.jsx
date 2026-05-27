@@ -1119,6 +1119,7 @@ export default function App() {
       setWithdrawPaypal("");
       setWithdrawCoins(20000);
       notify(result.message || `Withdrawal submitted!`);
+      unlockAchievement("first_withdrawal");
       fetchWithdrawHistory();
       fetchTransactions();
     } catch (err) {
