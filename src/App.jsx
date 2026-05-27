@@ -19,6 +19,7 @@ const ViewerProfilePage = lazy(() => import("./pages/ViewerProfilePage"));
 const ChannelPage    = lazy(() => import("./pages/ChannelPage"));
 const TermsPage      = lazy(() => import("./pages/TermsPage"));
 const PrivacyPage    = lazy(() => import("./pages/PrivacyPage"));
+const StreamerPage   = lazy(() => import("./pages/StreamerPage"));
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
 
@@ -771,6 +772,11 @@ export default function App() {
   useEffect(() => {
     const refParam = new URLSearchParams(window.location.search).get("ref");
     if (refParam) sessionStorage.setItem("stem_ref", refParam);
+    const streamParam = new URLSearchParams(window.location.search).get("s");
+    if (streamParam) {
+      sessionStorage.setItem("stem_deep_stream", streamParam);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
 
     // getSession is the authoritative initial check â€” sets authReady when done
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -824,6 +830,36 @@ export default function App() {
       clearTimeout(streamsDebounce);
     };
   }, []);
+
+  // Handle ?s=STREAM_ID deep links — navigate to stream once liveStreams loads
+  useEffect(() => {
+    if (!authReady || !liveStreams.length) return;
+    const deepId = sessionStorage.getItem("stem_deep_stream");
+    if (!deepId) return;
+    sessionStorage.removeItem("stem_deep_stream");
+    const raw = liveStreams.find(s => s.id === deepId);
+    if (!raw) return;
+    const meta = CAT_META[raw.category] || CAT_META["Just Chatting"];
+    setStream({
+      id: raw.id,
+      user_id: raw.user_id,
+      title: raw.title,
+      streamer: raw.profiles?.full_name || raw.streamer_name || "Streamer",
+      game: raw.category || "Just Chatting",
+      viewers: raw.viewer_count || 0,
+      follower_count: raw.profiles?.follower_count || 0,
+      emoji: meta.emoji,
+      color: meta.color,
+      bg: meta.bg,
+      isRealStream: true,
+      mux_playback_id: raw.mux_playback_id || null,
+      thumbnail_url: raw.thumbnail_url || null,
+      started_at: raw.started_at || null,
+    });
+    setSess(0);
+    setPage("stream");
+    window.scrollTo(0, 0);
+  }, [liveStreams, authReady]);
 
   const fetchProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -2498,7 +2534,7 @@ export default function App() {
     return matchCat && matchSearch;
   });
 
-  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin"].includes(page);
+  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin", "streamer"].includes(page);
   const emailVerified = !!user?.email_confirmed_at;
 
   const resendVerificationEmail = async () => {
@@ -2764,6 +2800,7 @@ export default function App() {
       {page === "channel"  && channelUser && <ChannelPage />}
       {page === "tos"      && <TermsPage />}
       {page === "privacy"  && <PrivacyPage />}
+      {page === "streamer" && <StreamerPage />}
     </Suspense>
 
     <Modals />

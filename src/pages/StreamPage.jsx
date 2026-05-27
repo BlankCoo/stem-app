@@ -140,7 +140,15 @@ export default function StreamPage() {
             <button className={`abtn ${following ? "flwing" : "flw"}`} onClick={handleFollow} disabled={loadingFollow}>
               {loadingFollow ? "..." : following ? "✓ Following" : "+ Follow"}
             </button>
-            <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
+            <button className="abtn" onClick={() => {
+              const url = `${window.location.origin}/?s=${stream.id}`;
+              if (navigator.share) {
+                navigator.share({ title: stream.title, text: `Watch ${stream.streamer} live on STEM!`, url }).catch(() => {});
+              } else {
+                navigator.clipboard?.writeText(url);
+                notify("Link copied!");
+              }
+            }}>Share</button>
             <button className="abtn" onClick={() => { if (!user) { setShowSignupPrompt(true); return; } setShowClipModal(true); }}>✂ Clip</button>
             {stream.user_id && stream.user_id !== user?.id && (
               <button className="abtn" style={{ color: "var(--muted)" }} onClick={() => openReport("stream", stream.id || stream.user_id, { title: stream.title, streamer: stream.streamer })}>⚑ Report</button>

@@ -15,7 +15,7 @@ export default function LandingPage() {
             <button className="btn-o" style={{ padding: "11px 24px", fontSize: 15 }} onClick={() => go("disc")}>Browse Streams →</button>
           </div>
           <div style={{ marginBottom: 12 }}>
-            <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => { setRole("streamer"); setAuthMode("signup"); go("auth"); }}>I am a Streamer</button>
+            <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => go("streamer")}>I am a Streamer →</button>
           </div>
           <div className="hero-stats">
             {[

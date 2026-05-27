@@ -1,0 +1,18 @@
+{
+  "name": "STEM — Stream and Earn Money",
+  "short_name": "STEM",
+  "description": "Watch live streams and get paid. The first platform that pays both streamers and viewers in real money.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080816",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
