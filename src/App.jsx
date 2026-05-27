@@ -1,38 +1,54 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import MuxPlayer from "@mux/mux-player-react";
 import { supabase } from "./supabase";
+import { AppContext } from "./AppContext";
+import NavBar from "./components/NavBar";
+import Modals from "./components/Modals";
+
+const LandingPage    = lazy(() => import("./pages/LandingPage"));
+const AuthPage       = lazy(() => import("./pages/AuthPage"));
+const DiscoverPage   = lazy(() => import("./pages/DiscoverPage"));
+const StreamPage     = lazy(() => import("./pages/StreamPage"));
+const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage"));
+const WalletPage     = lazy(() => import("./pages/WalletPage"));
+const ProfilePage    = lazy(() => import("./pages/ProfilePage"));
+const DashboardPage  = lazy(() => import("./pages/DashboardPage"));
+const AdminPage      = lazy(() => import("./pages/AdminPage"));
+const ClipsPage      = lazy(() => import("./pages/ClipsPage"));
+const ViewerProfilePage = lazy(() => import("./pages/ViewerProfilePage"));
+const ChannelPage    = lazy(() => import("./pages/ChannelPage"));
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
 
 const DEMO_STREAMS = [
-  { id: "stream-1", title: "Ranked Grind to Diamond", streamer: "NightOwlX", game: "Gaming", viewers: 12840, emoji: "🦉", color: "#7c3aed", bg: "135deg,#1a0a2e,#2d1b69" },
-  { id: "stream-2", title: "Korean BBQ Night — Chill IRL", streamer: "SaraKitchen", game: "IRL", viewers: 4230, emoji: "👩‍🍳", color: "#e94560", bg: "135deg,#2e0a1a,#69141b" },
-  { id: "stream-3", title: "FIFA 26 Ultimate Team", streamer: "GoalKingFC", game: "Sports", viewers: 8910, emoji: "⚽", color: "#0ea5e9", bg: "135deg,#0a1a2e,#0e3a5a" },
-  { id: "stream-4", title: "Minecraft Hardcore Day 847", streamer: "CraftedLore", game: "Gaming", viewers: 6120, emoji: "⛏️", color: "#22c55e", bg: "135deg,#0a1e10,#0d3a1a" },
-  { id: "stream-5", title: "Lo-Fi Beats + Chill Gaming", streamer: "LoFiDrift", game: "Music", viewers: 21400, emoji: "🎵", color: "#f0c040", bg: "135deg,#1e1a0a,#3a2e0d" },
-  { id: "stream-6", title: "Just Chatting — Story Time", streamer: "TalkWithKai", game: "Just Chatting", viewers: 3340, emoji: "💬", color: "#ec4899", bg: "135deg,#2e0a1e,#5a1442" },
+  { id: "stream-1", title: "Ranked Grind to Diamond", streamer: "NightOwlX", game: "Gaming", viewers: 12840, emoji: "ðŸ¦‰", color: "#7c3aed", bg: "135deg,#1a0a2e,#2d1b69" },
+  { id: "stream-2", title: "Korean BBQ Night â€” Chill IRL", streamer: "SaraKitchen", game: "IRL", viewers: 4230, emoji: "ðŸ‘©â€ðŸ³", color: "#e94560", bg: "135deg,#2e0a1a,#69141b" },
+  { id: "stream-3", title: "FIFA 26 Ultimate Team", streamer: "GoalKingFC", game: "Sports", viewers: 8910, emoji: "âš½", color: "#0ea5e9", bg: "135deg,#0a1a2e,#0e3a5a" },
+  { id: "stream-4", title: "Minecraft Hardcore Day 847", streamer: "CraftedLore", game: "Gaming", viewers: 6120, emoji: "â›ï¸", color: "#22c55e", bg: "135deg,#0a1e10,#0d3a1a" },
+  { id: "stream-5", title: "Lo-Fi Beats + Chill Gaming", streamer: "LoFiDrift", game: "Music", viewers: 21400, emoji: "ðŸŽµ", color: "#f0c040", bg: "135deg,#1e1a0a,#3a2e0d" },
+  { id: "stream-6", title: "Just Chatting â€” Story Time", streamer: "TalkWithKai", game: "Just Chatting", viewers: 3340, emoji: "ðŸ’¬", color: "#ec4899", bg: "135deg,#2e0a1e,#5a1442" },
 ];
 
 const ACHIEVEMENTS = {
-  first_stream:      { label: "First Stream",      emoji: "📺", desc: "Watched your first live stream" },
-  first_withdrawal:  { label: "First Withdrawal",  emoji: "💸", desc: "Made your first withdrawal" },
-  predictor:         { label: "Predictor",          emoji: "🔮", desc: "Won your first prediction" },
+  first_stream:      { label: "First Stream",      emoji: "ðŸ“º", desc: "Watched your first live stream" },
+  first_withdrawal:  { label: "First Withdrawal",  emoji: "ðŸ’¸", desc: "Made your first withdrawal" },
+  predictor:         { label: "Predictor",          emoji: "ðŸ”®", desc: "Won your first prediction" },
 };
 
 const SUB_TIERS = [
-  { tier: 1, cost: 1000, label: "Tier 1", color: "#7c3aed", badge: "⭐" },
+  { tier: 1, cost: 1000, label: "Tier 1", color: "#7c3aed", badge: "â­" },
 ];
 
 const CATS = ["All", "Gaming", "IRL", "Music", "Just Chatting", "Sports", "Food"];
 const STREAM_CATS = ["Gaming", "IRL", "Music", "Just Chatting", "Sports", "Food"];
 
 const CAT_META = {
-  Gaming:       { emoji: "🎮", color: "#7c3aed", bg: "135deg,#1a0a2e,#2d1b69" },
-  IRL:          { emoji: "📸", color: "#e94560", bg: "135deg,#2e0a1a,#69141b" },
-  Music:        { emoji: "🎵", color: "#f0c040", bg: "135deg,#1e1a0a,#3a2e0d" },
-  "Just Chatting": { emoji: "💬", color: "#ec4899", bg: "135deg,#2e0a1e,#5a1442" },
-  Sports:       { emoji: "⚽", color: "#0ea5e9", bg: "135deg,#0a1a2e,#0e3a5a" },
-  Food:         { emoji: "🍳", color: "#22c55e", bg: "135deg,#0a1e10,#0d3a1a" },
+  Gaming:       { emoji: "ðŸŽ®", color: "#7c3aed", bg: "135deg,#1a0a2e,#2d1b69" },
+  IRL:          { emoji: "ðŸ“¸", color: "#e94560", bg: "135deg,#2e0a1a,#69141b" },
+  Music:        { emoji: "ðŸŽµ", color: "#f0c040", bg: "135deg,#1e1a0a,#3a2e0d" },
+  "Just Chatting": { emoji: "ðŸ’¬", color: "#ec4899", bg: "135deg,#2e0a1e,#5a1442" },
+  Sports:       { emoji: "âš½", color: "#0ea5e9", bg: "135deg,#0a1a2e,#0e3a5a" },
+  Food:         { emoji: "ðŸ³", color: "#22c55e", bg: "135deg,#0a1e10,#0d3a1a" },
 };
 
 const CSS = `
@@ -312,7 +328,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .viewer-count-pill{position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px)}
 @media(min-width:768px){.vprofile-page{padding:32px 44px}}
 
-/* ═══════════════ DISCOVER REDESIGN ═══════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• DISCOVER REDESIGN â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 /* Nav restructure */
 .nav-l{display:flex;align-items:center;flex-shrink:0}
 .nav-center{flex:1;display:flex;justify-content:center;padding:0 12px;max-width:none}
@@ -384,7 +400,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .lgc-cat:hover{color:#fff;text-decoration:underline}
 /* Live grid */
 .d-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-/* Clips strip — vertical 9:16 cards */
+/* Clips strip â€” vertical 9:16 cards */
 .clips-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .clips-strip::-webkit-scrollbar{display:none}
 .csc{flex-shrink:0;width:155px;cursor:pointer;border-radius:10px;overflow:hidden;background:var(--ink3);transition:transform .2s}
@@ -718,7 +734,7 @@ export default function App() {
     const prev = coinMilestoneRef.current;
     for (const m of milestones) {
       if (prev < m && coins >= m) {
-        setTimeout(() => notify(`🎉 Milestone! You hit ${m.toLocaleString()} coins ($${(m / 1000).toFixed(0)})!`), 300);
+        setTimeout(() => notify(`ðŸŽ‰ Milestone! You hit ${m.toLocaleString()} coins ($${(m / 1000).toFixed(0)})!`), 300);
         coinMilestoneRef.current = coins;
         break;
       }
@@ -732,7 +748,7 @@ export default function App() {
     const refParam = new URLSearchParams(window.location.search).get("ref");
     if (refParam) sessionStorage.setItem("stem_ref", refParam);
 
-    // getSession is the authoritative initial check — sets authReady when done
+    // getSession is the authoritative initial check â€” sets authReady when done
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
@@ -799,7 +815,7 @@ export default function App() {
       const tierOrder = { guest: 0, active: 1, verified_earner: 2, elite: 3 };
       const storedTier = localStorage.getItem("stem_viewer_tier") || "guest";
       if (tierOrder[newViewerTier] > tierOrder[storedTier]) {
-        setTimeout(() => notify(`🎉 You unlocked ${VIEWER_TIER_INFO[newViewerTier]?.label} status! ${VIEWER_TIER_INFO[newViewerTier]?.emoji}`), 1500);
+        setTimeout(() => notify(`ðŸŽ‰ You unlocked ${VIEWER_TIER_INFO[newViewerTier]?.label} status! ${VIEWER_TIER_INFO[newViewerTier]?.emoji}`), 1500);
       }
       localStorage.setItem("stem_viewer_tier", newViewerTier);
       setViewerTier(newViewerTier);
@@ -935,11 +951,11 @@ export default function App() {
     await supabase.from("profiles").update({ streak_days: newStreak, last_streak_date: today }).eq("id", user.id);
     setStreakDays(newStreak);
 
-    if (!wasConsecutive && data.last_streak_date) notify("Streak reset — watch daily for bonus coins!");
-    else if (newStreak === 3)  notify("🔥 3-day streak! Earning 1.25x coins!");
-    else if (newStreak === 7)  notify("🔥 7-day streak! Earning 1.5x coins!");
-    else if (newStreak === 14) { notify("🔥 14-day streak! Earning 2x coins — max bonus!"); }
-    else if (newStreak > 1)    notify(`🔥 ${newStreak}-day streak! Keep it up!`);
+    if (!wasConsecutive && data.last_streak_date) notify("Streak reset â€” watch daily for bonus coins!");
+    else if (newStreak === 3)  notify("ðŸ”¥ 3-day streak! Earning 1.25x coins!");
+    else if (newStreak === 7)  notify("ðŸ”¥ 7-day streak! Earning 1.5x coins!");
+    else if (newStreak === 14) { notify("ðŸ”¥ 14-day streak! Earning 2x coins â€” max bonus!"); }
+    else if (newStreak > 1)    notify(`ðŸ”¥ ${newStreak}-day streak! Keep it up!`);
   };
 
   // Fetch the IDs of streamers this user follows (for notifications)
@@ -1000,7 +1016,7 @@ export default function App() {
     await supabase.from("profiles").update({ referred_by: ref, coins: startCoins + 500 }).eq("id", newUserId);
     await supabase.from("transactions").insert({ user_id: newUserId, type: "referral_bonus", amount: 500, description: "Joined via referral link" });
     sessionStorage.removeItem("stem_ref");
-    notify("🎉 Referral bonus! You and your friend both earned 500 coins!");
+    notify("ðŸŽ‰ Referral bonus! You and your friend both earned 500 coins!");
     return startCoins + 500;
   };
 
@@ -1074,7 +1090,7 @@ export default function App() {
   };
 
 
-  // ── Withdrawals ─────────────────────────────────────────
+  // â”€â”€ Withdrawals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchWithdrawHistory = async () => {
     if (!user) return;
     const { data } = await supabase.from("withdrawal_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
@@ -1106,11 +1122,11 @@ export default function App() {
       fetchWithdrawHistory();
       fetchTransactions();
     } catch (err) {
-      notify("Network error — please try again");
+      notify("Network error â€” please try again");
     }
     setProcessingWithdraw(false);
   };
-  // ────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const joinWaitlist = async () => {
     const email = waitlistEmail.trim() || user?.email || "";
@@ -1121,9 +1137,9 @@ export default function App() {
     setWaitlistDone(true);
     notify("You're on the waitlist! We'll let you know when Premium launches.");
   };
-  // ────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  // ── Emotes ──────────────────────────────────────────────
+  // â”€â”€ Emotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchStreamEmotes = async (userId) => {
     const { data: prof } = await supabase.from("profiles").select("emotes_enabled").eq("id", userId).maybeSingle();
     if (prof?.emotes_enabled === false) { setStreamEmotes([]); return; }
@@ -1162,7 +1178,7 @@ export default function App() {
     notify("Emote removed");
   };
 
-  // ── Gift animations ─────────────────────────────────────
+  // â”€â”€ Gift animations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const triggerGiftAnim = (emoji, name) => {
     const id = Date.now() + Math.random();
     const x = 15 + Math.random() * 70;
@@ -1170,14 +1186,14 @@ export default function App() {
     setTimeout(() => setGiftAnims(a => a.filter(g => g.id !== id)), 2600);
   };
 
-  // ── On-stream alert overlay ──────────────────────────────
+  // â”€â”€ On-stream alert overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const showStreamAlert = (msg, emoji, sub = "") => {
     setStreamAlert({ msg, emoji, sub });
     if (streamAlertRef.current) clearTimeout(streamAlertRef.current);
     streamAlertRef.current = setTimeout(() => setStreamAlert(null), 4200);
   };
 
-  // ── Hype Train ───────────────────────────────────────────
+  // â”€â”€ Hype Train â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addHype = (coins) => {
     const now = Date.now();
     hypeGiftsRef.current = [...hypeGiftsRef.current.filter(g => now - g.time < 60000), { amount: coins, time: now }];
@@ -1190,7 +1206,7 @@ export default function App() {
     }
   };
 
-  // ── Streamer analytics ───────────────────────────────────
+  // â”€â”€ Streamer analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchStreamerAnalytics = async () => {
     if (!user) return;
     setLoadingAnalytics(true);
@@ -1235,7 +1251,7 @@ export default function App() {
     setLoadingAnalytics(false);
   };
 
-  // ── Admin withdrawal management ──────────────────────────
+  // â”€â”€ Admin withdrawal management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAdminWithdrawals = async () => {
     setLoadingAdmin(true);
     const { data } = await supabase
@@ -1249,18 +1265,18 @@ export default function App() {
   const approveWithdrawal = async (w) => {
     await supabase.from("withdrawal_requests").update({ status: "paid" }).eq("id", w.id);
     setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "paid" } : x));
-    notify("Withdrawal approved ✓");
+    notify("Withdrawal approved âœ“");
   };
 
   const rejectWithdrawal = async (w) => {
     await supabase.from("profiles").update({ coins: (w.profiles?.coins || 0) + w.amount_coins }).eq("id", w.user_id);
     await supabase.from("withdrawal_requests").update({ status: "rejected" }).eq("id", w.id);
     setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "rejected" } : x));
-    notify("Rejected — coins refunded");
+    notify("Rejected â€” coins refunded");
   };
 
 
-  // ── Subscription ────────────────────────────────────────
+  // â”€â”€ Subscription â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const checkSubscription = async (streamerId) => {
     if (!user || !streamerId) { setIsSubscribed(false); setSubTier(0); return; }
     const { data } = await supabase.from("subscriptions").select("expires_at,tier").eq("subscriber_id", user.id).eq("streamer_id", streamerId).maybeSingle();
@@ -1293,14 +1309,14 @@ export default function App() {
   };
 
 
-  // ── Top gifters ──────────────────────────────────────────
+  // â”€â”€ Top gifters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addGifter = (amount) => {
     if (!user) return;
     const name = profile?.full_name?.split(" ")[0] || profile?.username || "Anon";
     setTopGifters(prev => ({ ...prev, [user.id]: { name, total: (prev[user.id]?.total || 0) + amount } }));
   };
 
-  // ── Stream polls ─────────────────────────────────────────
+  // â”€â”€ Stream polls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const createPoll = () => {
     if (!pollForm.question.trim()) { notify("Enter a poll question"); return; }
     const opts = pollForm.options.filter(o => o.trim());
@@ -1323,7 +1339,7 @@ export default function App() {
     pollChRef.current?.send({ type: "broadcast", event: "poll_end", payload: {} });
   };
 
-  // ── Predictions ──────────────────────────────────────────
+  // â”€â”€ Predictions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchActivePrediction = async (streamId) => {
     const { data } = await supabase.from("predictions").select("*")
       .eq("stream_id", streamId).in("status", ["open", "locked"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -1376,7 +1392,7 @@ export default function App() {
       const rc = coinsRef.current + amount;
       setCoins(rc); coinsRef.current = rc;
       await supabase.from("profiles").update({ coins: rc }).eq("id", user.id);
-      notify("Failed to place bet — coins refunded"); setPlacingBet(false); return;
+      notify("Failed to place bet â€” coins refunded"); setPlacingBet(false); return;
     }
     const newEntries = [...predEntries, entry];
     setPredEntries(newEntries); setMyPredBet(entry);
@@ -1391,7 +1407,7 @@ export default function App() {
     if (data) {
       setActivePrediction(data);
       predChRef.current?.send({ type: "broadcast", event: "pred_lock", payload: {} });
-      notify("Bets locked — pick a winner");
+      notify("Bets locked â€” pick a winner");
     }
   };
 
@@ -1429,7 +1445,7 @@ export default function App() {
       const { data: prof } = await supabase.from("profiles").select("coins").eq("id", user.id).single();
       if (prof) { setCoins(prof.coins); coinsRef.current = prof.coins; }
     }
-    notify("Prediction cancelled — all bets refunded");
+    notify("Prediction cancelled â€” all bets refunded");
     setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
   };
 
@@ -1442,7 +1458,7 @@ export default function App() {
     notify(newFeatured ? "Prediction featured on Discover!" : "Removed from Discover");
   };
 
-  // ── Daily Missions ────────────────────────────────────────
+  // â”€â”€ Daily Missions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchDailyMissions = async () => {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -1465,7 +1481,7 @@ export default function App() {
     await supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
     await supabase.from("transactions").insert({ user_id: user.id, type: "daily_bonus", amount: bonus, description: "Daily missions complete!" });
     setDailyMissions(m => ({ ...m, bonus_claimed: true }));
-    notify("🎉 Daily missions complete! +500 coins");
+    notify("ðŸŽ‰ Daily missions complete! +500 coins");
   };
 
   const incMissionChat = async () => {
@@ -1483,7 +1499,7 @@ export default function App() {
     setDailyMissions(m => m ? { ...m, followed_today: true } : m);
   };
 
-  // ── Achievements ─────────────────────────────────────────
+  // â”€â”€ Achievements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAchievements = async () => {
     if (!user) return;
     const { data } = await supabase.from("user_achievements").select("achievement_key").eq("user_id", user.id);
@@ -1496,11 +1512,11 @@ export default function App() {
     if (!error) {
       setAchievements(prev => new Set([...prev, key]));
       const ach = ACHIEVEMENTS[key];
-      if (ach) setTimeout(() => notify(`🏆 Achievement: ${ach.emoji} ${ach.label}!`), 400);
+      if (ach) setTimeout(() => notify(`ðŸ† Achievement: ${ach.emoji} ${ach.label}!`), 400);
     }
   };
 
-  // ── Clip Voting ───────────────────────────────────────────
+  // â”€â”€ Clip Voting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchMyClipVotes = async () => {
     if (!user) return;
     const { data } = await supabase.from("clip_votes").select("clip_id,vote").eq("user_id", user.id);
@@ -1523,7 +1539,7 @@ export default function App() {
   };
 
 
-  // ── Auto-mod Word Filter ──────────────────────────────────
+  // â”€â”€ Auto-mod Word Filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchBannedWords = async (streamerId) => {
     if (!streamerId) return;
     const { data } = await supabase.from("automod_words").select("word").eq("streamer_id", streamerId);
@@ -1569,21 +1585,21 @@ export default function App() {
     setPredHistory(data || []);
     setLoadingPredHistory(false);
   };
-  // ────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  // ── Clips gallery ─────────────────────────────────────────
+  // â”€â”€ Clips gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAllClips = async () => {
     setLoadingClips(true);
     const { data } = await supabase.from("clips").select("*, profiles(username, full_name)").order("created_at", { ascending: false }).limit(50);
     setAllClips(data || []); setLoadingClips(false);
   };
 
-  // ── Past streams ──────────────────────────────────────────
+  // â”€â”€ Past streams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const savePastStream = async () => {
     if (!user) return;
     const { data: sd } = await supabase.from("streams").select("title,category,mux_stream_id,viewer_count").eq("user_id", user.id).single();
     if (sd) {
-      // mux_playback_id starts null — the Mux webhook fills it in once the VOD is processed
+      // mux_playback_id starts null â€” the Mux webhook fills it in once the VOD is processed
       await supabase.from("past_streams").insert({
         user_id: user.id, streamer_name: profile?.full_name || profile?.username || "Streamer",
         title: sd.title, category: sd.category, mux_stream_id: sd.mux_stream_id,
@@ -1624,7 +1640,7 @@ export default function App() {
     if (unread > 0) setUnreadNotifs(c => Math.max(c, unread));
   };
 
-  // ── Coin shop ──────────────────────────────────────────
+  // â”€â”€ Coin shop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const buyShopItem = async (name, cost, profileUpdate) => {
     if (!requireAuth()) return;
     if (coinsRef.current < cost) { notify(`Need ${cost.toLocaleString()} coins!`); return; }
@@ -1633,11 +1649,11 @@ export default function App() {
     await supabase.from("profiles").update({ coins: nc, ...profileUpdate }).eq("id", user.id);
     setProfile(p => p ? { ...p, ...profileUpdate } : p);
     logTransaction("shop_purchase", -cost, `Bought ${name}`);
-    notify(`${name} unlocked! ✨`);
+    notify(`${name} unlocked! âœ¨`);
   };
 
 
-  // ── Viewer profiles ──────────────────────────────────────
+  // â”€â”€ Viewer profiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const viewVProfile = async (userId) => {
     if (!userId) return;
     setLoadingVProfile(true);
@@ -1655,7 +1671,7 @@ export default function App() {
     setLoadingVProfile(false);
   };
 
-  // ── Chat moderation ──────────────────────────────────────
+  // â”€â”€ Chat moderation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const banUser = async (bannedId, bannedName) => {
     if (!user || !stream?.user_id || user.id !== stream.user_id) return;
     setChatBans(b => new Set([...b, bannedId]));
@@ -1703,9 +1719,9 @@ export default function App() {
       return part;
     });
   };
-  // ────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  // Coin earning — tick speed scales with streak; guests earn nothing; elite earns 1.5x via fractional accumulator
+  // Coin earning â€” tick speed scales with streak; guests earn nothing; elite earns 1.5x via fractional accumulator
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
   useEffect(() => {
     if (page !== "stream" || viewerTier === "guest") return;
@@ -1833,7 +1849,7 @@ export default function App() {
         setTimeout(() => { setActivePrediction(null); setPredEntries([]); setMyPredBet(null); }, 7000);
       })
       .on("broadcast", { event: "pred_cancelled" }, () => {
-        notify("Prediction cancelled — coins refunded");
+        notify("Prediction cancelled â€” coins refunded");
         if (user) supabase.from("profiles").select("coins").eq("id", user.id).single().then(({ data }) => {
           if (data) { setCoins(data.coins); coinsRef.current = data.coins; }
         });
@@ -1922,8 +1938,8 @@ export default function App() {
         }));
         setNotifications(n => [...newNotifs, ...n].slice(0, 20));
         setUnreadNotifs(c => c + newlyLive.length);
-        if (newlyLive.length === 1) notify(`🔴 ${newlyLive[0].profiles?.full_name || "A streamer"} just went live!`);
-        else notify(`🔴 ${newlyLive.length} streamers you follow just went live!`);
+        if (newlyLive.length === 1) notify(`ðŸ”´ ${newlyLive[0].profiles?.full_name || "A streamer"} just went live!`);
+        else notify(`ðŸ”´ ${newlyLive.length} streamers you follow just went live!`);
       }
     }
     prevLiveIdsRef.current = currentIds;
@@ -1954,7 +1970,7 @@ export default function App() {
         const newNotif = { id: n.id, dbId: n.id, title: n.title, body: n.body, data: n.data, read: false, time: new Date(n.created_at) };
         setNotifications(prev => [newNotif, ...prev].slice(0, 20));
         setUnreadNotifs(c => c + 1);
-        notify(`🔴 ${n.title}`);
+        notify(`ðŸ”´ ${n.title}`);
       })
       .subscribe();
     return () => supabase.removeChannel(ch);
@@ -2032,7 +2048,7 @@ export default function App() {
         });
         if (pe) {
           await supabase.auth.signOut();
-          setAuthError("Account setup failed — please try again.");
+          setAuthError("Account setup failed â€” please try again.");
           return;
         }
         await supabase.from("transactions").insert({ user_id: data.user.id, type: "signup_bonus", amount: 1000, description: "Welcome bonus" });
@@ -2093,7 +2109,7 @@ export default function App() {
   const handleSaveProfile = async () => {
     if (!editProfile.fullName.trim() || !editProfile.username.trim()) { setProfileMsg("Please fill in all fields"); return; }
     if (editProfile.fullName.trim().length < 2) { setProfileMsg("Name must be at least 2 characters"); return; }
-    if (editProfile.username.trim().length < 3 || editProfile.username.trim().length > 30) { setProfileMsg("Username must be 3–30 characters"); return; }
+    if (editProfile.username.trim().length < 3 || editProfile.username.trim().length > 30) { setProfileMsg("Username must be 3â€“30 characters"); return; }
     if (!/^[a-zA-Z0-9_]+$/.test(editProfile.username.trim())) { setProfileMsg("Username can only contain letters, numbers and underscores"); return; }
     if (editProfile.bio && editProfile.bio.length > 300) { setProfileMsg("Bio must be under 300 characters"); return; }
     setSavingProfile(true); setProfileMsg("");
@@ -2135,13 +2151,13 @@ export default function App() {
             supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
             logTransaction("follow", earned, `Followed ${stream.streamer}`);
             notify(`+${earned} coins for following!`);
-            showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "❤️", stream.streamer);
+            showStreamAlert(`${profile?.full_name?.split(" ")[0] || "Someone"} just followed!`, "â¤ï¸", stream.streamer);
             supabase.rpc("increment_follower_count", { profile_id: stream.user_id });
             setMissionFollowed();
           }
         }
       } else {
-        // Demo stream — local state only
+        // Demo stream â€” local state only
         if (following) {
           setFollowing(false); notify("Unfollowed");
         } else {
@@ -2163,38 +2179,38 @@ export default function App() {
     if (!msg.trim()) return;
     if (msg.trim().length > 500) { notify("Message too long (max 500 chars)"); return; }
     if (isBannedFromChannel) { notify("You are banned from this channel's chat"); return; }
-    if (viewerTier === "guest") { notify("Chat unlocks at Active Viewer — watch 5 streams over 5 hours in 7 days"); return; }
+    if (viewerTier === "guest") { notify("Chat unlocks at Active Viewer â€” watch 5 streams over 5 hours in 7 days"); return; }
     // Chat commands
     if (msg.trim().startsWith("!")) {
       const cmd = msg.trim().toLowerCase().split(" ")[0];
       const uname = profile.full_name?.split(" ")[0] || profile.username || "Viewer";
       let botMsg = null;
-      if (cmd === "!coins") botMsg = `🪙 @${uname} has ${coins.toLocaleString()} coins`;
-      else if (cmd === "!viewers") botMsg = `👁 ${(stream.viewers || 0).toLocaleString()} viewers watching`;
+      if (cmd === "!coins") botMsg = `ðŸª™ @${uname} has ${coins.toLocaleString()} coins`;
+      else if (cmd === "!viewers") botMsg = `ðŸ‘ ${(stream.viewers || 0).toLocaleString()} viewers watching`;
       else if (cmd === "!top") {
         const entries = Object.entries(topGifters || {}).sort((a, b) => b[1].total - a[1].total);
-        botMsg = entries.length ? `🏆 Top supporter: ${entries[0][1].username} · 🪙 ${entries[0][1].total.toLocaleString()}` : "🏆 No top supporter yet — send a gift!";
+        botMsg = entries.length ? `ðŸ† Top supporter: ${entries[0][1].username} Â· ðŸª™ ${entries[0][1].total.toLocaleString()}` : "ðŸ† No top supporter yet â€” send a gift!";
       } else if (cmd === "!uptime" && stream.started_at) {
         const mins = Math.floor((Date.now() - new Date(stream.started_at).getTime()) / 60000);
-        botMsg = `⏱ Live for ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`}`;
+        botMsg = `â± Live for ${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`}`;
       } else if (cmd === "!tier") {
         const ti = VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest;
         botMsg = `${ti.emoji} @${uname} is ${ti.label} tier`;
       } else if (cmd === "!rank") {
         const { data: rankRows } = await supabase.from("profiles").select("id").eq("role", "viewer").order("coins", { ascending: false }).limit(500);
         const rankPos = rankRows ? rankRows.findIndex(r => r.id === user.id) + 1 : 0;
-        botMsg = rankPos > 0 ? `🏆 @${uname} is ranked #${rankPos} on the leaderboard` : `🏆 @${uname} — keep earning to climb the board!`;
+        botMsg = rankPos > 0 ? `ðŸ† @${uname} is ranked #${rankPos} on the leaderboard` : `ðŸ† @${uname} â€” keep earning to climb the board!`;
       } else if (cmd === "!commands") {
-        botMsg = `📋 !coins · !viewers · !top · !uptime · !tier · !rank`;
+        botMsg = `ðŸ“‹ !coins Â· !viewers Â· !top Â· !uptime Â· !tier Â· !rank`;
       }
       if (botMsg) {
         await supabase.from("messages").insert({ stream_id: stream.id, user_id: null, username: "StreamBot", content: botMsg, color: "#7c3aed", is_superchat: false, coins_spent: 0 });
         setMsg(""); return;
       }
     }
-    if (slowCooldown > 0) { notify(`Slow mode — wait ${slowCooldown}s`); return; }
-    if (subOnly && !isStreamOwner) { notify("Subscriber-only chat — subscribe to chat"); return; }
-    if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat — follow this channel to chat"); return; }
+    if (slowCooldown > 0) { notify(`Slow mode â€” wait ${slowCooldown}s`); return; }
+    if (subOnly && !isStreamOwner) { notify("Subscriber-only chat â€” subscribe to chat"); return; }
+    if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat â€” follow this channel to chat"); return; }
     if (bannedWords.length > 0 && bannedWords.some(w => msg.toLowerCase().includes(w))) { notify("Your message was blocked by auto-mod"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
     const nc = coinsRef.current + earned;
@@ -2214,7 +2230,7 @@ export default function App() {
     startSlowCooldown();
   };
 
-  const sendGift = async (name, cost, emoji = "🎁") => {
+  const sendGift = async (name, cost, emoji = "ðŸŽ") => {
     if (!requireAuth()) return;
     const c = parseInt(cost.replace(/,/g, ""));
     if (coinsRef.current < c) { notify("Not enough coins!"); return; }
@@ -2237,7 +2253,7 @@ export default function App() {
   const sendCustomTip = async () => {
     const amt = parseInt(customTipAmt, 10);
     if (!amt || amt < 100) { notify("Minimum tip is 100 coins"); return; }
-    await sendGift(`${amt.toLocaleString()} coin tip`, amt.toLocaleString(), "💸");
+    await sendGift(`${amt.toLocaleString()} coin tip`, amt.toLocaleString(), "ðŸ’¸");
     setCustomTipAmt(""); setShowTipInput(false);
   };
 
@@ -2317,7 +2333,7 @@ export default function App() {
       const newTier = computeStreamerTier({ ...profile, hours_streamed: newHs, streaming_days: newSd });
       if (newTier !== prevTier && newTier !== "none") {
         setStreamerTier(newTier);
-        notify(`🎉 You unlocked ${STREAMER_TIER_INFO[newTier]?.label} status!`);
+        notify(`ðŸŽ‰ You unlocked ${STREAMER_TIER_INFO[newTier]?.label} status!`);
       }
     }
     await savePastStream();
@@ -2404,19 +2420,19 @@ export default function App() {
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
-  const rankEmoji = (i) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+  const rankEmoji = (i) => i === 0 ? "ðŸ¥‡" : i === 1 ? "ðŸ¥ˆ" : i === 2 ? "ðŸ¥‰" : `${i + 1}`;
 
-  // ── Tier system ──────────────────────────────────────────────
+  // â”€â”€ Tier system â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const VIEWER_TIER_INFO = {
-    guest:           { label: "Guest",           emoji: "👤", color: "var(--muted)",   next: "active" },
-    active:          { label: "Active Viewer",   emoji: "🌱", color: "var(--green)",   next: "verified_earner" },
-    verified_earner: { label: "Verified Earner", emoji: "💎", color: "#0ea5e9",        next: "elite" },
-    elite:           { label: "Elite Viewer",    emoji: "👑", color: "var(--gold)",    next: null },
+    guest:           { label: "Guest",           emoji: "ðŸ‘¤", color: "var(--muted)",   next: "active" },
+    active:          { label: "Active Viewer",   emoji: "ðŸŒ±", color: "var(--green)",   next: "verified_earner" },
+    verified_earner: { label: "Verified Earner", emoji: "ðŸ’Ž", color: "#0ea5e9",        next: "elite" },
+    elite:           { label: "Elite Viewer",    emoji: "ðŸ‘‘", color: "var(--gold)",    next: null },
   };
   const STREAMER_TIER_INFO = {
-    none:      { label: "Aspiring",  emoji: "🎙", color: "var(--muted)",   next: "affiliate" },
-    affiliate: { label: "Affiliate", emoji: "⭐", color: "var(--orange)",  next: "partner" },
-    partner:   { label: "Partner",   emoji: "✅", color: "var(--purple)",  next: null },
+    none:      { label: "Aspiring",  emoji: "ðŸŽ™", color: "var(--muted)",   next: "affiliate" },
+    affiliate: { label: "Affiliate", emoji: "â­", color: "var(--orange)",  next: "partner" },
+    partner:   { label: "Partner",   emoji: "âœ…", color: "var(--purple)",  next: null },
   };
 
   const computeViewerTier = (p, emailVerified) => {
@@ -2448,7 +2464,7 @@ export default function App() {
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
         <span style={{ fontSize: 11, color: "var(--muted)" }}>{label}</span>
-        <span style={{ fontSize: 11, color: current >= target ? "var(--green)" : "rgba(255,255,255,.5)" }}>{typeof current === "number" ? current.toLocaleString() : current} / {typeof target === "number" ? target.toLocaleString() : target} {current >= target ? "✓" : ""}</span>
+        <span style={{ fontSize: 11, color: current >= target ? "var(--green)" : "rgba(255,255,255,.5)" }}>{typeof current === "number" ? current.toLocaleString() : current} / {typeof target === "number" ? target.toLocaleString() : target} {current >= target ? "âœ“" : ""}</span>
       </div>
       <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 2 }}>
         <div style={{ height: "100%", background: current >= target ? "var(--green)" : color, borderRadius: 2, width: `${Math.min(100, (current / target) * 100).toFixed(0)}%`, transition: "width .5s ease" }} />
@@ -2470,8 +2486,8 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
             <div style={{ flex: 1 }}>
               {m.sc && (m.t?.startsWith("gifted") && m.t?.includes("sub")
-                ? <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, marginBottom: 3 }}>🎁 GIFT SUBS · {m.amt}</div>
-                : <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>🪙 {m.amt}</div>
+                ? <div style={{ fontSize: 10, color: "#a855f7", fontWeight: 700, marginBottom: 3 }}>ðŸŽ GIFT SUBS Â· {m.amt}</div>
+                : <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, marginBottom: 3 }}>ðŸª™ {m.amt}</div>
               )}
               {m.badge && <span style={{ fontSize: 12, marginRight: 3 }}>{m.badge}</span>}
               <span className="cmsg-a" style={{ color: m.c, cursor: m.uid ? "pointer" : "default" }}
@@ -2480,7 +2496,7 @@ export default function App() {
             </div>
             {isStreamOwner && m.uid && m.uid !== user.id && (
               <div style={{ position: "relative", flexShrink: 0 }}>
-                <button onClick={() => setMsgMenuId(msgMenuId === i ? null : i)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px" }}>⋮</button>
+                <button onClick={() => setMsgMenuId(msgMenuId === i ? null : i)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "2px 4px" }}>â‹®</button>
                 {msgMenuId === i && (
                   <>
                     <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setMsgMenuId(null)} />
@@ -2509,2834 +2525,137 @@ export default function App() {
     </>
   );
 
-  return (<>
+  const ctx = {
+    // routing
+    page, setPage, go, isApp,
+    // auth
+    user, setUser, authReady, mode, setMode, role, setRole,
+    authMode, setAuthMode, authError, setAuthError, loading,
+    formData, setFormData, handleSignUp, handleLogin, handleForgotPassword,
+    handleLogout, switchMode,
+    // profile
+    profile, setProfile, coins, setCoins, coinsRef,
+    firstName, initials, editProfile, setEditProfile,
+    profileMsg, savingProfile, handleSaveProfile,
+    referralCode,
+    // stream
+    stream, setStream, sess, setSess, viewerCount,
+    streamAlert, isStreamOwner, isStreaming,
+    editingStreamInfo, setEditingStreamInfo, streamInfoDraft, setStreamInfoDraft, updateStreamInfo,
+    // discover / search
+    liveStreams, myFollows, setMyFollows, followedStreamers,
+    cat, setCat, search, setSearch,
+    allStreams, filteredStreams, formatDbStream,
+    discoverSort, setDiscoverSort, discTab, setDiscTab,
+    upcomingSchedule, featuredPreds, searchProfiles,
+    // leaderboard
+    leaderboard, topSupporters, loadingLb, lbTab, setLbTab, fetchLeaderboard,
+    rankColor, rankEmoji,
+    // chat
+    chat, msg, setMsg, sendChat, chatRef, chatRef2,
+    chatBans, slowCooldown, slowModeSecs, setSlowModeSecs,
+    subOnly, setSubOnly, followerOnly, setFollowerOnly, clearChat,
+    streamEmotes, showEmotePicker, setShowEmotePicker,
+    isBannedFromChannel, viewerTier, msgMenuId, setMsgMenuId,
+    timeoutUser, banUser, unbanUser, viewVProfile, parseMessage,
+    // gifts / tips
+    topGifters, sendGift, showTipInput, setShowTipInput,
+    customTipAmt, setCustomTipAmt, sendCustomTip, triggerGiftAnim, giftAnims,
+    // predictions
+    activePrediction, predEntries, predCountdown, myPredBet,
+    predBetAmount, setPredBetAmount, predForm, setPredForm,
+    placeBet, placingBet, createPrediction, setShowCreatePred, showCreatePred,
+    lockPrediction, resolvePrediction, cancelPrediction, toggleFeaturedPrediction,
+    predRecap, setPredRecap,
+    // polls
+    activePoll, pollVoted, votePoll, endPoll,
+    pollForm, setPollForm, createPoll, showPollCreator, setShowPollCreator,
+    // hype train
+    hypeProgress, hypeCelebrating,
+    // clips
+    allClips, loadingClips, myClipVotes, voteClip, streamClips,
+    showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
+    // follow
+    following, loadingFollow, handleFollow,
+    // subscribe
+    isSubscribed, subscribing, setShowSubTierPicker, showSubTierPicker,
+    handleSubscribe, SUB_TIERS,
+    // goal
+    streamGoal, showGoalEditor, setShowGoalEditor,
+    goalForm, setGoalForm, saveGoal, savingGoal, clearGoal,
+    // schedule
+    showScheduleModal, setShowScheduleModal, scheduleForm, setScheduleForm,
+    handleAddSchedule, savingSchedule,
+    // go live
+    showGoLive, setShowGoLive, goLiveStep, setGoLiveStep,
+    goLiveForm, setGoLiveForm, handleGoLive, savingGoLive,
+    muxStreamKey, handleEndStream, adRevenue,
+    editingLiveInfo, setEditingLiveInfo, liveInfoForm, setLiveInfoForm,
+    updateLiveInfo, savingLiveInfo,
+    // dashboard
+    streamerAnalytics, loadingAnalytics, fetchStreamerAnalytics,
+    myEmotes, emoteName, setEmoteName, emoteFileRef,
+    uploadEmote, uploadingEmote, deleteEmote,
+    bannedWords, newBannedWord, setNewBannedWord, addBannedWord, removeBannedWord,
+    // wallet
+    streakDays, getStreakBonus,
+    transactions, loadingTxns, fetchTransactions,
+    withdrawHistory, fetchWithdrawHistory,
+    predHistory, loadingPredHistory, fetchPredHistory,
+    dailyMissions, fetchDailyMissions, claimMissionBonus,
+    achievements, fetchAchievements,
+    waitlistEmail, setWaitlistEmail, waitlistDone, joinWaitlist,
+    buyShopItem, notify, logTransaction,
+    showWithdrawModal, setShowWithdrawModal,
+    withdrawCoins, setWithdrawCoins, withdrawPaypal, setWithdrawPaypal,
+    handleWithdraw, processingWithdraw,
+    // tier system
+    viewerTier, streamerTier,
+    VIEWER_TIER_INFO, STREAMER_TIER_INFO,
+    computeViewerTier, computeStreamerTier,
+    // notifications
+    showNotifs, setShowNotifs, unreadNotifs, setUnreadNotifs,
+    notifications,
+    // signup prompt
+    showSignupPrompt, setShowSignupPrompt,
+    // stream recap
+    streamRecap, setStreamRecap,
+    // toast
+    toast,
+    // viewer profile
+    vProfile, vProfileTxns, loadingVProfile,
+    // channel page
+    channelUser, channelIsLive, channelFollowers, setChannelFollowers,
+    channelStreams, channelClips, channelSchedule, channelTab, setChannelTab,
+    selectedVod, setSelectedVod, viewChannel,
+    // admin
+    adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
+    approveWithdrawal, rejectWithdrawal,
+    // constants
+    DEMO_STREAMS, ACHIEVEMENTS, CAT_META, STREAM_CATS,
+  };
+
+  return (<AppContext.Provider value={ctx}><>
     <style>{FONTS}</style><style>{CSS}</style>
 
-    {/* NAV */}
-    <nav className="nav" style={{ padding: "0 16px" }}>
-      <div className="nav-l" style={{ width: page === "disc" ? undefined : undefined, gap: 0 }}>
-        <div className="logo" onClick={() => go("disc")} title="Home" style={{ marginRight: 12 }}>STEM</div>
-        {/* Non-disc nav tabs — hidden on disc page on desktop (sidebar handles it) */}
-        <div className="nav-c" style={{ display: "flex" }}>
-          {user ? (
-            (mode === "viewer"
-              ? [["disc", "Home"], ["leaderboard", "Top"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Me"]]
-              : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Me"]]
-            ).map(([p, l]) => (
-              <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
-            )).concat(user?.email === "blankcoojnr@gmail.com" ? [<button key="admin" className={`nl ${page === "admin" ? "on" : ""}`} style={{ color: "var(--red)" }} onClick={() => setPage("admin")}>Admin</button>] : [])
-          ) : (
-            <>
-              <button className={`nl ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>Home</button>
-              {page === "stream" && <button className="nl" onClick={() => go("disc")}>← Back</button>}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Centered search bar — desktop only */}
-      <div className="nav-center">
-        <div className="nav-search-wrap">
-          <span className="nav-search-icon">🔍</span>
-          <input
-            placeholder="Search streams, streamers, categories..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); if (page !== "disc") go("disc"); }}
-            onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
-          />
-        </div>
-      </div>
-
-      <div className="nav-r">
-        {user && isApp && <>
-          <div className="mode-toggle">
-            <button className={`mode-btn ${mode === "viewer" ? "on" : ""}`} onClick={() => switchMode("viewer")}>👁</button>
-            <button className={`mode-btn ${mode === "streamer" ? "on" : ""}`} onClick={() => switchMode("streamer")}>🎙</button>
-          </div>
-          {/* Notification bell */}
-          <div style={{ position: "relative", cursor: "pointer", lineHeight: 1 }} onClick={() => { setShowNotifs(v => !v); setUnreadNotifs(0); if (user) supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false).then(() => {}); }}>
-            <span style={{ fontSize: 20 }}>🔔</span>
-            {unreadNotifs > 0 && (
-              <span style={{ position: "absolute", top: -4, right: -5, background: "var(--red)", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: "50%", minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
-                {unreadNotifs > 9 ? "9+" : unreadNotifs}
-              </span>
-            )}
-          </div>
-          <div className="coin-badge" onClick={() => go("wallet")}>🪙 {coins.toLocaleString()}</div>
-          <div className="av" onClick={() => go("profile")}>{initials}</div>
-        </>}
-        {!user && <>
-          <button className="btn-o" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
-          <button className="btn-g" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign up</button>
-        </>}
-      </div>
-    </nav>
-
-    {/* NOTIFICATION PANEL */}
-    {showNotifs && user && (
-      <>
-        <div style={{ position: "fixed", inset: 0, zIndex: 299 }} onClick={() => setShowNotifs(false)} />
-        <div style={{ position: "fixed", top: 66, right: 12, width: 310, background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 16, zIndex: 300, boxShadow: "0 8px 40px rgba(0,0,0,.6)", overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Notifications</span>
-            <button onClick={() => setShowNotifs(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 16 }}>✕</button>
-          </div>
-          {notifications.length === 0 ? (
-            <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No notifications yet</div>
-              <div style={{ fontSize: 12 }}>Follow streamers to get notified when they go live</div>
-            </div>
-          ) : (
-            <div style={{ maxHeight: 360, overflowY: "auto" }}>
-              {notifications.map((n, i) => (
-                <div key={i} onClick={() => { const streamerId = n.data?.streamer_id || n.stream?.user_id; const live = liveStreams.find(s => s.user_id === streamerId); if (live) go("stream", formatDbStream(live)); else if (streamerId) viewChannel(streamerId); setShowNotifs(false); }} style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", cursor: "pointer", display: "flex", gap: 12, alignItems: "flex-start", transition: "background .15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.03)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>🔴</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{n.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.body}</div>
-                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>{n.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                  <span style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>Watch →</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </>
-    )}
-
-    {/* MOBILE BOTTOM NAV */}
-    {isApp && (
-      <div className="bottom-nav">
-        <div className="bottom-nav-items">
-          {user ? (
-            (mode === "viewer"
-              ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-              : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-            ).map(([p, icon, l]) => {
-              const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard");
-              return (
-                <button key={p} className={`bn-item ${isOn ? "on" : ""}`} onClick={() => go(p)}>
-                  <div style={{ position: "relative", lineHeight: 1 }}>
-                    <span className="bn-icon">{icon}</span>
-                    {/* Unread notification dot on Home */}
-                    {p === "disc" && unreadNotifs > 0 && (
-                      <span style={{ position: "absolute", top: -3, right: -5, background: "var(--red)", borderRadius: "50%", width: 8, height: 8, display: "block" }} />
-                    )}
-                    {/* Coin value badge on Wallet */}
-                    {p === "wallet" && coins >= 1000 && (
-                      <span style={{ position: "absolute", top: -6, right: -14, background: "var(--gold)", color: "#000", fontSize: 8, fontWeight: 800, borderRadius: 10, padding: "1px 5px", whiteSpace: "nowrap" }}>
-                        ${(coins / 1000).toFixed(0)}
-                      </span>
-                    )}
-                  </div>
-                  <span className="bn-label">{l}</span>
-                </button>
-              );
-            }).concat(user?.email === "blankcoojnr@gmail.com" ? [
-              <button key="admin" className={`bn-item ${page === "admin" ? "on" : ""}`} onClick={() => setPage("admin")} style={{ color: page === "admin" ? "var(--red)" : "var(--muted)" }}>
-                <span className="bn-icon">⚙️</span><span className="bn-label">Admin</span>
-              </button>
-            ] : [])
-          ) : (
-            <>
-              <button className={`bn-item ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>
-                <span className="bn-icon">🏠</span>
-                <span className="bn-label">Home</span>
-              </button>
-              <button className="bn-item" onClick={() => { setAuthMode("login"); go("auth"); }}>
-                <span className="bn-icon">👤</span>
-                <span className="bn-label">Log In</span>
-              </button>
-              <button className="bn-item" onClick={() => { setAuthMode("signup"); go("auth"); }}>
-                <span className="bn-icon">✨</span>
-                <span className="bn-label">Sign Up</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    )}
-
-    {/* LANDING */}
-    {page === "land" && <div style={{ paddingTop: 56 }}>
-      <div className="hero">
-        <div className="hero-mesh" /><div className="hero-grid" /><div className="hero-orb1" /><div className="hero-orb2" />
-        <div className="hero-content">
-          <div className="hero-eyebrow"><span className="eyebrow-dot" />World's First Viewer-Paid Platform</div>
-          <h1 className="hero-h"><span className="l1">WATCH LIVE.</span><span className="l2">GET PAID.</span></h1>
-          <p className="hero-p">The first streaming platform to pay <strong>both streamers AND viewers</strong> in real money. Every ad. Every hour. Every clip.</p>
-          <div className="hero-btns">
-            <button className="btn-g" style={{ padding: "12px 24px", fontSize: 15 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Start Earning Free</button>
-            <button className="btn-o" style={{ padding: "11px 24px", fontSize: 15 }} onClick={() => go("disc")}>Browse Streams →</button>
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => { setRole("streamer"); setAuthMode("signup"); go("auth"); }}>I am a Streamer</button>
-          </div>
-          <div className="hero-stats">
-            {[["2,841", "Streams live"], ["$48K", "Paid today"], ["127K", "Earning"]].map(([v, l]) => (
-              <div key={l} className="hstat"><div className="hstat-v">{v}</div><div className="hstat-l">{l}</div></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>}
-
-    {/* AUTH */}
-    {page === "auth" && <div className="auth-wrap page">
-      <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center" }}>
-        <button onClick={() => go("disc")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>← Browse without account</button>
-      </div>
-      <div className="auth-box">
-        <div style={{ padding: "24px 24px 0", borderBottom: "1px solid var(--line)" }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: 2, background: "linear-gradient(90deg,var(--purple),var(--red))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 6 }}>STEM</div>
-          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{authMode === "signup" ? "Create account" : "Welcome back"}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", paddingBottom: 20 }}>{authMode === "signup" ? "Start earning free — no card needed." : "Continue your earning streak."}</div>
-        </div>
-        <div style={{ display: "flex", padding: "0 24px", borderBottom: "1px solid var(--line)" }}>
-          {["signup", "login"].map(m => (
-            <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); setLoading(false); }} style={{ flex: 1, background: "none", border: "none", borderBottom: authMode === m ? "2px solid var(--red)" : "2px solid transparent", color: authMode === m ? "#fff" : "var(--muted)", fontSize: 14, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>
-              {m === "signup" ? "Sign Up" : "Log In"}
-            </button>
-          ))}
-        </div>
-        <div style={{ padding: "22px 24px 26px" }}>
-          {authError && <div className="error-msg">{authError}</div>}
-          {authMode === "signup" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-              {[["viewer", "👁", "Viewer", "Watch and earn"], ["streamer", "🎙", "Streamer", "Stream and earn"]].map(([r, ic, ti, su]) => (
-                <div key={r} onClick={() => setRole(r)} style={{ background: role === r ? "rgba(124,58,237,.1)" : "var(--ink3)", border: role === r ? "2px solid var(--purple)" : "2px solid var(--line)", borderRadius: 12, padding: 14, textAlign: "center", cursor: "pointer", transition: "all .2s" }}>
-                  <div style={{ fontSize: 26, marginBottom: 8 }}>{ic}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{ti}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{su}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {authMode === "signup" && <input className="fi" placeholder="Full Name" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />}
-          <input className="fi" type="email" placeholder="Email address" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-          <input className="fi" type="password" placeholder="Password (min 6 chars)" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-          {authMode === "login" && (
-            <div style={{ textAlign: "right", marginBottom: 12, marginTop: -6 }}>
-              <button onClick={handleForgotPassword} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Forgot password?</button>
-            </div>
-          )}
-          <button onClick={authMode === "signup" ? handleSignUp : handleLogin} disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-            {loading ? <div className="spinner" /> : authMode === "signup" ? (role === "streamer" ? "Start Streaming" : "Start Earning") : "Log In"}
-          </button>
-          <div style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: "var(--muted)" }}>
-            {authMode === "signup" ? "Already have an account? " : "New to STEM? "}
-            <button onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              {authMode === "signup" ? "Log in" : "Sign up free"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>}
-
-    {/* DISCOVER */}
-    {page === "disc" && (() => {
-      // Helper: render a stream card (new Twitch-style)
-      const LiveCard = ({ s }) => (
-        <div className="lgc" onClick={() => go("stream", s)}>
-          <div className="lgc-thumb">
-            <div className="lgc-bg" style={{ background: `linear-gradient(${s.bg})` }} />
-            <div className="lgc-ov" />
-            <span className="lgc-emoji">{s.emoji}</span>
-            <span className="lgc-live-badge"><span className="lgc-live-dot" />LIVE</span>
-            <span className="lgc-viewers-badge">👁 {s.viewers.toLocaleString()}</span>
-          </div>
-          <div className="lgc-body">
-            <div className="lgc-row">
-              <div className="lgc-av" style={{ background: s.color }}>{s.emoji}</div>
-              <div className="lgc-info">
-                <div className="lgc-title" title={s.title}>{s.title}</div>
-                <div className="lgc-name"
-                  style={{ cursor: s.isRealStream && s.user_id ? "pointer" : "default", textDecoration: s.isRealStream && s.user_id ? "underline" : "none", textDecorationColor: "rgba(255,255,255,.2)" }}
-                  onClick={s.isRealStream && s.user_id ? (e) => { e.stopPropagation(); viewChannel(s.user_id); } : undefined}
-                >{s.streamer}</div>
-                <span className="lgc-cat" onClick={e => { e.stopPropagation(); setCat(s.game); }}>{s.game}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-
-      // Sidebar channel list
-      const sidebarLive = liveStreams.filter(s => myFollows.includes(s.user_id));
-      const sidebarOffline = followedStreamers.filter(sp => !liveStreams.some(s => s.user_id === sp.id));
-      const sidebarRec = liveStreams.slice(0, 8);
-      const showFollowing = user && (sidebarLive.length > 0 || sidebarOffline.length > 0);
-
-      return (
-        <div className="disc-root" style={{ paddingTop: 56 }}>
-
-          {/* ── SIDEBAR ── */}
-          <div className="disc-sb">
-            {/* Sidebar nav items */}
-            {user && (
-              <>
-                {(mode === "viewer"
-                  ? [["disc","🏠","Home"],["leaderboard","🏆","Top Earners"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
-                  : [["disc","🏠","Home"],["dash","📊","Dashboard"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
-                ).map(([p,ic,l]) => (
-                  <div key={p} className={`sb-nav-item ${page === p || (p==="disc" && page==="stream") ? "on" : ""}`} onClick={() => go(p)}>
-                    <span style={{ fontSize: 16 }}>{ic}</span>
-                    <span>{l}</span>
-                  </div>
-                ))}
-                <div className="sb-divider" />
-              </>
-            )}
-
-            {/* Following channels */}
-            {showFollowing && (
-              <>
-                <div className="sb-hd">Following</div>
-                {sidebarLive.map(s => {
-                  const fs = formatDbStream(s);
-                  const ini = s.profiles?.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
-                  return (
-                    <div key={s.id} className="sb-ch" onClick={() => go("stream", fs)}>
-                      <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)` }}>
-                        {ini}
-                        <span className="sb-live-dot" />
-                      </div>
-                      <div className="sb-ch-info">
-                        <div className="sb-ch-name">{s.profiles?.full_name || s.profiles?.username || "Creator"}</div>
-                        <div className="sb-ch-sub">{s.category || "Streaming"}</div>
-                      </div>
-                      <div className="sb-ch-vc">{(s.viewer_count || 0).toLocaleString()}</div>
-                    </div>
-                  );
-                })}
-                {sidebarOffline.slice(0, 6).map(sp => {
-                  const ini = sp.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
-                  return (
-                    <div key={sp.id} className="sb-ch" style={{ opacity: .45 }} onClick={() => viewChannel(sp.id)}>
-                      <div className="sb-ch-av" style={{ background: "var(--ink4)", color: "var(--muted)" }}>{ini}</div>
-                      <div className="sb-ch-info">
-                        <div className="sb-ch-name">{sp.full_name || sp.username}</div>
-                        <div className="sb-ch-sub">Offline</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
-            {/* Recommended for guests / no follows */}
-            {!showFollowing && sidebarRec.length > 0 && (
-              <>
-                <div className="sb-hd">Recommended</div>
-                {sidebarRec.map(s => {
-                  const fs = formatDbStream(s);
-                  const ini = s.profiles?.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
-                  return (
-                    <div key={s.id} className="sb-ch" onClick={() => go("stream", fs)}>
-                      <div className="sb-ch-av" style={{ background: `linear-gradient(135deg,${fs.color}99,${fs.color}44)` }}>
-                        {ini}
-                        <span className="sb-live-dot" />
-                      </div>
-                      <div className="sb-ch-info">
-                        <div className="sb-ch-name">{s.profiles?.full_name || s.profiles?.username || "Creator"}</div>
-                        <div className="sb-ch-sub">{s.category || "Streaming"}</div>
-                      </div>
-                      <div className="sb-ch-vc">{(s.viewer_count || 0).toLocaleString()}</div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
-            {/* Demo streams in sidebar when nothing real */}
-            {!showFollowing && sidebarRec.length === 0 && (
-              <>
-                <div className="sb-hd">Recommended</div>
-                {DEMO_STREAMS.slice(0, 6).map(s => (
-                  <div key={s.id} className="sb-ch" onClick={() => go("stream", s)}>
-                    <div className="sb-ch-av" style={{ background: `linear-gradient(${s.bg})` }}>
-                      {s.emoji}
-                      <span className="sb-live-dot" />
-                    </div>
-                    <div className="sb-ch-info">
-                      <div className="sb-ch-name">{s.streamer}</div>
-                      <div className="sb-ch-sub">{s.game}</div>
-                    </div>
-                    <div className="sb-ch-vc">{s.viewers.toLocaleString()}</div>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-
-          {/* ── MAIN CONTENT ── */}
-          <div className="disc-main">
-
-            {/* Mobile search bar */}
-            <div style={{ padding: "12px 16px 0", display: "block" }} className="d-mobile-search">
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, opacity: .5 }}>🔍</span>
-                <input
-                  style={{ width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid var(--line2)", borderRadius: 10, padding: "9px 12px 9px 36px", color: "#fff", fontSize: 13, outline: "none", fontFamily: "'Outfit',sans-serif", boxSizing: "border-box" }}
-                  placeholder="Search streams, streamers..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
-                />
-              </div>
-            </div>
-
-            {/* ── SEARCH RESULTS ── */}
-            {search && (
-              <div style={{ padding: "0 24px 40px" }}>
-                {searchProfiles.length > 0 && (
-                  <>
-                    <div className="d-section-hd" style={{ marginTop: 24 }}>
-                      <span className="d-section-title">Channels</span>
-                      <button className="d-see-all" onClick={() => setSearch("")}>Clear ✕</button>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {searchProfiles.map(sp => {
-                        const isLive = liveStreams.some(s => s.user_id === sp.id);
-                        const ini = sp.full_name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "?";
-                        return (
-                          <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
-                            <div style={{ width: 42, height: 42, borderRadius: 50, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, flexShrink: 0, position: "relative" }}>
-                              {ini}
-                              {isLive && <span style={{ position: "absolute", bottom: 0, right: 0, width: 11, height: 11, background: "var(--red)", borderRadius: "50%", border: "2px solid var(--ink3)" }} />}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name}</div>
-                              <div style={{ fontSize: 12, color: "var(--muted)" }}>@{sp.username}</div>
-                            </div>
-                            {isLive ? <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>🔴 LIVE</span> : <span style={{ fontSize: 12, color: "var(--muted)" }}>View →</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-                <div className="d-section-hd" style={{ marginTop: 24 }}>
-                  <span className="d-section-title">Streams{filteredStreams.length > 0 ? ` (${filteredStreams.length})` : ""}</span>
-                </div>
-                {filteredStreams.length > 0
-                  ? <div className="d-grid">{filteredStreams.map(s => <LiveCard key={s.id} s={s} />)}</div>
-                  : <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div><div style={{ fontSize: 16, fontWeight: 600 }}>No results for "{search}"</div></div>
-                }
-              </div>
-            )}
-
-            {/* ── CATEGORY FILTER VIEW ── */}
-            {!search && cat !== "All" && (
-              <div className="d-section" style={{ paddingBottom: 40 }}>
-                <div className="d-section-hd">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 24 }}>{CAT_META[cat]?.emoji}</span>
-                    <span className="d-section-title">{cat}</span>
-                    {liveStreams.length > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>{filteredStreams.filter(s=>s.isRealStream).length} LIVE</span>}
-                  </div>
-                  <button className="d-see-all" onClick={() => setCat("All")}>✕ All categories</button>
-                </div>
-                {filteredStreams.length > 0
-                  ? <div className="d-grid">{filteredStreams.map(s => <LiveCard key={s.id} s={s} />)}</div>
-                  : <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{CAT_META[cat]?.emoji}</div><div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No {cat} streams live</div><div style={{ fontSize: 13 }}>Check back later or explore another category.</div></div>
-                }
-              </div>
-            )}
-
-            {/* ── HOME CONTENT (no search, no category filter) ── */}
-            {!search && cat === "All" && (
-              <>
-                {/* FEATURED HERO BANNER */}
-                {allStreams.length > 0 && (() => {
-                  const hero = allStreams[0];
-                  return (
-                    <div className="d-hero" onClick={() => go("stream", hero)}>
-                      <div className="d-hero-bg" style={{ background: `linear-gradient(${hero.bg})` }}>
-                        <span style={{ fontSize: 220, opacity: .06 }}>{hero.emoji}</span>
-                      </div>
-                      <div className="d-hero-grad" />
-                      <div className="d-hero-content">
-                        <div className="d-hero-badge"><span className="d-hero-dot" />LIVE</div>
-                        <div className="d-hero-title">{hero.title}</div>
-                        <div className="d-hero-meta">
-                          <span className="d-hero-streamer"
-                            onClick={hero.isRealStream && hero.user_id ? (e)=>{ e.stopPropagation(); viewChannel(hero.user_id); } : undefined}
-                            style={{ cursor: hero.isRealStream && hero.user_id ? "pointer" : "default" }}
-                          >{hero.streamer}</span>
-                          <span className="d-hero-sep">·</span>
-                          <span>{hero.game}</span>
-                          <span className="d-hero-sep">·</span>
-                          <span>👁 {hero.viewers.toLocaleString()} viewers</span>
-                        </div>
-                        <div className="d-hero-actions">
-                          <button className="d-hero-btn primary">▶ Watch Live</button>
-                          <button className="d-hero-btn" onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* LIVE CHANNELS GRID */}
-                {allStreams.length > 1 && (
-                  <div className="d-section">
-                    <div className="d-section-hd">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="d-section-title">Live Channels</span>
-                        {liveStreams.length > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>{liveStreams.length} REAL</span>}
-                      </div>
-                      <div style={{ display: "flex", background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 20, padding: 2, gap: 2 }}>
-                        {["top", "trending"].map(s => (
-                          <button key={s} onClick={() => setDiscoverSort(s)} style={{ background: discoverSort === s ? "linear-gradient(135deg,var(--purple),var(--red))" : "none", border: "none", color: discoverSort === s ? "#fff" : "var(--muted)", borderRadius: 16, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>{s === "trending" ? "🔥 Trending" : "⬆ Top"}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="d-grid">
-                      {(discoverSort === "trending"
-                        ? [...allStreams.slice(1)].sort((a, b) => (b.viewers || 0) - (a.viewers || 0))
-                        : allStreams.slice(1)
-                      ).map(s => <LiveCard key={s.id} s={s} />)}
-                    </div>
-                  </div>
-                )}
-
-                {/* UPCOMING STREAMS */}
-                {upcomingSchedule.length > 0 && (
-                  <div className="d-section">
-                    <div className="d-section-hd">
-                      <span className="d-section-title">📅 Upcoming Streams</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
-                      {upcomingSchedule.map(s => {
-                        const d = new Date(s.scheduled_at);
-                        const minsUntil = Math.round((d.getTime() - Date.now()) / 60000);
-                        const countdown = minsUntil <= 0 ? "Starting soon!" : minsUntil < 60 ? `in ${minsUntil}m` : minsUntil < 1440 ? `in ${Math.floor(minsUntil / 60)}h ${minsUntil % 60}m` : `in ${Math.floor(minsUntil / 1440)}d`;
-                        return (
-                          <div key={s.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 180, flexShrink: 0 }}>
-                            <div style={{ fontSize: 10, color: minsUntil <= 60 ? "var(--red)" : "var(--purple)", fontWeight: 700, marginBottom: 4 }}>{countdown}</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.profiles?.full_name || "Streamer"}</div>
-                            <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* TRENDING CLIPS & SHORTS */}
-                {allClips.length > 0 && (
-                  <div className="d-section">
-                    <div className="d-section-hd">
-                      <span className="d-section-title">🎬 Trending Clips</span>
-                      <button className="d-see-all" onClick={() => go("clips")}>See all →</button>
-                    </div>
-                    <div className="clips-strip">
-                      {allClips.slice(0, 12).map(clip => {
-                        const meta = DEMO_STREAMS.find(d => d.game === clip.game) || DEMO_STREAMS[Math.abs(clip.id?.charCodeAt(0) || 0) % DEMO_STREAMS.length] || DEMO_STREAMS[0];
-                        return (
-                          <div key={clip.id} className="csc" onClick={() => { supabase.from("clips").update({ view_count: (clip.view_count || 0) + 1 }).eq("id", clip.id); go("clips"); }}>
-                            <div className="csc-thumb">
-                              <div className="csc-tbg" style={{ background: `linear-gradient(${meta.bg})` }} />
-                              <div className="csc-tov" />
-                              <span className="csc-emoji">{meta.emoji}</span>
-                              <div className="csc-play" style={{ fontSize: 28 }}>▶</div>
-                              <span className="csc-views">👁 {(clip.view_count || 0).toLocaleString()}</span>
-                              {clip.duration && <span className="csc-dur">{Math.floor(clip.duration/60)}:{String(clip.duration%60).padStart(2,"0")}</span>}
-                            </div>
-                            <div className="csc-body">
-                              <div className="csc-title">{clip.title}</div>
-                              <div className="csc-creator">{clip.profiles?.username || clip.profiles?.full_name || "Creator"}</div>
-                              <div className="clip-votes">
-                                <button className={`vote-btn up${myClipVotes[clip.id] === 1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, 1)}>▲ {Math.max(0, (clip.score || 0) + (myClipVotes[clip.id] === 1 ? 0 : 0))}</button>
-                                <button className={`vote-btn dn${myClipVotes[clip.id] === -1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, -1)}>▼</button>
-                                <span style={{ fontSize: 11, color: "var(--muted)" }}>{(clip.score || 0) > 0 ? `+${clip.score}` : clip.score || 0}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* TOP CATEGORIES */}
-                <div className="d-section">
-                  <div className="d-section-hd">
-                    <span className="d-section-title">🎮 Top Categories</span>
-                  </div>
-                  <div className="cat-art-grid">
-                    {Object.entries(CAT_META).map(([name, meta]) => {
-                      const liveCount = allStreams.filter(s => s.game === name || s.game?.includes(name)).length;
-                      return (
-                        <div key={name} className="cat-art" onClick={() => setCat(name)}>
-                          <div className="cat-art-bg" style={{ background: `linear-gradient(${meta.bg})` }}>
-                            <span style={{ fontSize: 54, filter: "drop-shadow(0 4px 16px rgba(0,0,0,.6))" }}>{meta.emoji}</span>
-                          </div>
-                          <div className="cat-art-grad" />
-                          <div className="cat-art-label">
-                            <div className="cat-art-name">{name}</div>
-                            <div className="cat-art-count">{liveCount > 0 ? `${liveCount} live` : "Browse"}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* FEATURED PREDICTIONS */}
-                {featuredPreds.length > 0 && (
-                  <div className="d-section">
-                    <div className="d-section-hd">
-                      <span className="d-section-title">🔮 Featured Predictions</span>
-                      <span style={{ fontSize: 11, color: "var(--blue)", fontWeight: 600 }}>Live Markets</span>
-                    </div>
-                    <div className="fpred-strip">
-                      {featuredPreds.map(pred => {
-                        const opts = [pred.option_a, pred.option_b, pred.option_c, pred.option_d, pred.option_e].filter(Boolean);
-                        const streamerName = pred.streams?.profiles?.full_name || pred.streams?.profiles?.username || "Streamer";
-                        const liveStream = liveStreams.find(s => s.user_id === pred.streams?.user_id);
-                        return (
-                          <div key={pred.id} className="fpred-card" onClick={() => liveStream && go("stream", formatDbStream(liveStream))}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-                              <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 4, padding: "2px 7px" }}>🔴 LIVE</span>
-                              <span style={{ fontSize: 11, color: "var(--muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{streamerName}</span>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: pred.status === "locked" ? "var(--orange)" : "var(--green)", flexShrink: 0 }}>{pred.status === "locked" ? "🔒 Locked" : "⚡ Open"}</span>
-                            </div>
-                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, lineHeight: 1.35 }}>🔮 {pred.title}</div>
-                            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                              {opts.map((opt, i) => {
-                                const colors = ["var(--blue)","var(--red)","var(--green)","var(--orange)","var(--purple)"];
-                                const c = colors[i] || "var(--muted)";
-                                return <span key={i} style={{ fontSize: 11, fontWeight: 700, color: c, background: `${c}18`, border: `1px solid ${c}33`, borderRadius: 20, padding: "3px 10px" }}>{opt}</span>;
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* GUEST SIGN-UP CTA */}
-                {!user && (
-                  <div className="d-section" style={{ paddingBottom: 40 }}>
-                    <div className="d-cta-bar">
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🪙 Watch and earn real money</div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Create a free account to earn coins while watching, join chat, and withdraw real cash.</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-                        <button className="btn-o" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log in</button>
-                        <button className="btn-g" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* FOLLOWING FEED */}
-                {user && discTab === "following" && (
-                  <div className="d-section">
-                    {myFollows.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
-                        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nobody followed yet</div>
-                        <div style={{ fontSize: 13 }}>Go to any stream and hit Follow to build your feed.</div>
-                      </div>
-                    ) : (
-                      <div className="d-grid">
-                        {liveStreams.filter(s => myFollows.includes(s.user_id)).map(formatDbStream).map(s => <LiveCard key={s.id} s={s} />)}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      );
-    })()}
-
-    {/* STREAM */}
-    {page === "stream" && stream && <div className="slayout" style={{ paddingTop: 56 }}>
-      <div className="sleft">
-        <div className="splayer">
-          {/* Stream alert overlay */}
-          {streamAlert && (
-            <div className="stream-alert">
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{streamAlert.emoji}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{streamAlert.msg}</div>
-                {streamAlert.sub && <div style={{ fontSize: 11, color: "rgba(255,255,255,.7)", marginTop: 2 }}>{streamAlert.sub}</div>}
-              </div>
-            </div>
-          )}
-          {/* Back button — always visible over the player */}
-          <button onClick={() => go("disc")} style={{ position: "absolute", top: 10, left: 10, zIndex: 20, background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, backdropFilter: "blur(6px)" }}>
-            ← Home
-          </button>
-          {/* Viewer count pill */}
-          <div className="viewer-count-pill">
-            <span style={{ width: 7, height: 7, background: "var(--red)", borderRadius: "50%", animation: "blink 1.6s infinite", flexShrink: 0 }} />
-            {(viewerCount || stream.viewers || 0).toLocaleString()} watching
-          </div>
-          {/* Fullscreen button */}
-          <button className="fs-btn" title="Fullscreen" onClick={() => {
-            const el = document.querySelector(".splayer");
-            if (!document.fullscreenElement) { (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); }
-            else { (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document); }
-          }}>⛶</button>
-          {stream.mux_playback_id ? (
-            <MuxPlayer
-              playbackId={stream.mux_playback_id}
-              streamType="live"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-              autoPlay
-              muted
-            />
-          ) : (
-            <div className="splayer-inner" style={{ background: `linear-gradient(${stream.bg})` }}>
-              <div className="splayer-emoji">{stream.emoji}</div>
-              <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                <span className="lpip" style={{ fontSize: 12, padding: "5px 14px" }}><span className="lpip-dot" />LIVE — {stream.viewers.toLocaleString()}</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>Earning coins while you watch</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="sbelow">
-          {editingStreamInfo ? (
-            <div style={{ marginBottom: 10 }}>
-              <input value={streamInfoDraft.title} onChange={e => setStreamInfoDraft(d => ({ ...d, title: e.target.value }))} placeholder="Stream title" style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14, fontWeight: 700, marginBottom: 6, boxSizing: "border-box" }} />
-              <input value={streamInfoDraft.game} onChange={e => setStreamInfoDraft(d => ({ ...d, game: e.target.value }))} placeholder="Category / game" style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={updateStreamInfo} style={{ flex: 1, background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Save</button>
-                <button onClick={() => setEditingStreamInfo(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "8px 0", fontSize: 13, cursor: "pointer" }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 2 }}>
-              <div className="stitle" style={{ flex: 1 }}>{stream.title}</div>
-              {isStreamOwner && <button onClick={() => { setStreamInfoDraft({ title: stream.title || "", game: stream.game || "" }); setEditingStreamInfo(true); }} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", flexShrink: 0, marginTop: 4 }}>✏️ Edit</button>}
-            </div>
-          )}
-          <div className="sactions">
-            <button className={`abtn ${following ? "flwing" : "flw"}`} onClick={handleFollow} disabled={loadingFollow}>
-              {loadingFollow ? "..." : following ? "✓ Following" : "+ Follow"}
-            </button>
-            <button className="abtn" onClick={() => { navigator.clipboard?.writeText(window.location.href); notify("Link copied!"); }}>Share</button>
-            <button className="abtn" onClick={() => { if (!requireAuth()) return; setShowClipModal(true); }}>✂ Clip</button>
-            {stream.user_id && stream.user_id !== user?.id && (
-              <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={() => isSubscribed ? null : setShowSubTierPicker(true)} disabled={subscribing || isSubscribed}>
-                {isSubscribed ? `⭐ Subscribed` : subscribing ? "…" : "⭐ Subscribe"}
-              </button>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", marginBottom: 14, cursor: stream.user_id ? "pointer" : "default" }} onClick={() => stream.user_id && viewChannel(stream.user_id)}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: stream.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{stream.emoji}</div>
-            <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{stream.streamer}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{stream.game} · {(stream.follower_count || 0).toLocaleString()} followers</div></div>
-            {stream.user_id && <span style={{ fontSize: 11, color: "var(--purple)", flexShrink: 0 }}>View →</span>}
-          </div>
-          {user ? (
-            <div className="earn-box">
-              <div className="ebox-title">Session Earnings</div>
-              {/* Streak badge */}
-              {streakDays >= 2 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,149,0,.1)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 8, padding: "7px 10px", marginBottom: 10 }}>
-                  <span style={{ fontSize: 18 }}>🔥</span>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--orange)" }}>{streakDays}-day streak</span>
-                    {streakDays >= 3 && <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>+{getStreakBonus(streakDays)}% speed boost</span>}
-                  </div>
-                  {streakDays < 3 && <span style={{ fontSize: 11, color: "var(--muted)" }}>{3 - streakDays} day{3 - streakDays > 1 ? "s" : ""} to bonus</span>}
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div><div className="ebig">+{sess}</div><div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>coins this session</div></div>
-                <div style={{ textAlign: "right" }}><div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>🪙 {coins.toLocaleString()}</div><div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>total balance</div></div>
-              </div>
-              <div className="ecells">
-                <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
-                <div className="ecell">
-                  <div className="ecell-v" style={{ color: "var(--gold)" }}>+{Math.round(10 * (1 + getStreakBonus(streakDays) / 100))}</div>
-                  <div className="ecell-l">Per chat</div>
-                </div>
-                <div className="ecell">
-                  <div className="ecell-v" style={{ color: streakDays >= 3 ? "var(--orange)" : "var(--muted)" }}>
-                    {streakDays >= 3 ? `+${getStreakBonus(streakDays)}%` : "1x"}
-                  </div>
-                  <div className="ecell-l">{streakDays >= 3 ? "Bonus" : "Streak"}</div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.10),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 14, padding: 16, marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ fontSize: 32 }}>🪙</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Earn coins while you watch</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Free account gets you +4 coins/hr, +10 per chat, real cash withdrawals.</div>
-                <button className="btn-g" style={{ padding: "8px 18px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free — Start Earning</button>
-              </div>
-            </div>
-          )}
-          {/* Top gifters this session */}
-          {Object.keys(topGifters).length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>Top Gifters</div>
-              <div className="gifters-strip">
-                {Object.entries(topGifters).sort((a,b) => b[1].total - a[1].total).slice(0,5).map(([uid, g], i) => (
-                  <span key={uid} className="gifter-chip">{["🥇","🥈","🥉","4️⃣","5️⃣"][i]} {g.name} · {g.total.toLocaleString()}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Active prediction */}
-          {activePrediction && (() => {
-            const predOpts = [
-              { id: "a", label: activePrediction.option_a, color: "var(--green)", fill: "rgba(0,245,160,.15)" },
-              { id: "b", label: activePrediction.option_b, color: "var(--red)", fill: "rgba(255,45,85,.15)" },
-              ...(activePrediction.option_c ? [{ id: "c", label: activePrediction.option_c, color: "var(--blue)", fill: "rgba(77,159,255,.15)" }] : []),
-              ...(activePrediction.option_d ? [{ id: "d", label: activePrediction.option_d, color: "var(--orange)", fill: "rgba(255,149,0,.15)" }] : []),
-              ...(activePrediction.option_e ? [{ id: "e", label: activePrediction.option_e, color: "var(--gold)", fill: "rgba(255,200,0,.15)" }] : []),
-            ];
-            const totalPot = predEntries.reduce((s, e) => s + e.coins, 0);
-            const optTotals = Object.fromEntries(predOpts.map(o => [o.id, predEntries.filter(e => e.option === o.id).reduce((s, e) => s + e.coins, 0)]));
-            const canBet = activePrediction.status === "open" && predCountdown > 0 && !myPredBet && user?.id !== activePrediction.streamer_id;
-            const isOwner = user?.id === activePrediction.streamer_id;
-            const myOptTotal = myPredBet ? (optTotals[myPredBet.option] || 0) : 0;
-            const potentialPayout = myPredBet && totalPot > 0 && myOptTotal > 0
-              ? Math.round(myPredBet.coins * totalPot / myOptTotal)
-              : 0;
-            const STATUS_COLOR = { open: "var(--green)", locked: "var(--orange)", resolved: "var(--blue)", cancelled: "var(--muted)" };
-            const STATUS_LABEL = { open: "OPEN", locked: "LOCKED", resolved: "RESOLVED", cancelled: "CANCELLED" };
-            const myBetLabel = myPredBet ? (predOpts.find(o => o.id === myPredBet.option)?.label || myPredBet.option) : null;
-            return (
-              <div className="pred-card">
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>🔮 {activePrediction.title}{activePrediction.is_featured && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--gold)", fontWeight: 700 }}>⭐ FEATURED</span>}</div>
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
-                    {activePrediction.status === "open" && predCountdown > 0 && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: predCountdown < 30 ? "var(--red)" : "var(--blue)", fontVariantNumeric: "tabular-nums" }}>
-                        {Math.floor(predCountdown / 60)}:{String(predCountdown % 60).padStart(2, "0")}
-                      </span>
-                    )}
-                    <span style={{ fontSize: 9, fontWeight: 800, color: STATUS_COLOR[activePrediction.status], background: `${STATUS_COLOR[activePrediction.status]}18`, border: `1px solid ${STATUS_COLOR[activePrediction.status]}44`, borderRadius: 6, padding: "2px 7px", letterSpacing: .5 }}>
-                      {STATUS_LABEL[activePrediction.status]}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Option bars — supports up to 5 */}
-                <div style={{ display: "flex", flexDirection: predOpts.length > 2 ? "column" : "row", gap: 6, marginBottom: 12 }}>
-                  {predOpts.map(({ id, label, color, fill }) => {
-                    const total = optTotals[id] || 0;
-                    const pct = totalPot ? Math.round(total / totalPot * 100) : Math.round(100 / predOpts.length);
-                    const isWinner = activePrediction.status === "resolved" && activePrediction.winning_option === id;
-                    const isMyBet = myPredBet?.option === id;
-                    return (
-                      <div key={id} style={{ flex: predOpts.length <= 2 ? 1 : undefined, background: "var(--ink3)", border: `1px solid ${isMyBet || isWinner ? color : "rgba(255,255,255,.08)"}`, borderRadius: 10, padding: "8px 10px", position: "relative", overflow: "hidden" }}>
-                        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: `${pct}%`, background: fill, transition: "width .6s ease", borderRadius: 10 }} />
-                        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ fontWeight: 800, fontSize: 14, color, minWidth: 36 }}>{pct}%</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
-                            <div style={{ fontSize: 10, color: "var(--muted)" }}>{total.toLocaleString()} 🪙</div>
-                          </div>
-                          {isWinner && <span style={{ fontSize: 10, color, fontWeight: 800 }}>✓ Winner</span>}
-                          {isMyBet && !isWinner && <span style={{ fontSize: 10, color, fontWeight: 700 }}>Your bet</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Bet input */}
-                {canBet && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                      <input type="number" min={10} value={predBetAmount} onChange={e => setPredBetAmount(e.target.value)}
-                        style={{ flex: 1, background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 13, fontFamily: "Outfit,sans-serif" }} />
-                      {[50, 100, 500].map(v => (
-                        <button key={v} onClick={() => setPredBetAmount(v)} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "0 8px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}>{v}</button>
-                      ))}
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(predOpts.length, 3)}, 1fr)`, gap: 6 }}>
-                      {predOpts.map(({ id, label, color }) => (
-                        <button key={id} onClick={() => placeBet(id)} disabled={placingBet} style={{ background: `${color}18`, border: `1px solid ${color}55`, color, borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: 700, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Bet {label}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* My bet status */}
-                {myPredBet && activePrediction.status !== "resolved" && (
-                  <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12 }}>
-                    <span style={{ color: "var(--muted)" }}>Your bet: </span>
-                    <span style={{ fontWeight: 700 }}>{myPredBet.coins.toLocaleString()} 🪙 on {myBetLabel}</span>
-                    {potentialPayout > 0 && <span style={{ color: "var(--muted)", marginLeft: 6 }}>· ~{potentialPayout.toLocaleString()} 🪙 if win</span>}
-                  </div>
-                )}
-
-                {/* Resolution result */}
-                {activePrediction.status === "resolved" && myPredBet && (
-                  <div style={{ borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12, background: myPredBet.option === activePrediction.winning_option ? "rgba(0,245,160,.08)" : "rgba(255,45,85,.08)", border: `1px solid ${myPredBet.option === activePrediction.winning_option ? "rgba(0,245,160,.25)" : "rgba(255,45,85,.25)"}`, color: myPredBet.option === activePrediction.winning_option ? "var(--green)" : "var(--red)", fontWeight: 700 }}>
-                    {myPredBet.option === activePrediction.winning_option ? `🎉 You won! Coins have been paid out.` : `You lost ${myPredBet.coins.toLocaleString()} 🪙`}
-                  </div>
-                )}
-
-                {/* Streamer controls */}
-                {isOwner && activePrediction.status !== "resolved" && activePrediction.status !== "cancelled" && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                    {activePrediction.status === "open" && (
-                      <button onClick={lockPrediction} style={{ background: "rgba(255,149,0,.12)", border: "1px solid rgba(255,149,0,.3)", color: "var(--orange)", borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🔒 Lock Bets</button>
-                    )}
-                    <button onClick={toggleFeaturedPrediction} style={{ background: activePrediction.is_featured ? "rgba(255,200,0,.15)" : "none", border: activePrediction.is_featured ? "1px solid rgba(255,200,0,.4)" : "1px solid var(--line)", color: activePrediction.is_featured ? "var(--gold)" : "var(--muted)", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>⭐ {activePrediction.is_featured ? "Featured" : "Feature"}</button>
-                    {(activePrediction.status === "locked" || activePrediction.status === "open") && predOpts.map(({ id, label, color }) => (
-                      <button key={id} onClick={() => resolvePrediction(id)} style={{ flex: 1, minWidth: 70, background: `${color}18`, border: `1px solid ${color}44`, color, borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{label} Wins</button>
-                    ))}
-                    <button onClick={cancelPrediction} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>Cancel</button>
-                  </div>
-                )}
-
-                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
-                  {totalPot.toLocaleString()} 🪙 total · {predEntries.length} bet{predEntries.length !== 1 ? "s" : ""}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Active poll */}
-          {activePoll && (() => {
-            const totalVotes = Object.values(activePoll.votes).reduce((s,v) => s+v, 0);
-            return (
-              <div className="poll-card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>📊 {activePoll.question}</div>
-                  {user?.id === stream?.user_id && <button onClick={endPoll} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>End</button>}
-                </div>
-                {activePoll.options.map(opt => {
-                  const pct = totalVotes ? Math.round((activePoll.votes[opt] || 0) / totalVotes * 100) : 0;
-                  return (
-                    <button key={opt} className={`poll-opt ${pollVoted === opt ? "voted" : ""}`} onClick={() => votePoll(opt)} disabled={!!pollVoted}>
-                      <div className="poll-bar" style={{ width: pollVoted ? `${pct}%` : "0%" }} />
-                      <span style={{ position: "relative" }}>{opt}{pollVoted && <span style={{ float: "right", fontWeight: 700, color: "var(--purple)" }}>{pct}%</span>}</span>
-                    </button>
-                  );
-                })}
-                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</div>
-              </div>
-            );
-          })()}
-
-          {/* Poll creator (streamer only) */}
-          {user?.id === stream?.user_id && !activePoll && showPollCreator && (
-            <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Create Poll</div>
-              <input className="fi" style={{ margin: "0 0 8px", fontSize: 13 }} placeholder="Poll question…" value={pollForm.question} onChange={e => setPollForm(f => ({ ...f, question: e.target.value }))} />
-              {pollForm.options.map((o, i) => (
-                <input key={i} className="fi" style={{ margin: "0 0 6px", fontSize: 13 }} placeholder={`Option ${i+1}`} value={o} onChange={e => { const ops = [...pollForm.options]; ops[i] = e.target.value; setPollForm(f => ({ ...f, options: ops })); }} />
-              ))}
-              {pollForm.options.length < 4 && <button onClick={() => setPollForm(f => ({ ...f, options: [...f.options, ""] }))} style={{ background: "none", border: "none", color: "var(--purple)", fontSize: 12, cursor: "pointer", marginBottom: 8 }}>+ Add option</button>}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={createPoll} className="btn-g" style={{ flex: 1, padding: "8px 0", fontSize: 13 }}>Launch Poll</button>
-                <button onClick={() => setShowPollCreator(false)} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {/* Prediction creator (streamer only) */}
-          {user?.id === stream?.user_id && !activePrediction && showCreatePred && (
-            <div style={{ background: "var(--ink3)", border: "1px solid rgba(77,159,255,.25)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🔮 Create Prediction</div>
-              <input className="fi" style={{ margin: "0 0 8px", fontSize: 13 }} placeholder="Will I win this round?" value={predForm.title} onChange={e => setPredForm(f => ({ ...f, title: e.target.value }))} />
-              <div style={{ marginBottom: 8 }}>
-                {predForm.options.map((opt, i) => (
-                  <div key={i} style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-                    <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder={`Option ${i + 1}`} value={opt} onChange={e => { const opts = [...predForm.options]; opts[i] = e.target.value; setPredForm(f => ({ ...f, options: opts })); }} />
-                    {i >= 2 && <button onClick={() => setPredForm(f => ({ ...f, options: f.options.filter((_, j) => j !== i) }))} style={{ background: "none", border: "1px solid var(--line)", color: "var(--red)", borderRadius: 6, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>×</button>}
-                  </div>
-                ))}
-                {predForm.options.length < 5 && (
-                  <button onClick={() => setPredForm(f => ({ ...f, options: [...f.options, ""] }))} style={{ background: "none", border: "none", color: "var(--blue)", fontSize: 12, cursor: "pointer" }}>+ Add option</button>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>Duration:</span>
-                {[[60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([s, l]) => (
-                  <button key={s} onClick={() => setPredForm(f => ({ ...f, duration: s }))} style={{ flex: 1, background: predForm.duration === s ? "rgba(77,159,255,.15)" : "var(--ink4)", border: predForm.duration === s ? "1px solid rgba(77,159,255,.4)" : "1px solid var(--line2)", color: predForm.duration === s ? "var(--blue)" : "var(--muted)", borderRadius: 8, padding: "6px 0", fontSize: 12, fontWeight: predForm.duration === s ? 700 : 400, cursor: "pointer" }}>{l}</button>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={createPrediction} className="btn-g" style={{ flex: 1, padding: "8px 0", fontSize: 13 }}>Start Prediction</button>
-                <button onClick={() => setShowCreatePred(false)} style={{ background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontSize: 13 }}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {/* Hype Train */}
-          {hypeProgress > 0 && (
-            <div className="hype-wrap">
-              {hypeCelebrating ? (
-                <div className="hype-celebrate">🚂 HYPE TRAIN! Keep it going! 🔥</div>
-              ) : (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>🚂 Hype Train</span>
-                    <span style={{ fontSize: 11, color: "var(--muted)" }}>{hypeProgress}%</span>
-                  </div>
-                  <div className="hype-bar"><div className="hype-bar-fill" style={{ width: `${hypeProgress}%` }} /></div>
-                </>
-              )}
-            </div>
-          )}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Send a gift</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {[["🌟", "Star", "1,000"], ["🏆", "Trophy", "5,000"], ["👑", "Crown", "10,000"], ["🚀", "Rocket", "2,500"]].map(([e, n, c]) => (
-                <div key={n} className="gift" onClick={() => sendGift(n, c, e)}><span className="gift-e">{e}</span><div className="gift-c">🪙 {c}</div><div className="gift-n">{n}</div></div>
-              ))}
-              <div className="gift" onClick={() => setShowTipInput(t => !t)} style={{ borderColor: showTipInput ? "rgba(255,200,0,.5)" : "" }}>
-                <span className="gift-e">💸</span><div className="gift-c">Custom</div><div className="gift-n">Tip</div>
-              </div>
-            </div>
-            {showTipInput && (
-              <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-                <input type="number" min={100} step={100} value={customTipAmt} onChange={e => setCustomTipAmt(e.target.value)} placeholder="e.g. 1500" style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 8, color: "#fff", padding: "7px 10px", fontSize: 13, outline: "none" }} onKeyDown={e => e.key === "Enter" && sendCustomTip()} />
-                <button className="btn-g" style={{ padding: "7px 14px", fontSize: 12 }} onClick={sendCustomTip}>Tip 🪙</button>
-              </div>
-            )}
-            {/* Quick reactions — free, just for fun */}
-            <div className="react-bar">
-              {["👍","❤️","😂","😮","🔥"].map(e => (
-                <button key={e} className="react-btn" onClick={() => triggerGiftAnim(e, "")}>{e}</button>
-              ))}
-            </div>
-          </div>
-          {/* Clips */}
-          {streamClips.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Recent Clips</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {streamClips.map(clip => (
-                  <div key={clip.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 16 }}>✂</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || "viewer"}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Goal widget — mobile */}
-          {streamGoal && streamGoal.goal_target > 0 && (
-            <div style={{ background: "rgba(124,58,237,.07)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple)" }}>🎯 {streamGoal.goal_label || (streamGoal.goal_type === "followers" ? "Follower Goal" : "Viewer Goal")}</span>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>{streamGoal.current.toLocaleString()} / {streamGoal.goal_target.toLocaleString()}</span>
-              </div>
-              <div style={{ height: 5, background: "rgba(255,255,255,.08)", borderRadius: 3 }}>
-                <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 3, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%`, transition: "width .6s ease" }} />
-              </div>
-              {streamGoal.current >= streamGoal.goal_target && <div style={{ fontSize: 10, color: "var(--green)", fontWeight: 700, marginTop: 4 }}>🎉 Goal reached!</div>}
-            </div>
-          )}
-          {/* Mobile chat */}
-          <div className="chat-section">
-            <div className="chat-hd">
-              <span className="chat-hd-title">Live Chat</span>
-              <div style={{ display: "flex", align: "center", gap: 8 }}>
-                {isStreamOwner && !activePoll && (
-                  <button onClick={() => setShowPollCreator(p => !p)} style={{ background: showPollCreator ? "rgba(124,58,237,.2)" : "var(--ink3)", border: "1px solid var(--line2)", color: showPollCreator ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "3px 8px", cursor: "pointer", fontWeight: 700 }}>📊 Poll</button>
-                )}
-                {isStreamOwner && !activePrediction && (
-                  <button onClick={() => setShowCreatePred(p => !p)} style={{ background: showCreatePred ? "rgba(77,159,255,.2)" : "var(--ink3)", border: "1px solid var(--line2)", color: showCreatePred ? "var(--blue)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "3px 8px", cursor: "pointer", fontWeight: 700 }}>🔮 Predict</button>
-                )}
-                {isStreamOwner && (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <select value={slowModeSecs} onChange={e => setSlowModeSecs(Number(e.target.value))} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 6, fontSize: 10, padding: "2px 6px", cursor: "pointer" }}>
-                      <option value={0}>No slow</option>
-                      <option value={10}>10s</option>
-                      <option value={30}>30s</option>
-                      <option value={60}>1 min</option>
-                    </select>
-                    <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontWeight: 700 }}>Sub</button>
-                    <button onClick={() => setFollowerOnly(v => !v)} style={{ background: followerOnly ? "rgba(255,45,85,.15)" : "var(--ink3)", border: followerOnly ? "1px solid rgba(255,45,85,.4)" : "1px solid var(--line2)", color: followerOnly ? "var(--red)" : "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontWeight: 700 }}>❤️</button>
-                    <button onClick={clearChat} title="Clear chat" style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 6, fontSize: 10, padding: "2px 8px", cursor: "pointer" }}>🗑</button>
-                  </div>
-                )}
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>{(viewerCount || stream.viewers || 0).toLocaleString()} 👁</span>
-              </div>
-            </div>
-            <div className="chat-msgs" ref={chatRef}><ChatMessages /></div>
-            <div className="chat-foot">
-              {user ? (
-                <>
-                  {slowCooldown > 0 && <div className="slow-badge">⏱ Slow mode — {slowCooldown}s</div>}
-                  {slowModeSecs > 0 && slowCooldown === 0 && <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 4 }}>Slow mode: {slowModeSecs}s</div>}
-                  <div className="chat-tip">+10 coins per message</div>
-                  {showEmotePicker && streamEmotes.length > 0 && (
-                    <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
-                      {streamEmotes.map(e => (
-                        <img key={e.id} src={e.image_url} alt={`:${e.name}:`} title={`:${e.name}:`} onClick={() => setMsg(m => m + `:${e.name}: `)} style={{ width: 32, height: 32, objectFit: "contain", cursor: "pointer", borderRadius: 4, padding: 2 }} onMouseEnter={ev => ev.currentTarget.style.background = "rgba(255,255,255,.1)"} onMouseLeave={ev => ev.currentTarget.style.background = "transparent"} />
-                      ))}
-                    </div>
-                  )}
-                  <div className="chat-row">
-                    {streamEmotes.length > 0 && (
-                      <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
-                    )}
-                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
-                    <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
-                  </div>
-                </>
-              ) : (
-                <button onClick={() => setShowSignupPrompt(true)} style={{ width: "100%", background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 10, padding: "11px 14px", color: "rgba(255,255,255,.7)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>Join to chat and earn coins</span>
-                  <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign up →</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Desktop chat panel — separate ref to fix auto-scroll */}
-      <div className="chat-panel-desktop" style={{ display: "none" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isStreamOwner ? 8 : 0 }}>
-            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, letterSpacing: .5 }}>Live Chat</span>
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>{(viewerCount || stream.viewers || 0).toLocaleString()} 👁</span>
-          </div>
-          {isStreamOwner && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select value={slowModeSecs} onChange={e => setSlowModeSecs(Number(e.target.value))} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 6, fontSize: 11, padding: "3px 8px", cursor: "pointer", flex: 1 }}>
-                <option value={0}>No slow mode</option>
-                <option value={10}>Slow: 10s</option>
-                <option value={30}>Slow: 30s</option>
-                <option value={60}>Slow: 1 min</option>
-              </select>
-              <button onClick={() => setSubOnly(v => !v)} style={{ background: subOnly ? "rgba(124,58,237,.2)" : "var(--ink3)", border: subOnly ? "1px solid var(--purple)" : "1px solid var(--line2)", color: subOnly ? "var(--purple)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
-                {subOnly ? "Sub ✓" : "Sub"}
-              </button>
-              <button onClick={() => setFollowerOnly(v => !v)} title="Follower-only chat" style={{ background: followerOnly ? "rgba(255,45,85,.15)" : "var(--ink3)", border: followerOnly ? "1px solid rgba(255,45,85,.4)" : "1px solid var(--line2)", color: followerOnly ? "var(--red)" : "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
-                {followerOnly ? "Fol ✓" : "Fol"}
-              </button>
-              <button onClick={clearChat} title="Clear chat" style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 6, fontSize: 11, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>🗑</button>
-            </div>
-          )}
-        </div>
-        {/* Goal widget */}
-        {streamGoal && streamGoal.goal_target > 0 && (
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple)" }}>🎯 {streamGoal.goal_label || (streamGoal.goal_type === "followers" ? "Follower Goal" : "Viewer Goal")}</span>
-              <span style={{ fontSize: 11, color: "var(--muted)" }}>{streamGoal.current.toLocaleString()} / {streamGoal.goal_target.toLocaleString()}</span>
-            </div>
-            <div style={{ height: 5, background: "rgba(255,255,255,.08)", borderRadius: 3 }}>
-              <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 3, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%`, transition: "width .6s ease" }} />
-            </div>
-            {streamGoal.current >= streamGoal.goal_target && <div style={{ fontSize: 10, color: "var(--green)", fontWeight: 700, marginTop: 4 }}>🎉 Goal reached!</div>}
-          </div>
-        )}
-        <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }} ref={chatRef2}><ChatMessages /></div>
-        <div style={{ padding: 12, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
-          {user ? (
-            <>
-              {slowCooldown > 0 && <div className="slow-badge" style={{ marginBottom: 6 }}>⏱ Slow mode — wait {slowCooldown}s</div>}
-              <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 600, marginBottom: 6 }}>+10 coins per message</div>
-              {showEmotePicker && streamEmotes.length > 0 && (
-                <div style={{ background: "var(--ink3)", border: "1px solid var(--line2)", borderRadius: 10, padding: 8, marginBottom: 6, display: "flex", flexWrap: "wrap", gap: 4, maxHeight: 120, overflowY: "auto" }}>
-                  {streamEmotes.map(e => (
-                    <img key={e.id} src={e.image_url} alt={`:${e.name}:`} title={`:${e.name}:`} onClick={() => setMsg(m => m + `:${e.name}: `)} style={{ width: 32, height: 32, objectFit: "contain", cursor: "pointer", borderRadius: 4, padding: 2 }} onMouseEnter={ev => ev.currentTarget.style.background = "rgba(255,255,255,.1)"} onMouseLeave={ev => ev.currentTarget.style.background = "transparent"} />
-                  ))}
-                </div>
-              )}
-              <div className="chat-row">
-                {streamEmotes.length > 0 && (
-                  <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
-                )}
-                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
-                <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
-              </div>
-            </>
-          ) : (
-            <button onClick={() => setShowSignupPrompt(true)} style={{ width: "100%", background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 10, padding: "11px 14px", color: "rgba(255,255,255,.7)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span>Join to chat and earn coins</span>
-              <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign up →</span>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>}
-
-    {/* LEADERBOARD — viewers only, no streamers */}
-    {page === "leaderboard" && <div className="leaderboard-page page">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Leaderboard</div>
-        <div style={{ fontSize: 14, color: "var(--muted)" }}>Top viewers on STEM</div>
-      </div>
-      {profile && (
-        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-          <div style={{ fontSize: 24 }}>📊</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 2 }}>Your coins</div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{firstName} — 🪙 {coins.toLocaleString()}</div>
-            {profile.role === "streamer" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Streamers don't appear on the viewer leaderboard</div>}
-          </div>
-          <button className="btn-g" onClick={() => go("stream", DEMO_STREAMS[0])}>Earn More</button>
-        </div>
-      )}
-      {/* Tab switcher */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {[["earners", "🏆 Top Earners"], ["supporters", "🎁 Top Supporters"]].map(([t, label]) => (
-          <button key={t} onClick={() => setLbTab(t)} style={{ background: lbTab === t ? "rgba(255,255,255,.08)" : "none", border: "1px solid " + (lbTab === t ? "var(--line2)" : "transparent"), color: lbTab === t ? "#fff" : "var(--muted)", borderRadius: 20, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{label}</button>
-        ))}
-      </div>
-      <div className="panel">
-        <div className="panel-hd">
-          <span className="panel-title">{lbTab === "earners" ? "🏆 Most Coins" : "🎁 Most Coins Spent"}</span>
-          <button onClick={fetchLeaderboard} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {loadingLb ? (
-          <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : lbTab === "earners" ? (
-          leaderboard.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🏆</div>No data yet — start watching to earn coins!</div>
-          ) : leaderboard.map((u, i) => (
-            <div key={u.id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.id)}>
-              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
-              <div style={{ flex: 1 }}>
-                <div className="lb-name">{u.full_name || "Anonymous"}</div>
-                <div className="lb-role">👁 Viewer · @{u.username}</div>
-              </div>
-              <div className="lb-coins">🪙 {(u.coins || 0).toLocaleString()}</div>
-            </div>
-          ))
-        ) : (
-          topSupporters.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}><div style={{ fontSize: 32, marginBottom: 12 }}>🎁</div>No supporters yet — send a gift or superchat to appear here!</div>
-          ) : topSupporters.map((u, i) => (
-            <div key={u.user_id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.user_id)}>
-              <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
-              <div style={{ flex: 1 }}>
-                <div className="lb-name">{u.full_name || "Anonymous"}</div>
-                <div className="lb-role">🎁 Supporter · @{u.username}</div>
-              </div>
-              <div className="lb-coins" style={{ color: "var(--purple)" }}>🪙 {(u.total_spent || 0).toLocaleString()}</div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>}
-
-    {/* WALLET */}
-    {page === "wallet" && <div className="wallet-page page">
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>My Wallet</div>
-        <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "there"}! Your coins and earnings.</div>
-      </div>
-      {/* Streak card */}
-      <div style={{ background: streakDays >= 3 ? "linear-gradient(135deg,rgba(255,149,0,.12),rgba(255,149,0,.04))" : "var(--card)", border: streakDays >= 3 ? "1px solid rgba(255,149,0,.25)" : "1px solid var(--line)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ fontSize: 36 }}>{streakDays >= 14 ? "🔥" : streakDays >= 7 ? "🔥" : streakDays >= 3 ? "🔥" : streakDays >= 1 ? "🌱" : "💤"}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3, color: streakDays >= 3 ? "var(--orange)" : "#fff" }}>
-            {streakDays === 0 ? "No active streak" : `${streakDays}-day ${mode === "streamer" ? "stream" : "watch"} streak`}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>
-            {streakDays === 0 && (mode === "streamer" ? "Go live today to start your streak and earn bonus coins." : "Watch a stream today to start your streak and earn bonus coins.")}
-            {streakDays === 1 && (mode === "streamer" ? "Stream tomorrow to keep your streak going!" : "Watch tomorrow to keep your streak going!")}
-            {streakDays === 2 && "One more day for a 1.25x coin bonus!"}
-            {streakDays >= 3 && streakDays < 7 && `+${getStreakBonus(streakDays)}% coin speed active · ${7 - streakDays} days to 1.5x`}
-            {streakDays >= 7 && streakDays < 14 && `+${getStreakBonus(streakDays)}% coin speed active · ${14 - streakDays} days to 2x`}
-            {streakDays >= 14 && "2x coins — maximum streak bonus active!"}
-          </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, color: streakDays >= 3 ? "var(--orange)" : "var(--muted)" }}>{streakDays}d</div>
-          <div style={{ fontSize: 10, color: "var(--muted)" }}>streak</div>
-        </div>
-      </div>
-
-      {/* Viewer Tier Card */}
-      {mode === "viewer" && (() => {
-        const ti = VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest;
-        const days = Math.floor((Date.now() - new Date(profile?.created_at || Date.now())) / 86400000);
-        const hw = profile?.hours_watched || 0;
-        const sw = profile?.streams_watched || 0;
-        const ref = profile?.referral_count || 0;
-        const nextTiers = {
-          guest: [["Account age", days, 7, "days"], ["Streams watched", sw, 5], ["Watch time", parseFloat(hw.toFixed(1)), 5, "hrs"]],
-          active: [["Account age", days, 30, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 20, "hrs"], ["Streams watched", sw, 10]],
-          verified_earner: [["Account age", days, 90, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 100, "hrs"], ["Referrals", ref, 1]],
-          elite: null,
-        };
-        const reqs = nextTiers[viewerTier];
-        const nextTi = ti.next ? VIEWER_TIER_INFO[ti.next] : null;
-        return (
-          <div style={{ background: "var(--card)", border: `1px solid ${ti.color}40`, borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: reqs ? 16 : 0 }}>
-              <div style={{ fontSize: 28 }}>{ti.emoji}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: ti.color }}>{ti.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  {viewerTier === "guest" && "Watch streams to unlock chat and coin earning"}
-                  {viewerTier === "active" && "✓ Chat · ✓ Earn coins · ✓ Send gifts"}
-                  {viewerTier === "verified_earner" && "✓ Withdrawals · ✓ Referrals · ✓ Streak bonuses"}
-                  {viewerTier === "elite" && "✓ 2x coins · ✓ Elite badge · ✓ All features"}
-                </div>
-              </div>
-            </div>
-            {reqs && nextTi && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>Progress to {nextTi.label} {nextTi.emoji}</div>
-                {reqs.map(([label, cur, tgt, unit]) => (
-                  <TierBar key={label} label={`${label}${unit ? ` (${unit})` : ""}`} current={cur} target={tgt} color={ti.next === "elite" ? "var(--gold)" : ti.next === "verified_earner" ? "#0ea5e9" : "var(--green)"} />
-                ))}
-                {viewerTier === "active" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Also requires email verified</div>}
-              </div>
-            )}
-            {!reqs && <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🏆 Maximum viewer tier reached!</div>}
-          </div>
-        );
-      })()}
-
-      <div className="wcards">
-        <div className="wcard g">
-          <div className="wcard-l">Withdrawable Balance</div>
-          <div className="wcard-v">${(coins / 1000).toFixed(2)}</div>
-          <div className="wcard-sub">{coins.toLocaleString()} coins · {Math.max(0, 20000 - coins).toLocaleString()} more needed</div>
-          <button className="wbtn" disabled={coins < 20000 || (viewerTier !== "verified_earner" && viewerTier !== "elite")} onClick={() => coins >= 20000 && (viewerTier === "verified_earner" || viewerTier === "elite") && setShowWithdrawModal(true)}>
-            {viewerTier === "guest" || viewerTier === "active" ? "Unlock at Verified Earner" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
-          </button>
-        </div>
-        <div className="wcard y">
-          <div className="wcard-l">STEM Coins</div>
-          <div className="wcard-v">🪙 {coins.toLocaleString()}</div>
-          <div className="wcard-sub">1,000 coins = $1.00 · 2% fee</div>
-          <button className="wbtn" style={{ background: "var(--gold)" }} onClick={() => mode === "streamer" ? go("dash") : go("disc")}>{mode === "streamer" ? "Go Live" : "Earn Coins"}</button>
-        </div>
-        <div className="wcard p">
-          <div className="wcard-l">Total Earned</div>
-          <div className="wcard-v">${(profile?.total_earned || 0).toFixed(2)}</div>
-          <div className="wcard-sub">{mode === "streamer" ? "Streaming, gifts, referrals" : "Watching, chatting, referrals"}</div>
-          <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", opacity: .7, cursor: "default" }} disabled>Coming Soon</button>
-        </div>
-      </div>
-      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.1),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 16, padding: "20px", marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <div style={{ fontSize: 28 }}>⚡</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Premium — 2x Earnings</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Premium launching soon — join the waitlist to be first.</div>
-          </div>
-          <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "var(--purple)", background: "rgba(124,58,237,.12)", border: "1px solid rgba(124,58,237,.3)", borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>COMING SOON</span>
-        </div>
-        {waitlistDone ? (
-          <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.2)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "var(--green)", textAlign: "center" }}>
-            You're on the waitlist! We'll notify you at {waitlistEmail || user?.email} when Premium launches.
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder={user?.email || "your@email.com"} value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && joinWaitlist()} />
-            <button className="btn-g" style={{ flexShrink: 0 }} onClick={joinWaitlist}>Join Waitlist</button>
-          </div>
-        )}
-      </div>
-
-      {/* Coin Shop */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">🛍 Coin Shop</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>Spend your coins on profile upgrades and chat perks.</div>
-          {[
-            { icon: "🎨", name: "Neon Chat Color", desc: "Your chat messages glow in neon green", cost: 500, profileUpdate: { chat_color: "#00f5a0" }, owned: profile?.chat_color === "#00f5a0" },
-            { icon: "🔥", name: "Red Hot Color", desc: "Fiery red chat color", cost: 500, profileUpdate: { chat_color: "#ff6b35" }, owned: profile?.chat_color === "#ff6b35" },
-            { icon: "💜", name: "Purple Royale", desc: "Rich purple chat color", cost: 500, profileUpdate: { chat_color: "#a78bfa" }, owned: profile?.chat_color === "#a78bfa" },
-            { icon: "👑", name: "VIP Badge", desc: "Crown badge shown in chat next to your name", cost: 1000, profileUpdate: { badge: "👑" }, owned: profile?.badge === "👑" },
-            { icon: "🐋", name: "Whale Badge", desc: "Whale badge for big spenders", cost: 2000, profileUpdate: { badge: "🐋" }, owned: profile?.badge === "🐋" },
-            { icon: "⭐", name: "Star Badge", desc: "Gold star badge for loyal viewers", cost: 750, profileUpdate: { badge: "⭐" }, owned: profile?.badge === "⭐" },
-          ].map(item => (
-            <div key={item.name} className="shop-item">
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{item.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{item.name}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{item.desc}</div>
-              </div>
-              <button onClick={() => !item.owned && buyShopItem(item.name, item.cost, item.profileUpdate)} style={{ background: item.owned ? "rgba(0,245,160,.1)" : "linear-gradient(135deg,var(--purple),var(--red))", border: item.owned ? "1px solid rgba(0,245,160,.3)" : "none", color: item.owned ? "var(--green)" : "#fff", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: item.owned ? "default" : "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
-                {item.owned ? "Owned ✓" : `🪙 ${item.cost.toLocaleString()}`}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Referral */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">🔗 Referral Program</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>Invite friends to STEM and you both earn <strong style={{ color: "var(--gold)" }}>500 coins</strong> when they sign up.</div>
-          {profile?.referral_code ? (
-            <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <input readOnly value={`${window.location.origin}/?ref=${profile.referral_code}`} className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
-                <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?ref=${profile.referral_code}`); notify("Referral link copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
-                {typeof navigator.share === "function" && (
-                  <button onClick={() => navigator.share({ title: "Join STEM — Earn Money Watching Streams", text: `Sign up with my link and we both get 500 free coins!`, url: `${window.location.origin}/?ref=${profile.referral_code}` }).catch(() => {})} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Share</button>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <div style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
-                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--green)" }}>{profile?.referral_count || 0}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>Friends referred</div>
-                </div>
-                <div style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
-                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>{((profile?.referral_count || 0) * 500).toLocaleString()}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>Coins earned</div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>Referral code not set — log out and back in to generate one.</div>
-          )}
-        </div>
-      </div>
-
-      {/* Transaction History */}
-      <div className="panel">
-        <div className="panel-hd">
-          <span className="panel-title">📋 Transaction History</span>
-          <button onClick={fetchTransactions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {loadingTxns ? (
-          <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : transactions.length === 0 ? (
-          <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
-            <div style={{ fontSize: 13 }}>No transactions yet. Start watching to earn!</div>
-          </div>
-        ) : (
-          <div style={{ maxHeight: 400, overflowY: "auto" }}>
-            {transactions.map(t => {
-              const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁", referral_reward: "🔗", withdrawal: "💸" };
-              const colors = { watch: "var(--green)", chat: "var(--blue)", gift_sent: "var(--red)", follow: "var(--green)", clip: "var(--purple)", signup_bonus: "var(--gold)", referral_bonus: "var(--gold)", referral_reward: "var(--gold)", withdrawal: "var(--red)" };
-              const isOut = t.type === "withdrawal";
-              return (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{t.amount.toLocaleString()} 🪙</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Withdrawal History */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">💸 Withdrawal History</span>
-          <button onClick={fetchWithdrawHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {withdrawHistory.length === 0 ? (
-          <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>💸</div>
-            No withdrawals yet — reach 20,000 coins ($20) to cash out.
-          </div>
-        ) : (
-          <div>
-            {withdrawHistory.map(w => {
-              const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
-              const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
-              return (
-                <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderBottom: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 20 }}>💸</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>${Number(w.net_usd).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>({w.amount_coins.toLocaleString()} coins)</span></div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{w.paypal_email} · {new Date(w.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sc[w.status] || "var(--muted)", background: `${sc[w.status] || "rgba(255,255,255,.1)"}18`, border: `1px solid ${sc[w.status] || "var(--line)"}44`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
-                    {sl[w.status] || w.status}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {/* Prediction History */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🔮 Prediction History</span>
-          <button onClick={fetchPredHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {loadingPredHistory ? (
-          <div style={{ padding: "20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>Loading…</div>
-        ) : predHistory.length === 0 ? (
-          <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🔮</div>
-            No prediction bets yet — join a live stream and bet on an outcome!
-          </div>
-        ) : (
-          <div>
-            {predHistory.map(h => (
-              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-                <span style={{ fontSize: 20 }}>{h.won ? "🎉" : "😔"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.prediction_title || "Prediction"}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Bet on: {h.option_label} · {h.coins_bet.toLocaleString()} 🪙 wagered · {new Date(h.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: h.won ? "var(--green)" : "var(--red)", flexShrink: 0 }}>
-                  {h.won ? `+${(h.coins_won - h.coins_bet).toLocaleString()} 🪙` : `-${h.coins_bet.toLocaleString()} 🪙`}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Daily Missions */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">📋 Daily Missions</span>
-          <button onClick={fetchDailyMissions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {(() => {
-          const dm = dailyMissions;
-          if (!dm) return <div style={{ padding: "20px 16px", color: "var(--muted)", fontSize: 13 }}>Loading…</div>;
-          const allDone = dm.watch_mins >= 10 && dm.chat_count >= 5 && dm.followed_today;
-          return (
-            <>
-              <div className="mission-row">
-                <span className="mission-icon">📺</span>
-                <div className="mission-bar-wrap">
-                  <div className="mission-label">Watch 10 minutes of streams</div>
-                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: `${Math.min(100, (dm.watch_mins / 10) * 100)}%`, background: "linear-gradient(90deg,var(--purple),var(--blue))" }} /></div>
-                  <div className="mission-prog">{Math.min(10, dm.watch_mins)}/10 min</div>
-                </div>
-                <span style={{ fontSize: 18 }}>{dm.watch_mins >= 10 ? "✅" : ""}</span>
-              </div>
-              <div className="mission-row">
-                <span className="mission-icon">💬</span>
-                <div className="mission-bar-wrap">
-                  <div className="mission-label">Send 5 chat messages</div>
-                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: `${Math.min(100, (dm.chat_count / 5) * 100)}%`, background: "linear-gradient(90deg,var(--red),var(--orange))" }} /></div>
-                  <div className="mission-prog">{Math.min(5, dm.chat_count)}/5 messages</div>
-                </div>
-                <span style={{ fontSize: 18 }}>{dm.chat_count >= 5 ? "✅" : ""}</span>
-              </div>
-              <div className="mission-row" style={{ borderBottom: "none" }}>
-                <span className="mission-icon">❤️</span>
-                <div className="mission-bar-wrap">
-                  <div className="mission-label">Follow a streamer</div>
-                  <div className="mission-bar"><div className="mission-bar-fill" style={{ width: dm.followed_today ? "100%" : "0%", background: "linear-gradient(90deg,var(--green),var(--blue))" }} /></div>
-                  <div className="mission-prog">{dm.followed_today ? "Done!" : "Not yet"}</div>
-                </div>
-                <span style={{ fontSize: 18 }}>{dm.followed_today ? "✅" : ""}</span>
-              </div>
-              <div style={{ padding: "12px 16px" }}>
-                {dm.bonus_claimed ? (
-                  <div style={{ textAlign: "center", fontSize: 13, color: "var(--green)", fontWeight: 700 }}>🎉 Bonus claimed! Come back tomorrow.</div>
-                ) : (
-                  <button onClick={claimMissionBonus} disabled={!allDone} style={{ width: "100%", background: allDone ? "linear-gradient(135deg,var(--green),var(--blue))" : "var(--ink3)", border: allDone ? "none" : "1px solid var(--line)", color: allDone ? "#000" : "var(--muted)", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, cursor: allDone ? "pointer" : "default" }}>
-                    {allDone ? "🎁 Claim 500 Coins!" : "Complete all missions to claim 500 coins"}
-                  </button>
-                )}
-              </div>
-            </>
-          );
-        })()}
-      </div>
-
-      {/* Achievements */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🏆 Achievements</span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{achievements.size}/{Object.keys(ACHIEVEMENTS).length} earned</span>
-        </div>
-        <div className="ach-grid">
-          {Object.entries(ACHIEVEMENTS).map(([key, ach]) => {
-            const earned = achievements.has(key);
-            return (
-              <div key={key} className={`ach-card${earned ? " earned" : ""}`} title={ach.desc}>
-                <div className="ach-emoji" style={{ opacity: earned ? 1 : 0.25 }}>{ach.emoji}</div>
-                <div className="ach-label" style={{ color: earned ? "var(--gold)" : "var(--muted)" }}>{ach.label}</div>
-                <div className="ach-desc">{ach.desc}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>}
-
-    {/* PROFILE */}
-    {page === "profile" && <div className="profile-page page">
-      <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>My Profile</div>
-      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 28 }}>Manage your account and view your stats</div>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div className="profile-avatar">{initials}</div>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{profile?.full_name || "Your Name"}</div>
-        <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>@{profile?.username || "username"}</div>
-        {profile?.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.6)", marginBottom: 8, maxWidth: 300, margin: "0 auto 10px" }}>{profile.bio}</div>}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: profile?.role === "streamer" ? "rgba(124,58,237,.1)" : "rgba(0,245,160,.1)", border: profile?.role === "streamer" ? "1px solid rgba(124,58,237,.3)" : "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, color: profile?.role === "streamer" ? "var(--purple)" : "var(--green)" }}>
-          {profile?.role === "streamer" ? "🎙 Streamer" : "👁 Viewer"}
-        </div>
-        {/* Tier badge */}
-        {(() => {
-          const ti = mode === "viewer" ? (VIEWER_TIER_INFO[viewerTier] || VIEWER_TIER_INFO.guest) : (streamerTier !== "none" ? STREAMER_TIER_INFO[streamerTier] : null);
-          if (!ti) return null;
-          return (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: `${ti.color}18`, border: `1px solid ${ti.color}44`, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: ti.color, marginTop: 6 }}>
-              {ti.emoji} {ti.label}
-            </div>
-          );
-        })()}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 28 }}>
-        <div className="profile-stat"><div className="profile-stat-v">{coins.toLocaleString()}</div><div className="profile-stat-l">Coins</div></div>
-        <div className="profile-stat"><div className="profile-stat-v">${(coins / 1000).toFixed(2)}</div><div className="profile-stat-l">Value</div></div>
-        <div className="profile-stat"><div className="profile-stat-v">${(profile?.total_earned || 0).toFixed(2)}</div><div className="profile-stat-l">Earned</div></div>
-      </div>
-      <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Edit Profile</span></div>
-        <div style={{ padding: 16 }}>
-          {profileMsg === "success" && <div className="success-msg">Profile updated!</div>}
-          {profileMsg && profileMsg !== "success" && <div className="error-msg">{profileMsg}</div>}
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Full Name</label>
-          <input className="fi" placeholder="Your full name" value={editProfile.fullName} onChange={e => setEditProfile({ ...editProfile, fullName: e.target.value })} />
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Username</label>
-          <input className="fi" placeholder="Your username" value={editProfile.username} onChange={e => setEditProfile({ ...editProfile, username: e.target.value })} />
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Bio</label>
-          <input className="fi" placeholder="Tell people about yourself..." value={editProfile.bio} onChange={e => setEditProfile({ ...editProfile, bio: e.target.value })} />
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block", marginTop: 4 }}>Social Links</label>
-          {[["twitter", "🐦 Twitter / X username"], ["instagram", "📸 Instagram username"], ["youtube", "▶️ YouTube channel URL"], ["tiktok", "🎵 TikTok username"]].map(([key, ph]) => (
-            <input key={key} className="fi" placeholder={ph} value={editProfile[key]} onChange={e => setEditProfile({ ...editProfile, [key]: e.target.value })} style={{ marginBottom: 6 }} />
-          ))}
-          <button onClick={handleSaveProfile} disabled={savingProfile} style={{ width: "100%", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingProfile ? "not-allowed" : "pointer", opacity: savingProfile ? 0.7 : 1 }}>
-            {savingProfile ? <div className="spinner" /> : "Save Changes"}
-          </button>
-        </div>
-      </div>
-      <div className="panel">
-        <div className="panel-hd"><span className="panel-title">Account</span></div>
-        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
-            <div><div style={{ fontSize: 14, fontWeight: 600 }}>Email</div><div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{user?.email}</div></div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Account Type</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{profile?.role === "streamer" ? "Streamer" : "Viewer"} account</div>
-            </div>
-            <button onClick={() => switchMode(profile?.role === "streamer" ? "viewer" : "streamer")} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--txt)", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>Switch</button>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0" }}>
-            <div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--red)" }}>Log Out</div><div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Sign out of your account</div></div>
-            <button onClick={handleLogout} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>Log Out</button>
-          </div>
-        </div>
-      </div>
-    </div>}
-
-    {/* DASHBOARD */}
-    {page === "dash" && <div className="dash-page page">
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 3 }}>Creator Dashboard</div>
-        <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "Streamer"}! Ready to go live and get paid?</div>
-      </div>
-
-      {/* GO LIVE HERO — dominant element */}
-      {isStreaming ? (
-        <div style={{ background: "linear-gradient(135deg,rgba(255,45,85,.15),rgba(255,107,53,.1))", border: "1px solid rgba(255,45,85,.4)", borderRadius: 20, padding: "22px 24px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,var(--red),#ff6b35)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 12, height: 12, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
-              <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, letterSpacing: .5, color: "var(--red)" }}>LIVE NOW</span>
-            </div>
-            {!editingLiveInfo && <>
-              <span style={{ fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{goLiveForm.title}"</span>
-              <span style={{ fontSize: 12, color: "var(--muted)", background: "rgba(255,255,255,.06)", borderRadius: 6, padding: "3px 8px", flexShrink: 0 }}>{goLiveForm.category}</span>
-              <button onClick={() => { setLiveInfoForm({ title: goLiveForm.title, category: goLiveForm.category }); setEditingLiveInfo(true); }} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "rgba(255,255,255,.7)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Edit</button>
-            </>}
-          </div>
-          {editingLiveInfo && (
-            <div style={{ marginBottom: 14 }}>
-              <input value={liveInfoForm.title} onChange={e => setLiveInfoForm(f => ({ ...f, title: e.target.value }))} placeholder="Stream title..." style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "9px 12px", color: "#fff", fontSize: 14, marginBottom: 8, boxSizing: "border-box" }} />
-              <select value={liveInfoForm.category} onChange={e => setLiveInfoForm(f => ({ ...f, category: e.target.value }))} style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "9px 12px", color: "#fff", fontSize: 13, marginBottom: 10 }}>
-                {["Gaming","IRL","Music","Sports","Education","Art","Tech","Just Chatting","Cooking","Travel","Business","Other"].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={updateLiveInfo} disabled={savingLiveInfo} style={{ flex: 1, background: "var(--green)", color: "#000", border: "none", borderRadius: 8, padding: "9px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{savingLiveInfo ? "Saving..." : "Save"}</button>
-                <button onClick={() => setEditingLiveInfo(false)} style={{ flex: 1, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", borderRadius: 8, padding: "9px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
-              </div>
-            </div>
-          )}
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18 }}>Your stream is live — viewers can find you on the Discover page. Open OBS and start streaming if you haven't already.</div>
-          {muxStreamKey && (
-            <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700, letterSpacing: .5, textTransform: "uppercase" }}>Stream Key</span>
-              <span style={{ fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,.6)", flex: 1, wordBreak: "break-all" }}>{muxStreamKey.slice(0, 24)}•••</span>
-              <button onClick={() => { navigator.clipboard?.writeText(muxStreamKey); notify("Stream key copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
-            </div>
-          )}
-          {/* Live ad revenue ticker */}
-          {adRevenue > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
-              <span style={{ fontSize: 20 }}>📺</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--green)" }}>Ad Revenue This Stream</div>
-                <div style={{ fontSize: 11, color: "var(--muted)" }}>~4 coins/hr per viewer · 40% your share</div>
-              </div>
-              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, color: "var(--green)" }}>+{adRevenue} 🪙</div>
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={() => go("disc")} className="btn-g" style={{ flex: 1, minWidth: 120 }}>View on Discover</button>
-            <button onClick={handleEndStream} className="btn-red" style={{ flex: 1, minWidth: 120, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-              <span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />End Stream
-            </button>
-          </div>
-          {/* Goal editor */}
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showGoalEditor ? 10 : 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: streamGoal ? "var(--purple)" : "var(--muted)" }}>
-                🎯 {streamGoal ? `Goal: ${streamGoal.current.toLocaleString()} / ${streamGoal.goal_target.toLocaleString()} ${streamGoal.goal_type}` : "Set a stream goal"}
-              </div>
-              <button onClick={() => { setGoalForm(streamGoal ? { type: streamGoal.goal_type, target: streamGoal.goal_target, label: streamGoal.goal_label || "" } : { type: "followers", target: 500, label: "" }); setShowGoalEditor(v => !v); }} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "rgba(255,255,255,.7)", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>{showGoalEditor ? "Cancel" : streamGoal ? "Edit" : "Set"}</button>
-            </div>
-            {showGoalEditor && (
-              <div>
-                <select value={goalForm.type} onChange={e => setGoalForm(f => ({ ...f, type: e.target.value }))} style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 6 }}>
-                  <option value="followers">Followers</option>
-                  <option value="viewers">Viewers</option>
-                </select>
-                <input type="number" min="1" value={goalForm.target} onChange={e => setGoalForm(f => ({ ...f, target: e.target.value }))} placeholder="Target (e.g. 500)" style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 6, boxSizing: "border-box" }} />
-                <input value={goalForm.label} onChange={e => setGoalForm(f => ({ ...f, label: e.target.value }))} placeholder="Label (optional — e.g. '500 followers to unlock emotes!')" style={{ width: "100%", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, padding: "8px 12px", color: "#fff", fontSize: 13, marginBottom: 8, boxSizing: "border-box" }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={saveGoal} disabled={savingGoal} style={{ flex: 2, background: "var(--purple)", color: "#fff", border: "none", borderRadius: 8, padding: "9px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{savingGoal ? "Saving..." : "Save Goal"}</button>
-                  {streamGoal && <button onClick={clearGoal} style={{ flex: 1, background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 8, padding: "9px", fontSize: 12, cursor: "pointer" }}>Clear</button>}
-                </div>
-              </div>
-            )}
-            {streamGoal && !showGoalEditor && (
-              <div style={{ height: 4, background: "rgba(255,255,255,.08)", borderRadius: 2, marginTop: 8 }}>
-                <div style={{ height: "100%", background: "linear-gradient(90deg,var(--purple),var(--red))", borderRadius: 2, width: `${Math.min(100, (streamGoal.current / streamGoal.goal_target) * 100).toFixed(1)}%` }} />
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.10))", border: "2px dashed rgba(255,45,85,.35)", borderRadius: 20, padding: "32px 28px", marginBottom: 20, textAlign: "center", position: "relative", overflow: "hidden" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎙</div>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 32, letterSpacing: 1, marginBottom: 8 }}>Ready to Stream?</div>
-          <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24, maxWidth: 380, margin: "0 auto 24px" }}>
-            Go live in seconds. Your viewers earn coins while they watch — the more engaged your audience, the more everyone earns.
-          </div>
-          <button
-            onClick={() => { setGoLiveStep(1); setShowGoLive(true); }}
-            style={{ background: "linear-gradient(135deg,var(--red),#ff6b35)", color: "#fff", border: "none", borderRadius: 14, padding: "16px 40px", fontSize: 17, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 30px rgba(255,45,85,.4)", display: "inline-flex", alignItems: "center", gap: 10, letterSpacing: .3 }}
-          >
-            <span style={{ width: 10, height: 10, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />
-            Go Live Now
-          </button>
-          <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
-            {[["⚡", "Instant setup"], ["🪙", "Earn from stream 1"], ["📡", "Real RTMP via OBS"]].map(([icon, label]) => (
-              <div key={label} style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", gap: 5 }}>
-                <span>{icon}</span>{label}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* KPIs — real data */}
-      <div className="kpis" style={{ marginBottom: 16 }}>
-        {[
-          ["r", "Balance", `$${(coins / 1000).toFixed(2)}`, `${coins.toLocaleString()} coins`],
-          ["g", "Followers", (profile?.follower_count || 0).toLocaleString(), "total followers"],
-          ["y", "Total Earned", `$${(profile?.total_earned || 0).toFixed(2)}`, "lifetime"],
-          ["b", "Streams", streamerAnalytics.streamCount.toLocaleString(), "total broadcasts"],
-        ].map(([col, l, v, ch]) => (
-          <div key={l} className={`kpi ${col}`}><div className="kpi-l">{l}</div><div className="kpi-v">{v}</div><div className="kpi-ch">{ch}</div></div>
-        ))}
-      </div>
-
-      {/* Streamer Tier Card */}
-      {(() => {
-        const ti = STREAMER_TIER_INFO[streamerTier] || STREAMER_TIER_INFO.none;
-        const days = Math.floor((Date.now() - new Date(profile?.created_at || Date.now())) / 86400000);
-        const fl = profile?.follower_count || 0;
-        const hs = parseFloat((profile?.hours_streamed || 0).toFixed(1));
-        const sd = profile?.streaming_days || 0;
-        const nextTiers = {
-          none: [["Followers", fl, 100], ["Hours streamed", hs, 20, "hrs"], ["Streaming days", sd, 14], ["Account age", days, 30, "days"]],
-          affiliate: [["Followers", fl, 500], ["Hours streamed", hs, 100, "hrs"], ["Streaming days", sd, 30]],
-          partner: null,
-        };
-        const reqs = nextTiers[streamerTier];
-        const nextTi = ti.next ? STREAMER_TIER_INFO[ti.next] : null;
-        return (
-          <div style={{ background: "var(--card)", border: `1px solid ${ti.color}40`, borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: reqs ? 16 : 0 }}>
-              <div style={{ fontSize: 28 }}>{ti.emoji}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: ti.color }}>{ti.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  {streamerTier === "none" && "Build an audience to unlock Affiliate status"}
-                  {streamerTier === "affiliate" && "✓ Ad revenue share · ✓ Coin payouts · ✓ Virtual gifts"}
-                  {streamerTier === "partner" && "✓ Subscriptions · ✓ Brand deals · ✓ Verified badge"}
-                </div>
-              </div>
-              {streamerTier !== "none" && <span style={{ background: `${ti.color}20`, border: `1px solid ${ti.color}50`, color: ti.color, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 800 }}>{ti.emoji} {ti.label.toUpperCase()}</span>}
-            </div>
-            {reqs && nextTi && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>Progress to {nextTi.label} {nextTi.emoji}</div>
-                {reqs.map(([label, cur, tgt, unit]) => (
-                  <TierBar key={label} label={`${label}${unit ? ` (${unit})` : ""}`} current={cur} target={tgt} color={ti.next === "partner" ? "var(--purple)" : "var(--orange)"} />
-                ))}
-              </div>
-            )}
-            {!reqs && <div style={{ fontSize: 12, color: "var(--purple)", fontWeight: 700 }}>✅ Maximum streamer tier reached!</div>}
-          </div>
-        );
-      })()}
-
-      {/* Revenue Breakdown — real data */}
-      {(() => {
-        const giftUsd = streamerAnalytics.giftRevenue / 1000;
-        const subUsd = streamerAnalytics.activeSubs;
-        const balUsd = coins / 1000;
-        const total = giftUsd + subUsd + balUsd || 1;
-        const rows = [
-          ["Gifts received", giftUsd, "linear-gradient(90deg,var(--gold),var(--orange))"],
-          ["Subscriptions", subUsd, "linear-gradient(90deg,var(--green),#00c8a0)"],
-          ["Coin balance", balUsd, "linear-gradient(90deg,var(--red),#ff6b35)"],
-        ];
-        return (
-          <div className="panel" style={{ marginBottom: 16 }}>
-            <div className="panel-hd">
-              <span className="panel-title">Revenue Breakdown</span>
-              <button onClick={fetchStreamerAnalytics} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-            </div>
-            {loadingAnalytics ? (
-              <div style={{ padding: 32, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-            ) : (
-              <div style={{ padding: 16 }}>
-                {rows.map(([l, usd, grad]) => (
-                  <div key={l} style={{ marginBottom: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, color: "var(--muted)" }}>{l}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>${usd.toFixed(2)}</span>
-                    </div>
-                    <div style={{ background: "var(--ink4)", borderRadius: 4, height: 6, overflow: "hidden" }}>
-                      <div style={{ width: `${Math.round(usd / total * 100)}%`, height: "100%", borderRadius: 4, background: grad, transition: "width .6s ease" }} />
-                    </div>
-                  </div>
-                ))}
-                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "var(--muted)" }}>Total value</span>
-                  <span style={{ fontWeight: 800, color: "var(--green)" }}>${total.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Ad Revenue Split */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Ad Revenue Split</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 14 }}>
-            <div style={{ flex: 40, background: "var(--green)", borderRadius: 4 }} />
-            <div style={{ flex: 40, background: "var(--red)", borderRadius: 4 }} />
-            <div style={{ flex: 20, background: "rgba(255,255,255,.2)", borderRadius: 4 }} />
-          </div>
-          {[["var(--green)", "You (streamer)", "40%"], ["var(--red)", "STEM platform", "40%"], ["rgba(255,255,255,.4)", "Your viewers", "20%"]].map(([c, l, v]) => (
-            <div key={l} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <div style={{ width: 9, height: 9, borderRadius: 3, background: c, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: "var(--muted)", flex: 1 }}>{l}</span>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Audience Overview — real data */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">Audience Overview</span><span style={{ fontSize: 12, color: "var(--muted)" }}>All time</span></div>
-        {loadingAnalytics ? (
-          <div style={{ padding: 32, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : (
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[
-                ["Peak Viewers", streamerAnalytics.peakViewers.toLocaleString(), "var(--gold)"],
-                ["Avg. Viewers", streamerAnalytics.avgPeakViewers.toLocaleString(), "var(--blue)"],
-                ["New Followers (30d)", streamerAnalytics.newFollowers30d.toLocaleString(), "var(--purple)"],
-                ["Active Subs", streamerAnalytics.activeSubs.toLocaleString(), "var(--green)"],
-                ["Total Clips", streamerAnalytics.totalClips.toLocaleString(), "var(--red)"],
-                ["Total Streams", streamerAnalytics.streamCount.toLocaleString(), "var(--muted)"],
-              ].map(([l, v, c]) => (
-                <div key={l} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6, fontWeight: 600, letterSpacing: .4, textTransform: "uppercase" }}>{l}</div>
-                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, color: c }}>{v || "0"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Streams — real data */}
-      {streamerAnalytics.recentStreams.length > 0 && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <div className="panel-hd"><span className="panel-title">📺 Recent Streams</span></div>
-          <div>
-            {streamerAnalytics.recentStreams.map((s, i) => {
-              const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
-              return (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < streamerAnalytics.recentStreams.length - 1 ? "1px solid var(--line)" : "none" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{meta.emoji}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{s.category} · {new Date(s.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 18, color: "var(--gold)" }}>{(s.peak_viewers || 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 10, color: "var(--muted)" }}>peak</div>
-                  </div>
-                  {s.mux_playback_id && <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, flexShrink: 0 }}>VOD</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Stream Schedule */}
-      <div className="panel">
-        <div className="panel-hd">
-          <span className="panel-title">📅 Stream Schedule</span>
-          <button onClick={() => setShowScheduleModal(true)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Add</button>
-        </div>
-        {channelSchedule.length === 0 && upcomingSchedule.filter(s => s.user_id === user?.id).length === 0 ? (
-          <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--muted)" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
-            <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>No scheduled streams</div>
-            <div style={{ fontSize: 12 }}>Let your audience know when you're going live next.</div>
-          </div>
-        ) : (
-          <div>
-            {upcomingSchedule.filter(s => s.user_id === user?.id).map(s => {
-              const d = new Date(s.scheduled_at);
-              return (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-                  <div style={{ textAlign: "center", minWidth: 42, background: "rgba(124,58,237,.1)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 8, padding: "6px 4px" }}>
-                    <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700 }}>{d.toLocaleDateString([], { month: "short" }).toUpperCase()}</div>
-                    <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, lineHeight: 1 }}>{d.getDate()}</div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{s.category} · {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Channel Emotes */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">😄 Channel Emotes</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>{myEmotes.length}/50</span>
-            <button
-              onClick={async () => {
-                const next = !(profile?.emotes_enabled ?? true);
-                await supabase.from("profiles").update({ emotes_enabled: next }).eq("id", user.id);
-                setProfile(p => ({ ...p, emotes_enabled: next }));
-                notify(next ? "Emotes enabled for your channel" : "Emotes disabled for your channel");
-              }}
-              style={{ background: (profile?.emotes_enabled ?? true) ? "rgba(0,245,160,.12)" : "var(--ink4)", border: (profile?.emotes_enabled ?? true) ? "1px solid rgba(0,245,160,.3)" : "1px solid var(--line2)", color: (profile?.emotes_enabled ?? true) ? "var(--green)" : "var(--muted)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .2s" }}
-            >
-              {(profile?.emotes_enabled ?? true) ? "ON" : "OFF"}
-            </button>
-          </div>
-        </div>
-        <div style={{ padding: 16 }}>
-          {!(profile?.emotes_enabled ?? true) && (
-            <div style={{ background: "rgba(255,149,0,.08)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--orange)" }}>
-              Emotes are currently disabled — viewers cannot use your emotes in chat. Toggle ON to enable them.
-            </div>
-          )}
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>
-            Upload emotes your viewers can use in your chat. Type <code style={{ background: "var(--ink4)", padding: "1px 5px", borderRadius: 4 }}>:emotename:</code> to use them.
-          </div>
-          {/* Upload form */}
-          <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Emote Name</label>
-                <input className="fi" style={{ margin: 0 }} placeholder="e.g. stemFire" value={emoteName} onChange={e => setEmoteName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))} />
-                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>Letters, numbers, underscore only</div>
-              </div>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Image (PNG/GIF, max 512KB)</label>
-                <input ref={emoteFileRef} type="file" accept="image/png,image/gif,image/webp" style={{ fontSize: 12, color: "var(--muted)", width: "100%" }} />
-              </div>
-              <button onClick={uploadEmote} disabled={uploadingEmote} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: uploadingEmote ? "not-allowed" : "pointer", opacity: uploadingEmote ? 0.7 : 1, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                {uploadingEmote ? <div className="spinner" /> : "Upload"}
-              </button>
-            </div>
-          </div>
-          {/* Existing emotes grid */}
-          {myEmotes.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>😄</div>
-              <div style={{ fontSize: 13 }}>No emotes yet — upload your first one above.</div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {myEmotes.map(e => (
-                <div key={e.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80, position: "relative" }}>
-                  <img src={e.image_url} alt={e.name} style={{ width: 48, height: 48, objectFit: "contain", borderRadius: 4 }} />
-                  <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
-                  <button onClick={() => deleteEmote(e)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(255,45,85,.15)", border: "none", color: "var(--red)", borderRadius: 4, width: 18, height: 18, fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Auto-mod Word Filter */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🛡 Auto-mod Word Filter</span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{bannedWords.length} words</span>
-        </div>
-        <div style={{ padding: "12px 16px" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Add banned word…" value={newBannedWord} onChange={e => setNewBannedWord(e.target.value)} onKeyDown={e => e.key === "Enter" && addBannedWord()} />
-            <button onClick={addBannedWord} style={{ background: "var(--red)", border: "none", color: "#fff", borderRadius: 10, padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
-          </div>
-          {bannedWords.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>No banned words. Messages containing added words will be auto-blocked.</div>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap" }}>
-              {bannedWords.map(w => (
-                <span key={w} className="word-chip">
-                  {w}
-                  <button onClick={() => removeBannedWord(w)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Chat Bans */}
-      {chatBans.size > 0 && (
-        <div className="panel" style={{ marginTop: 16 }}>
-          <div className="panel-hd">
-            <span className="panel-title">🚫 Banned Users</span>
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>{chatBans.size} banned</span>
-          </div>
-          <div style={{ padding: 16 }}>
-            {[...chatBans].map(uid => (
-              <div key={uid} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,45,85,.15)", border: "1px solid rgba(255,45,85,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🚫</div>
-                <div style={{ flex: 1, fontSize: 12, color: "var(--muted)", fontFamily: "monospace" }}>{uid.slice(0, 16)}…</div>
-                <button onClick={() => unbanUser(uid)} style={{ background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.25)", color: "var(--green)", borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>Unban</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>}
-
-    {/* ADMIN PANEL */}
-    {page === "admin" && user?.email === "blankcoojnr@gmail.com" && (
-      <div className="admin-page page">
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Admin Panel</div>
-        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24 }}>Manage withdrawal requests</div>
-        <div className="panel">
-          <div className="panel-hd">
-            <span className="panel-title">💸 Withdrawal Requests</span>
-            <button onClick={fetchAdminWithdrawals} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-          </div>
-          {loadingAdmin ? (
-            <div style={{ padding: 40, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-          ) : adminWithdrawals.length === 0 ? (
-            <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)" }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
-              <div style={{ fontSize: 13 }}>No withdrawal requests yet.</div>
-            </div>
-          ) : (
-            <div>
-              {adminWithdrawals.map(w => {
-                const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
-                const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
-                return (
-                  <div key={w.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>
-                          {w.profiles?.full_name || w.profiles?.username || "Unknown"}
-                          <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>@{w.profiles?.username}</span>
-                        </div>
-                        <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 2 }}>{w.paypal_email}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          {w.amount_coins?.toLocaleString()} coins → <strong style={{ color: "#fff" }}>${Number(w.net_usd).toFixed(2)}</strong>
-                          <span style={{ marginLeft: 6, opacity: .6 }}>(fee ${Number(w.fee_usd).toFixed(2)})</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{new Date(w.created_at).toLocaleString()}</div>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: sc[w.status], background: `${sc[w.status]}18`, border: `1px solid ${sc[w.status]}44`, borderRadius: 20, padding: "3px 12px" }}>
-                          {sl[w.status] || w.status}
-                        </span>
-                        {w.status === "pending" && (
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => approveWithdrawal(w)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Approve</button>
-                            <button onClick={() => rejectWithdrawal(w)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reject</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    )}
-
-    {/* CLIPS GALLERY */}
-    {page === "clips" && (
-      <div className="clips-page page">
-        <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Clips</div>
-        <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 20 }}>Best moments from STEM streams</div>
-        {loadingClips ? (
-          <div style={{ padding: 60, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : allClips.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-            <div style={{ fontSize: 48, marginBottom: 14 }}>✂</div>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>No clips yet</div>
-            <div style={{ fontSize: 13 }}>Watch streams and click ✂ Clip to save moments.</div>
-          </div>
-        ) : (
-          <>
-            {allClips.some(c => c.score > 0) && (
-              <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,200,0,.03))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>🏆</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>Top Clip</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{[...allClips].sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.title}</div>
-                </div>
-              </div>
-            )}
-            <div className="clips-grid">
-              {[...allClips].sort((a, b) => (b.score || 0) - (a.score || 0)).map(clip => {
-                const meta = CAT_META[clip.category] || { emoji: "🎮", color: "#7c3aed" };
-                return (
-                  <div key={clip.id} className="clip-card" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/?clip=${clip.id}`); notify("Clip link copied!"); }}>
-                    <div style={{ background: `linear-gradient(135deg,${meta.color}33,${meta.color}11)`, height: 100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, borderBottom: "1px solid var(--line)", position: "relative" }}>
-                      {meta.emoji}
-                      {(clip.score || 0) > 0 && <span style={{ position: "absolute", top: 6, right: 8, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>+{clip.score}</span>}
-                    </div>
-                    <div style={{ padding: "10px 12px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)" }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                        <button className={`vote-btn up${myClipVotes[clip.id] === 1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, 1)}>▲ {clip.score > 0 ? clip.score : 0}</button>
-                        <button className={`vote-btn dn${myClipVotes[clip.id] === -1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, -1)}>▼</button>
-                        <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-    )}
-
-    {/* VIEWER PROFILE PAGE */}
-    {page === "vprofile" && (
-      <div className="vprofile-page page">
-        {loadingVProfile ? (
-          <div style={{ padding: 60, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
-        ) : vProfile ? (() => {
-          const vInitials = vProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
-          const vCoins = vProfile.coins || 0;
-          const vStreak = vProfile.streak_days || 0;
-          const badges = [];
-          if (vCoins >= 100000) badges.push(["🏆", "Whale", "#ffc800", "rgba(255,200,0,.12)"]);
-          if (vCoins >= 10000)  badges.push(["💰", "High Roller", "#00f5a0", "rgba(0,245,160,.1)"]);
-          if (vStreak >= 14)    badges.push(["🔥", "Streak Legend", "#ff9500", "rgba(255,149,0,.12)"]);
-          if (vStreak >= 7)     badges.push(["🔥", "On Fire", "#ff9500", "rgba(255,149,0,.1)"]);
-          if (vStreak >= 3)     badges.push(["✨", "Consistent", "#7c3aed", "rgba(124,58,237,.12)"]);
-          if (vCoins >= 1500 && vCoins < 5000) badges.push(["🌱", "Growing", "#00f5a0", "rgba(0,245,160,.1)"]);
-          return (<>
-            <button onClick={() => setPage("disc")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, display: "flex", alignItems: "center", gap: 5 }}>← Back</button>
-            <div style={{ textAlign: "center", marginBottom: 24 }}>
-              <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, margin: "0 auto 14px" }}>{vInitials}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{vProfile.full_name || "Viewer"}</div>
-              <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>@{vProfile.username || "unknown"}</div>
-              {vProfile.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", maxWidth: 360, margin: "0 auto 10px" }}>{vProfile.bio}</div>}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, color: "var(--green)" }}>👁 Viewer</div>
-            </div>
-            {/* Stat grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
-              {[["🪙", vCoins.toLocaleString(), "Coins"], ["🔥", `${vStreak}d`, "Streak"], ["💸", `$${(vCoins/1000).toFixed(2)}`, "Value"]].map(([icon, v, l]) => (
-                <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                  <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22 }}>{v}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{l}</div>
-                </div>
-              ))}
-            </div>
-            {/* Badges */}
-            {badges.length > 0 && (
-              <div className="panel" style={{ marginBottom: 16 }}>
-                <div className="panel-hd"><span className="panel-title">🏅 Badges</span></div>
-                <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {badges.map(([icon, label, color, bg]) => (
-                    <span key={label} className="badge-chip" style={{ background: bg, border: `1px solid ${color}44`, color }}>
-                      {icon} {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Achievements */}
-            {vProfile._achievements?.size > 0 && (
-              <div className="panel" style={{ marginBottom: 16 }}>
-                <div className="panel-hd"><span className="panel-title">🏆 Achievements</span><span style={{ fontSize: 12, color: "var(--muted)" }}>{vProfile._achievements.size} earned</span></div>
-                <div style={{ padding: "10px 14px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {Object.entries(ACHIEVEMENTS).filter(([k]) => vProfile._achievements.has(k)).map(([k, a]) => (
-                    <span key={k} title={a.desc} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,200,0,.08)", border: "1px solid rgba(255,200,0,.22)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{a.emoji} {a.label}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Recent activity */}
-            {vProfileTxns.length > 0 && (
-              <div className="panel">
-                <div className="panel-hd"><span className="panel-title">📋 Recent Activity</span></div>
-                <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                  {vProfileTxns.slice(0, 15).map(t => {
-                    const icons = { watch: "📺", chat: "💬", gift_sent: "🎁", follow: "➕", clip: "✂", signup_bonus: "🎉", referral_bonus: "🎁" };
-                    const isOut = t.amount < 0 || t.type === "gift_sent";
-                    return (
-                      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderBottom: "1px solid var(--line)" }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>{icons[t.type] || "🪙"}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description || t.type}</div>
-                          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: isOut ? "var(--red)" : "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{Math.abs(t.amount).toLocaleString()} 🪙</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>);
-        })() : (
-          <div style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>Profile not found</div>
-        )}
-      </div>
-    )}
-
-    {/* CHANNEL PAGE */}
-    {page === "channel" && channelUser && <div className="page" style={{ maxWidth: 760, margin: "0 auto", paddingTop: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
-        <div style={{ width: 72, height: 72, borderRadius: 18, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, flexShrink: 0 }}>
-          {channelUser.full_name?.charAt(0) || "?"}
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 28, letterSpacing: .5 }}>{channelUser.full_name}</div>
-            {channelIsLive && <span style={{ background: "var(--red)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 5, letterSpacing: .5 }}>🔴 LIVE</span>}
-          </div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>@{channelUser.username} · {channelFollowers.toLocaleString()} followers</div>
-          {channelUser.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", maxWidth: 420, marginBottom: 8 }}>{channelUser.bio}</div>}
-          {[["social_twitter", "🐦", "twitter.com/"], ["social_instagram", "📸", "instagram.com/"], ["social_youtube", "▶️", null], ["social_tiktok", "🎵", "tiktok.com/@"]].some(([k]) => channelUser[k]) && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {[["social_twitter", "🐦", v => `https://twitter.com/${v}`], ["social_instagram", "📸", v => `https://instagram.com/${v}`], ["social_youtube", "▶️", v => v.startsWith("http") ? v : `https://youtube.com/${v}`], ["social_tiktok", "🎵", v => `https://tiktok.com/@${v}`]].map(([key, icon, urlFn]) => channelUser[key] ? (
-                <a key={key} href={urlFn(channelUser[key])} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.07)", border: "1px solid var(--line)", borderRadius: 8, padding: "5px 10px", fontSize: 12, color: "rgba(255,255,255,.8)", textDecoration: "none", transition: "background .15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.07)"}
-                >{icon} {channelUser[key].replace(/https?:\/\/(www\.)?/, "").split("/")[0]}</a>
-              ) : null)}
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          {channelIsLive && (
-            <button className="btn-red" onClick={() => { const ls = liveStreams.find(s => s.user_id === channelUser.id); if (ls) go("stream", formatDbStream(ls)); }} style={{ padding: "9px 18px", fontSize: 13 }}>
-              Watch Live
-            </button>
-          )}
-          {user && user.id !== channelUser.id && (
-            <button
-              className={myFollows.includes(channelUser.id) ? "btn-o" : "btn-g"}
-              onClick={async () => {
-                if (!user) { setShowSignupPrompt(true); return; }
-                if (myFollows.includes(channelUser.id)) {
-                  await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", channelUser.id);
-                  setMyFollows(f => f.filter(id => id !== channelUser.id));
-                  setChannelFollowers(n => Math.max(0, n - 1));
-                } else {
-                  await supabase.from("follows").insert({ follower_id: user.id, following_id: channelUser.id });
-                  setMyFollows(f => [...f, channelUser.id]);
-                  setChannelFollowers(n => n + 1);
-                  notify("+50 coins for following!");
-                  const nc = coinsRef.current + 50;
-                  setCoins(nc); coinsRef.current = nc;
-                  supabase.from("profiles").update({ coins: nc }).eq("id", user.id);
-                  logTransaction("follow", 50, `Followed ${channelUser.full_name}`);
-                }
-              }}
-              style={{ padding: "9px 18px", fontSize: 13 }}
-            >
-              {myFollows.includes(channelUser.id) ? "✓ Following" : "+ Follow"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
-        {[["Followers", channelFollowers.toLocaleString()], ["Streams", channelStreams.length], ["Clips", channelClips.length]].map(([l, v]) => (
-          <div key={l} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
-            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24 }}>{v}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--line)", marginBottom: 20, overflowX: "auto" }}>
-        {[["overview", "Overview"], ["streams", `Streams${channelStreams.length ? ` (${channelStreams.length})` : ""}`], ["clips", `Clips${channelClips.length ? ` (${channelClips.length})` : ""}`], ["schedule", `Schedule${channelSchedule.length ? ` (${channelSchedule.length})` : ""}`], ...(streamEmotes.length ? [["emotes", `Emotes (${streamEmotes.length})`]] : [])].map(([tab, label]) => (
-          <button key={tab} onClick={() => { setChannelTab(tab); setSelectedVod(null); }} style={{ background: "none", border: "none", borderBottom: channelTab === tab ? "2px solid var(--red)" : "2px solid transparent", color: channelTab === tab ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "10px 16px", cursor: "pointer", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</button>
-        ))}
-      </div>
-
-      {/* Overview tab */}
-      {channelTab === "overview" && (
-        <div>
-          {channelIsLive && (
-            <div style={{ background: "linear-gradient(135deg,rgba(255,45,85,.12),rgba(255,45,85,.05))", border: "1px solid rgba(255,45,85,.3)", borderRadius: 14, padding: "16px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 10, height: 10, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>Live right now</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{channelUser.full_name} is streaming</div>
-              </div>
-              <button className="btn-red" onClick={() => { const ls = liveStreams.find(s => s.user_id === channelUser.id); if (ls) go("stream", formatDbStream(ls)); }} style={{ padding: "8px 16px", fontSize: 13 }}>Watch</button>
-            </div>
-          )}
-          {channelSchedule.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 10 }}>Up next</div>
-              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
-                {channelSchedule.slice(0, 3).map(s => {
-                  const d = new Date(s.scheduled_at);
-                  return (
-                    <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", minWidth: 160, flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, marginBottom: 3 }}>{d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {channelStreams.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 10 }}>Recent streams</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
-                {channelStreams.slice(0, 4).map(s => {
-                  const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
-                  return (
-                    <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: s.status === "live" ? "pointer" : "default" }} onClick={() => s.status === "live" && go("stream", formatDbStream(s))}>
-                      <div style={{ height: 70, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{meta.emoji}</div>
-                      <div style={{ padding: "8px 10px" }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{s.status === "live" ? <span style={{ color: "var(--red)" }}>🔴 LIVE</span> : "Ended"}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {channelStreams.length === 0 && !channelIsLive && (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No streams yet</div>
-              <div style={{ fontSize: 13 }}>Check back when this creator goes live.</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Streams tab */}
-      {channelTab === "streams" && (
-        channelStreams.length === 0
-          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>📺</div>No past streams yet</div>
-          : <div>
-              {selectedVod && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>{selectedVod.title}</div>
-                    <button onClick={() => setSelectedVod(null)} style={{ background: "none", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "4px 12px", fontSize: 12, cursor: "pointer" }}>✕ Close</button>
-                  </div>
-                  <div style={{ borderRadius: 12, overflow: "hidden", background: "#000" }}>
-                    <MuxPlayer playbackId={selectedVod.mux_playback_id} streamType="on-demand" style={{ width: "100%", aspectRatio: "16/9" }} />
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
-                    {selectedVod.category}{selectedVod.peak_viewers > 0 ? ` · ${selectedVod.peak_viewers.toLocaleString()} peak viewers` : ""} · {new Date(selectedVod.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-              )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
-                {channelStreams.map(s => {
-                  const meta = CAT_META[s.category] || CAT_META["Just Chatting"];
-                  const playable = !!s.mux_playback_id;
-                  const isSelected = selectedVod?.id === s.id;
-                  return (
-                    <div key={s.id} style={{ background: "var(--card)", border: `1px solid ${isSelected ? "rgba(124,58,237,.5)" : "var(--line)"}`, borderRadius: 12, overflow: "hidden", cursor: playable ? "pointer" : "default", transition: "border-color .2s" }}
-                      onClick={() => playable && setSelectedVod(isSelected ? null : s)}>
-                      <div style={{ height: 80, background: `linear-gradient(${meta.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, position: "relative" }}>
-                        {meta.emoji}
-                        {playable && <div style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.65)", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>▶</div>}
-                      </div>
-                      <div style={{ padding: "10px 12px" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3 }}>
-                          {s.category}{s.peak_viewers > 0 ? ` · ${s.peak_viewers.toLocaleString()} peak` : ""} · {new Date(s.created_at).toLocaleDateString()}
-                        </div>
-                        {playable && <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, marginTop: 4 }}>▶ Watch VOD</div>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-      )}
-
-      {/* Clips tab */}
-      {channelTab === "clips" && (
-        channelClips.length === 0
-          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>✂</div>No clips yet</div>
-          : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {channelClips.map(clip => (
-                <div key={clip.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 20 }}>✂</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{clip.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || "viewer"} · {new Date(clip.created_at).toLocaleDateString()}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-      )}
-
-      {/* Schedule tab */}
-      {channelTab === "schedule" && (
-        channelSchedule.length === 0
-          ? <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 32, marginBottom: 10 }}>📅</div>No upcoming streams scheduled</div>
-          : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {channelSchedule.map(s => {
-                const d = new Date(s.scheduled_at);
-                return (
-                  <div key={s.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ textAlign: "center", minWidth: 44, background: "rgba(124,58,237,.1)", border: "1px solid rgba(124,58,237,.2)", borderRadius: 8, padding: "6px 4px", flexShrink: 0 }}>
-                      <div style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700 }}>{d.toLocaleDateString([], { month: "short" }).toUpperCase()}</div>
-                      <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, lineHeight: 1 }}>{d.getDate()}</div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{s.category} · {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-      )}
-
-      {/* Emotes tab */}
-      {channelTab === "emotes" && streamEmotes.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {streamEmotes.map(e => (
-            <div key={e.id} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }} title={`:${e.name}:`}>
-              <img src={e.image_url} alt={e.name} style={{ width: 48, height: 48, objectFit: "contain" }} />
-              <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>:{e.name}:</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>}
-
-    {/* CLIP MODAL */}
-    {showClipModal && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowClipModal(false)}>
-        <div className="modal-box" style={{ maxWidth: 380 }}>
-          <div className="modal-title">✂ Create Clip</div>
-          <div className="modal-sub">Save this moment — earn +{Math.round(25 * (1 + getStreakBonus(streakDays) / 100))} coins{getStreakBonus(streakDays) > 0 ? ` (${getStreakBonus(streakDays)}% streak bonus!)` : ""}!</div>
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Clip Title (optional)</label>
-          <input
-            className="fi"
-            placeholder={`Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`}
-            value={clipTitle}
-            onChange={e => setClipTitle(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && createClip()}
-            autoFocus
-          />
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button onClick={() => { setShowClipModal(false); setClipTitle(""); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
-            <button onClick={createClip} disabled={savingClip} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingClip ? "not-allowed" : "pointer", opacity: savingClip ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {savingClip ? <div className="spinner" /> : <>✂ Save Clip — +{Math.round(25 * (1 + getStreakBonus(streakDays) / 100))} coins</>}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* SCHEDULE MODAL */}
-    {showScheduleModal && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowScheduleModal(false)}>
-        <div className="modal-box">
-          <div className="modal-title">📅 Schedule a Stream</div>
-          <div className="modal-sub">Let your audience know when you're going live next.</div>
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Stream Title</label>
-          <input
-            className="fi"
-            placeholder="e.g. Sunday Ranked Games, Chill Music Stream..."
-            value={scheduleForm.title}
-            onChange={e => setScheduleForm({ ...scheduleForm, title: e.target.value })}
-            autoFocus
-          />
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Category</label>
-          <select className="select-fi" value={scheduleForm.category} onChange={e => setScheduleForm({ ...scheduleForm, category: e.target.value })}>
-            {STREAM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Date</label>
-              <input type="date" className="fi" style={{ margin: 0 }} value={scheduleForm.date} onChange={e => setScheduleForm({ ...scheduleForm, date: e.target.value })} min={new Date().toISOString().split("T")[0]} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Time</label>
-              <input type="time" className="fi" style={{ margin: 0 }} value={scheduleForm.time} onChange={e => setScheduleForm({ ...scheduleForm, time: e.target.value })} />
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button onClick={() => setShowScheduleModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleAddSchedule} disabled={savingSchedule} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingSchedule ? "not-allowed" : "pointer", opacity: savingSchedule ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {savingSchedule ? <div className="spinner" /> : "Schedule Stream"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* WITHDRAW MODAL */}
-    {showWithdrawModal && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowWithdrawModal(false)}>
-        <div className="modal-box">
-          <div className="modal-title">💸 Withdraw Earnings</div>
-          <div className="modal-sub">Request is reviewed manually — paid within 24 hours via PayPal or bank transfer.</div>
-
-          {/* Quick amounts */}
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8, display: "block" }}>Amount</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            {[20000, 50000, 100000].filter(a => a <= coins).map(a => (
-              <button key={a} onClick={() => setWithdrawCoins(a)} style={{ flex: 1, background: withdrawCoins === a ? "rgba(0,245,160,.1)" : "var(--ink3)", border: withdrawCoins === a ? "1px solid var(--green)" : "1px solid var(--line)", borderRadius: 10, padding: "10px 4px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: withdrawCoins === a ? "var(--green)" : "#fff", transition: "all .15s" }}>
-                ${a / 1000}
-              </button>
-            ))}
-            <button onClick={() => setWithdrawCoins(Math.floor(coins / 1000) * 1000)} style={{ flex: 1, background: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "rgba(0,245,160,.1)" : "var(--ink3)", border: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "1px solid var(--green)" : "1px solid var(--line)", borderRadius: 10, padding: "10px 4px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: withdrawCoins === Math.floor(coins / 1000) * 1000 ? "var(--green)" : "#fff", transition: "all .15s" }}>
-              All
-            </button>
-          </div>
-          <input type="number" className="fi" placeholder="Custom coins (min 20,000)" value={withdrawCoins} min={20000} max={coins} onChange={e => setWithdrawCoins(Math.max(0, parseInt(e.target.value) || 0))} />
-
-          {/* Fee breakdown */}
-          <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px", marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>Gross ({withdrawCoins.toLocaleString()} coins)</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>${(withdrawCoins / 1000).toFixed(2)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>Platform fee (2%)</span>
-              <span style={{ fontSize: 13, color: "var(--red)" }}>-${((withdrawCoins / 1000) * 0.02).toFixed(2)}</span>
-            </div>
-            <div style={{ height: 1, background: "var(--line2)", marginBottom: 8 }} />
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 14, fontWeight: 700 }}>You receive</span>
-              <span style={{ fontSize: 16, fontWeight: 800, color: "var(--green)" }}>${((withdrawCoins / 1000) * 0.98).toFixed(2)}</span>
-            </div>
-          </div>
-
-          {/* Payout email */}
-          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Payout Email (PayPal)</label>
-          <input className="fi" type="email" placeholder="your@paypal.com" value={withdrawPaypal} onChange={e => setWithdrawPaypal(e.target.value)} onKeyDown={e => e.key === "Enter" && handleWithdraw()} />
-          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10, marginTop: -4 }}>Your request is saved and manually reviewed — you'll receive payment within 24 hours.</div>
-
-          {withdrawCoins < 20000 && withdrawCoins > 0 && (
-            <div style={{ fontSize: 12, color: "var(--orange)", marginBottom: 10 }}>Minimum withdrawal is 20,000 coins ($20)</div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button onClick={() => setShowWithdrawModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
-            <button
-              onClick={handleWithdraw}
-              disabled={processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins}
-              style={{ flex: 2, background: "linear-gradient(135deg,#00f5a0,#00c8a0)", color: "#000", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 800, cursor: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? "not-allowed" : "pointer", opacity: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-            >
-              {processingWithdraw ? <div className="spinner" /> : `Withdraw $${((withdrawCoins / 1000) * 0.98).toFixed(2)}`}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* GO LIVE MODAL */}
-    {showGoLive && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && goLiveStep === 1 && setShowGoLive(false)}>
-        <div className="modal-box">
-          {goLiveStep === 1 ? (<>
-            <div className="modal-title">Go Live</div>
-            <div className="modal-sub">Share your stream with the world — viewers will see you on Discover in real time.</div>
-            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Stream Title</label>
-            <input
-              className="fi"
-              placeholder="e.g. Ranked Grind to Diamond, Cooking Pasta Live..."
-              value={goLiveForm.title}
-              onChange={e => setGoLiveForm({ ...goLiveForm, title: e.target.value })}
-              onKeyDown={e => e.key === "Enter" && handleGoLive()}
-              autoFocus
-            />
-            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Category</label>
-            <select
-              className="select-fi"
-              value={goLiveForm.category}
-              onChange={e => setGoLiveForm({ ...goLiveForm, category: e.target.value })}
-            >
-              {STREAM_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-              <button onClick={() => setShowGoLive(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleGoLive} disabled={savingGoLive} style={{ flex: 2, background: "linear-gradient(135deg,var(--red),#ff6b35)", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: savingGoLive ? "not-allowed" : "pointer", opacity: savingGoLive ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                {savingGoLive ? <div className="spinner" /> : <><span style={{ width: 7, height: 7, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />Go Live Now</>}
-              </button>
-            </div>
-          </>) : (<>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <span style={{ width: 10, height: 10, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite", flexShrink: 0 }} />
-              <div className="modal-title" style={{ fontSize: 22, margin: 0 }}>You're Live!</div>
-            </div>
-            <div className="modal-sub" style={{ marginBottom: 18 }}>Configure OBS (or any encoder) with the details below, then start streaming.</div>
-
-            {/* RTMP URL */}
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .7, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>RTMP URL</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input readOnly value="rtmps://global-live.mux.com:443/app" className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
-                <button onClick={() => { navigator.clipboard?.writeText("rtmps://global-live.mux.com:443/app"); notify("RTMP URL copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
-              </div>
-            </div>
-
-            {/* Stream Key */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .7, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>Stream Key</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input readOnly value={muxStreamKey} className="fi" style={{ margin: 0, flex: 1, fontSize: 12, fontFamily: "monospace" }} />
-                <button onClick={() => { navigator.clipboard?.writeText(muxStreamKey); notify("Stream key copied!"); }} style={{ background: "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "0 14px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Copy</button>
-              </div>
-            </div>
-
-            {/* OBS steps */}
-            <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 12, color: "var(--muted)", lineHeight: 1.7 }}>
-              <div style={{ fontWeight: 700, color: "#fff", marginBottom: 6 }}>OBS Setup</div>
-              1. Open OBS → Settings → Stream<br />
-              2. Service: <strong style={{ color: "#fff" }}>Custom</strong><br />
-              3. Paste the RTMP URL and Stream Key above<br />
-              4. Click OK, then <strong style={{ color: "#fff" }}>Start Streaming</strong>
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => { setShowGoLive(false); setGoLiveStep(1); }} style={{ flex: 1, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                Close — I'm Streaming
-              </button>
-              <button onClick={async () => { await handleEndStream(); setShowGoLive(false); setGoLiveStep(1); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>
-                End Stream
-              </button>
-            </div>
-          </>)}
-        </div>
-      </div>
-    )}
-
-    {/* SIGNUP PROMPT — shown when guest tries to chat, gift, or follow */}
-    {showSignupPrompt && (
-      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSignupPrompt(false)}>
-        <div className="modal-box" style={{ maxWidth: 360, textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🪙</div>
-          <div className="modal-title" style={{ fontSize: 26 }}>Join STEM Free</div>
-          <div className="modal-sub" style={{ marginBottom: 22 }}>Sign up to join the chat, earn coins while watching, send gifts, and withdraw real cash.</div>
-          <button className="btn-g" style={{ width: "100%", padding: "13px 0", fontSize: 15, marginBottom: 10, borderRadius: 12, border: "none" }} onClick={() => { setShowSignupPrompt(false); setAuthMode("signup"); go("auth"); }}>
-            Sign Up Free — Start Earning
-          </button>
-          <button className="btn-o" style={{ width: "100%", padding: "11px 0", fontSize: 14, borderRadius: 12 }} onClick={() => { setShowSignupPrompt(false); setAuthMode("login"); go("auth"); }}>
-            Already have an account? Log in
-          </button>
-          <button onClick={() => setShowSignupPrompt(false)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer", marginTop: 14 }}>
-            Continue watching without account
-          </button>
-        </div>
-      </div>
-    )}
-
-    {/* GIFT ANIMATIONS */}
-    {giftAnims.length > 0 && (
-      <div className="gift-anim-wrap">
-        {giftAnims.map(g => (
-          <div key={g.id} className="gift-anim-item" style={{ left: `${g.x}%` }}>
-            <span className="gift-anim-emoji">{g.emoji}</span>
-            <span className="gift-anim-label">{g.name}</span>
-          </div>
-        ))}
-      </div>
-    )}
-
-    {/* PREDICTION RECAP OVERLAY */}
-    {predRecap && (
-      <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,.82)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setPredRecap(null)}>
-        <div style={{ background: "linear-gradient(145deg,var(--ink3),var(--ink4))", border: "1px solid rgba(77,159,255,.3)", borderRadius: 24, padding: "32px 28px", maxWidth: 380, width: "100%", textAlign: "center", animation: "popIn .35s cubic-bezier(.34,1.56,.64,1)" }} onClick={e => e.stopPropagation()}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>
-            {predRecap.myResult === "won" ? "🏆" : predRecap.myResult === "lost" ? "😔" : "🔮"}
-          </div>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, marginBottom: 6 }}>Prediction Resolved!</div>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: "rgba(255,255,255,.85)" }}>{predRecap.title}</div>
-          <div style={{ background: "rgba(77,159,255,.1)", border: "1px solid rgba(77,159,255,.25)", borderRadius: 14, padding: "14px 18px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: .6, marginBottom: 4 }}>Winner</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--blue)" }}>{predRecap.winLabel}</div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1, background: "var(--ink4)", borderRadius: 12, padding: "10px 8px" }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>{predRecap.potCoins.toLocaleString()}</div>
-              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Total Pot 🪙</div>
-            </div>
-            <div style={{ flex: 1, background: "var(--ink4)", borderRadius: 12, padding: "10px 8px" }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>{predRecap.winnerCount}</div>
-              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>Winners</div>
-            </div>
-          </div>
-          {predRecap.myResult && (
-            <div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 16, background: predRecap.myResult === "won" ? "rgba(0,245,160,.1)" : "rgba(255,45,85,.08)", border: `1px solid ${predRecap.myResult === "won" ? "rgba(0,245,160,.3)" : "rgba(255,45,85,.25)"}` }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: predRecap.myResult === "won" ? "var(--green)" : "var(--red)" }}>
-                {predRecap.myResult === "won" ? `You won! 🎉 Payout added to wallet.` : `You lost ${predRecap.myBet.toLocaleString()} 🪙 — better luck next time!`}
-              </div>
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button onClick={() => { const txt = encodeURIComponent(`🔮 ${predRecap.winLabel} won the STEM prediction!\n"${predRecap.title}"\n${predRecap.winnerCount} winner${predRecap.winnerCount !== 1 ? "s" : ""} split ${predRecap.potCoins.toLocaleString()} coins 🪙`); window.open(`https://twitter.com/intent/tweet?text=${txt}`, "_blank"); }} style={{ background: "#1DA1F2", border: "none", color: "#fff", borderRadius: 10, padding: "9px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>𝕏 Share</button>
-            <button onClick={() => { const txt = encodeURIComponent(`🔮 ${predRecap.winLabel} won! "${predRecap.title}" — ${predRecap.winnerCount} winners split ${predRecap.potCoins.toLocaleString()} coins on STEM 🪙`); window.open(`https://wa.me/?text=${txt}`, "_blank"); }} style={{ background: "#25D366", border: "none", color: "#fff", borderRadius: 10, padding: "9px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>WhatsApp</button>
-            <button onClick={() => setPredRecap(null)} style={{ background: "var(--ink4)", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "9px 16px", fontSize: 12, cursor: "pointer" }}>Dismiss</button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {toast && <div className="toast">🪙 {toast}</div>}
-
-    {/* SUB TIER PICKER */}
-    {showSubTierPicker && (
-      <div className="tier-picker-overlay" onClick={() => setShowSubTierPicker(false)}>
-        <div className="tier-picker-box" onClick={e => e.stopPropagation()}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: 1, marginBottom: 4 }}>Subscribe to {stream?.streamer}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18 }}>Pick a tier — supports the streamer directly!</div>
-          {SUB_TIERS.map(t => (
-            <div key={t.tier} className="tier-card" style={{ background: `${t.color}14`, borderColor: `${t.color}40` }} onClick={() => handleSubscribe(t.tier)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 28 }}>{t.badge}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: t.color }}>{t.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.cost.toLocaleString()} coins · 30 days</div>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: t.color }}>🪙 {t.cost.toLocaleString()}</div>
-              </div>
-            </div>
-          ))}
-          <button onClick={() => setShowSubTierPicker(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "10px", fontSize: 13, cursor: "pointer", marginTop: 4 }}>Cancel</button>
-        </div>
-      </div>
-    )}
-
-    {/* STREAM RECAP MODAL */}
-    {streamRecap && (
-      <div className="recap-overlay" onClick={() => setStreamRecap(null)}>
-        <div className="recap-box" onClick={e => e.stopPropagation()}>
-          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, marginBottom: 2 }}>Stream Recap 📺</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{streamRecap.title}"</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-            {[
-              ["⏱", "Duration", `${streamRecap.durationMins}m`],
-              ["👥", "Peak Viewers", (streamRecap.peak || 0).toLocaleString()],
-              ["📺", "Ad Revenue", `+${streamRecap.adRevenue || 0} 🪙`],
-              ["🪙", "You Earned", `+${streamRecap.viewerEarnings || 0} 🪙`],
-            ].map(([icon, label, val]) => (
-              <div key={label} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: .5, color: "var(--gold)" }}>{val}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-          {streamRecap.topGifters && streamRecap.topGifters.length > 0 && (
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Top Gifters</div>
-              {streamRecap.topGifters.map((g, i) => (
-                <div key={g.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 14 }}>{["🥇","🥈","🥉"][i] || "🎁"}</span>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{g.name}</span>
-                  <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🪙 {g.coins.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <button onClick={() => setStreamRecap(null)} className="btn-g" style={{ width: "100%" }}>Done</button>
-        </div>
-      </div>
-    )}
-
-  </>);
+    <NavBar />
+
+    <Suspense fallback={null}>
+      {page === "land"     && <LandingPage />}
+      {page === "auth"     && <AuthPage />}
+      {page === "disc"     && <DiscoverPage />}
+      {page === "stream"   && stream && <StreamPage />}
+      {page === "leaderboard" && <LeaderboardPage />}
+      {page === "wallet"   && <WalletPage />}
+      {page === "profile"  && <ProfilePage />}
+      {page === "dash"     && <DashboardPage />}
+      {page === "admin"    && <AdminPage />}
+      {page === "clips"    && <ClipsPage />}
+      {page === "vprofile" && <ViewerProfilePage />}
+      {page === "channel"  && channelUser && <ChannelPage />}
+    </Suspense>
+
+    <Modals />
+
+  </></AppContext.Provider>);
 }
