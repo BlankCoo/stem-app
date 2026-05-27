@@ -84,6 +84,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .btn-red{background:linear-gradient(135deg,var(--red),#ff6b35);color:#fff;border:none;border-radius:20px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:all .25s;white-space:nowrap}
 .btn-red:hover{transform:translateY(-1px)}
 .page{padding-top:56px;min-height:100vh;animation:fadeUp .28s ease}
+.verify-bar{position:fixed;top:56px;left:0;right:0;z-index:150;background:linear-gradient(135deg,rgba(255,149,0,.16),rgba(255,200,0,.1));border-bottom:1px solid rgba(255,149,0,.32);padding:9px 16px;display:flex;align-items:center;gap:10px;font-size:12px;backdrop-filter:blur(10px)}
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(8,8,22,.97);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding:8px 0 12px}
 .bottom-nav-items{display:flex;justify-content:space-around;align-items:center}
 .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 12px;border-radius:10px;transition:all .2s;font-family:'Outfit',sans-serif}
@@ -250,6 +251,7 @@ button,input,textarea,select{font-family:'Outfit',sans-serif}
 .section-sep-label{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
 @media(min-width:768px){
   .nav{padding:0 36px;height:62px}
+  .verify-bar{top:62px}
   .logo{font-size:28px}
   .nl{font-size:14px;padding:8px 16px}
   .coin-badge{font-size:13px;padding:7px 16px}
@@ -549,6 +551,7 @@ export default function App() {
   const [loadingFollow, setLoadingFollow] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(!!sessionStorage.getItem("stem_verify_dismissed"));
 
   // Mux state
   const [muxStreamId, setMuxStreamId] = useState("");
@@ -2496,6 +2499,14 @@ export default function App() {
   });
 
   const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin"].includes(page);
+  const emailVerified = !!user?.email_confirmed_at;
+
+  const resendVerificationEmail = async () => {
+    if (!user?.email) return;
+    const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
+    if (error) notify("Couldn't send — try again in a moment.");
+    else notify("Verification email sent! Check your inbox.");
+  };
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const initials = profile?.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
   const rankColor = (i) => i === 0 ? "var(--gold)" : i === 1 ? "rgba(255,255,255,.6)" : i === 2 ? "#cd7f32" : "var(--muted)";
@@ -2725,6 +2736,18 @@ export default function App() {
     <style>{FONTS}</style><style>{CSS}</style>
 
     <NavBar />
+
+    {user && !emailVerified && isApp && !verifyBannerDismissed && (
+      <div className="verify-bar">
+        <span style={{ fontSize: 16, flexShrink: 0 }}>📧</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontWeight: 700, color: "var(--orange)" }}>Verify your email</span>
+          <span style={{ color: "rgba(255,255,255,.7)", marginLeft: 6 }}>to unlock withdrawals — check your inbox.</span>
+        </div>
+        <button onClick={resendVerificationEmail} style={{ background: "rgba(255,149,0,.18)", border: "1px solid rgba(255,149,0,.4)", color: "var(--orange)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>Resend</button>
+        <button onClick={() => { sessionStorage.setItem("stem_verify_dismissed", "1"); setVerifyBannerDismissed(true); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,.4)", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0, padding: "0 2px" }}>✕</button>
+      </div>
+    )}
 
     <Suspense fallback={null}>
       {page === "land"     && <LandingPage />}
