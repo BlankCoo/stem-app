@@ -1,6 +1,14 @@
 import MuxPlayer from "@mux/mux-player-react";
+import { useRef, useState } from "react";
 import { useApp } from "../AppContext";
 import ChatMessages from "../components/ChatMessages";
+
+const QUALITY_OPTS = [
+  { label: "Auto", value: "auto" },
+  { label: "1080p", value: 1080 },
+  { label: "720p",  value: 720 },
+  { label: "480p",  value: 480 },
+];
 
 export default function StreamPage() {
   const {
@@ -27,6 +35,20 @@ export default function StreamPage() {
     openReport,
   } = useApp();
 
+  const playerRef = useRef(null);
+  const [streamQuality, setStreamQuality] = useState("auto");
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+
+  const applyQuality = (val) => {
+    setStreamQuality(val);
+    setShowQualityMenu(false);
+    const hls = playerRef.current?.hls;
+    if (!hls) return;
+    if (val === "auto") { hls.currentLevel = -1; return; }
+    const idx = hls.levels.findIndex(l => Math.abs(l.height - val) <= 60);
+    hls.currentLevel = idx >= 0 ? idx : -1;
+  };
+
   return (
     <div className="slayout" style={{ paddingTop: 56 }}>
       <div className="sleft">
@@ -50,6 +72,29 @@ export default function StreamPage() {
             <span style={{ width: 7, height: 7, background: "var(--red)", borderRadius: "50%", animation: "blink 1.6s infinite", flexShrink: 0 }} />
             {(viewerCount || stream.viewers || 0).toLocaleString()} watching
           </div>
+          {/* Quality selector */}
+          {stream.mux_playback_id && (
+            <div style={{ position: "absolute", bottom: 10, right: 52, zIndex: 20 }}>
+              <button
+                onClick={() => setShowQualityMenu(v => !v)}
+                style={{ background: "rgba(0,0,0,.65)", border: "none", color: "#fff", borderRadius: 8, height: 34, padding: "0 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", gap: 4, letterSpacing: .3 }}
+              >
+                ⚙ {streamQuality === "auto" ? "Auto" : `${streamQuality}p`}
+              </button>
+              {showQualityMenu && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 29 }} onClick={() => setShowQualityMenu(false)} />
+                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 30, background: "rgba(18,18,24,.96)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, overflow: "hidden", minWidth: 90, backdropFilter: "blur(10px)" }}>
+                    {QUALITY_OPTS.map(q => (
+                      <button key={q.value} onClick={() => applyQuality(q.value)} style={{ display: "block", width: "100%", padding: "9px 14px", textAlign: "left", background: streamQuality === q.value ? "rgba(124,58,237,.25)" : "none", border: "none", color: streamQuality === q.value ? "var(--purple)" : "#fff", fontSize: 13, fontWeight: streamQuality === q.value ? 700 : 400, cursor: "pointer" }}>
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {/* Fullscreen button */}
           <button className="fs-btn" title="Fullscreen" onClick={() => {
             const el = document.querySelector(".splayer");
@@ -58,6 +103,7 @@ export default function StreamPage() {
           }}>⛶</button>
           {stream.mux_playback_id ? (
             <MuxPlayer
+              ref={playerRef}
               playbackId={stream.mux_playback_id}
               streamType="live"
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}

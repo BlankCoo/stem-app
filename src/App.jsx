@@ -2324,16 +2324,24 @@ export default function App() {
       if (error) throw new Error(error.message);
 
       // Fan out live notifications to all followers (fire-and-forget)
+      const streamerName = profile?.full_name || profile?.username || "Streamer";
+      const streamTitle = goLiveForm.title.trim();
       supabase.from("streams").select("id").eq("user_id", user.id).single().then(({ data: sr }) => {
         if (sr?.id) {
           supabase.rpc("notify_followers_stream_live", {
             p_streamer_id: user.id,
-            p_stream_title: goLiveForm.title.trim(),
-            p_streamer_name: profile?.full_name || profile?.username || "Streamer",
+            p_stream_title: streamTitle,
+            p_streamer_name: streamerName,
             p_stream_id: sr.id,
           });
         }
       });
+      // Email followers
+      fetch("/api/notify-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ streamer_id: user.id, stream_title: streamTitle, streamer_name: streamerName }),
+      }).catch(() => {});
 
       setMuxStreamId(streamId);
       setMuxStreamKey(streamKey);
