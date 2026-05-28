@@ -44,7 +44,12 @@ export default function LeaderboardPage() {
           ) : leaderboard.map((u, i) => (
             <div key={u.id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.id)}>
               <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
+              <div className="lb-av" style={{ overflow: "hidden", padding: 0 }}>
+                {u.avatar_url
+                  ? <img src={u.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  : (u.full_name?.charAt(0) || "?")
+                }
+              </div>
               <div style={{ flex: 1 }}>
                 <div className="lb-name">{u.full_name || "Anonymous"}</div>
                 <div className="lb-role">👁 Viewer · @{u.username}</div>
@@ -58,7 +63,12 @@ export default function LeaderboardPage() {
           ) : topSupporters.map((u, i) => (
             <div key={u.user_id} className="lb-row" style={{ cursor: "pointer" }} onClick={() => viewVProfile(u.user_id)}>
               <div className="lb-rank" style={{ color: rankColor(i) }}>{rankEmoji(i)}</div>
-              <div className="lb-av">{u.full_name?.charAt(0) || "?"}</div>
+              <div className="lb-av" style={{ overflow: "hidden", padding: 0 }}>
+                {u.avatar_url
+                  ? <img src={u.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  : (u.full_name?.charAt(0) || "?")
+                }
+              </div>
               <div style={{ flex: 1 }}>
                 <div className="lb-name">{u.full_name || "Anonymous"}</div>
                 <div className="lb-role">🎁 Supporter · @{u.username}</div>

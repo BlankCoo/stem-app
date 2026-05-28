@@ -24,7 +24,12 @@ export default function ViewerProfilePage() {
         return (<>
           <button onClick={() => setPage("disc")} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, display: "flex", alignItems: "center", gap: 5 }}>← Back</button>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, margin: "0 auto 14px" }}>{vInitials}</div>
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, margin: "0 auto 14px", overflow: "hidden" }}>
+              {vProfile.avatar_url
+                ? <img src={vProfile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                : vInitials
+              }
+            </div>
             <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{vProfile.full_name || "Viewer"}</div>
             <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>@{vProfile.username || "unknown"}</div>
             {vProfile.bio && <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", maxWidth: 360, margin: "0 auto 10px" }}>{vProfile.bio}</div>}

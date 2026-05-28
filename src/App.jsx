@@ -928,7 +928,7 @@ export default function App() {
   const fetchLeaderboard = async () => {
     setLoadingLb(true);
     const [earnerRes, supporterRes] = await Promise.all([
-      supabase.from("profiles").select("id,full_name,username,coins").eq("role", "viewer").order("coins", { ascending: false }).limit(20),
+      supabase.from("profiles").select("id,full_name,username,coins,avatar_url").eq("role", "viewer").order("coins", { ascending: false }).limit(20),
       supabase.rpc("get_top_supporters", { limit_n: 20 }),
     ]);
     if (earnerRes.data) setLeaderboard(earnerRes.data);
@@ -2620,6 +2620,12 @@ export default function App() {
         setStreamerTier(newTier);
         notify(`ðŸŽ‰ You unlocked ${STREAMER_TIER_INFO[newTier]?.label} status!`);
       }
+    }
+    // Persist ad revenue coins that accumulated in local state during the stream
+    if (recapAdRevenue > 0 && user) {
+      const finalCoins = coinsRef.current;
+      await supabase.from("profiles").update({ coins: finalCoins }).eq("id", user.id);
+      await supabase.from("transactions").insert({ user_id: user.id, type: "ad_revenue", amount: recapAdRevenue, description: `Ad revenue from "${stream?.title || "stream"}"` });
     }
     await savePastStream();
     if (muxStreamId) {
