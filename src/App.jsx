@@ -977,7 +977,7 @@ export default function App() {
   const fetchLiveStreams = async () => {
     const { data } = await supabase
       .from("streams")
-      .select("*, profiles(full_name, username, follower_count)")
+      .select("*, profiles(full_name, username, follower_count, avatar_url)")
       .eq("status", "live")
       .order("viewer_count", { ascending: false });
     if (data) setLiveStreams(data);
@@ -1091,7 +1091,7 @@ export default function App() {
   const fetchFollowedStreamers = async () => {
     if (!user || myFollows.length === 0) { setFollowedStreamers([]); return; }
     const { data } = await supabase.from("profiles")
-      .select("id,full_name,username")
+      .select("id,full_name,username,avatar_url")
       .in("id", myFollows);
     setFollowedStreamers(data || []);
   };
@@ -1143,7 +1143,7 @@ export default function App() {
       supabase.from("follows").select("id", { count: "exact" }).eq("following_id", userId),
       supabase.from("streams").select("id,title").eq("user_id", userId).eq("status", "live").maybeSingle(),
       supabase.from("stream_schedule").select("*").eq("user_id", userId).gte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(5),
-      supabase.from("clips").select("*, profiles(full_name,username)").eq("streamer_id", userId).order("created_at", { ascending: false }).limit(12),
+      supabase.from("clips").select("*, profiles(full_name,username,avatar_url)").eq("streamer_id", userId).order("created_at", { ascending: false }).limit(12),
       supabase.from("emotes").select("*").eq("user_id", userId).order("name"),
     ]);
     if (profRes.data) {
