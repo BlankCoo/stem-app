@@ -130,25 +130,79 @@ export default function WalletPage() {
           <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", opacity: .7, cursor: "default" }} disabled>Coming Soon</button>
         </div>
       </div>
-      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.1),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 16, padding: "20px", marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <div style={{ fontSize: 28 }}>⚡</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Premium — 2x Earnings</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Premium launching soon — join the waitlist to be first.</div>
+      {/* Premium Card */}
+      <div style={{ borderRadius: 20, overflow: "hidden", marginBottom: 20, border: "1px solid rgba(124,58,237,.4)", boxShadow: "0 8px 40px rgba(124,58,237,.18)" }}>
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55,#ff9500)", padding: "24px 22px 20px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, background: "rgba(255,255,255,.06)", borderRadius: "50%" }} />
+          <div style={{ position: "absolute", bottom: -20, left: 60, width: 80, height: 80, background: "rgba(255,255,255,.05)", borderRadius: "50%" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, position: "relative" }}>
+            <span style={{ fontSize: 28 }}>⚡</span>
+            <div>
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, color: "#fff", lineHeight: 1 }}>STEM Premium</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: .5 }}>Earn faster. Cash out sooner.</div>
+            </div>
+            <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 800, color: "#fff", background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 20, padding: "3px 10px", flexShrink: 0, letterSpacing: .5 }}>COMING SOON</span>
           </div>
-          <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "var(--purple)", background: "rgba(124,58,237,.12)", border: "1px solid rgba(124,58,237,.3)", borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>COMING SOON</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, position: "relative" }}>
+            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 40, color: "#fff", letterSpacing: 1 }}>₦2,999</span>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,.7)", fontWeight: 600 }}>/month</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,.55)", marginLeft: 4 }}>via Flutterwave</span>
+          </div>
         </div>
-        {waitlistDone ? (
-          <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.2)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "var(--green)", textAlign: "center" }}>
-            You're on the waitlist! We'll notify you at {waitlistEmail || user?.email} when Premium launches.
+
+        {/* Perks */}
+        <div style={{ background: "var(--ink2)", padding: "18px 22px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .8, color: "var(--muted)", textTransform: "uppercase", marginBottom: 12 }}>What you get</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            {[
+              ["🚀", "2x Coin Earning Speed", "Every minute you watch earns twice as many coins — your balance doubles in the same time."],
+              ["⚡", "Premium Badge in Chat", "Gold ⚡ badge next to your name in every chat, visible to all streamers and viewers."],
+              ["💸", "Priority Withdrawals", "Your withdrawal requests jump the queue — processed within 1 hour, not 24."],
+              ["🚫", "Ad-Free Experience", "No ad interruptions during streams when ads launch on the platform."],
+              ["🎁", "Monthly Bonus Coins", "500 bonus coins credited to your wallet on the 1st of every month."],
+            ].map(([icon, title, desc]) => (
+              <div key={title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(124,58,237,.14)", border: "1px solid rgba(124,58,237,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder={user?.email || "your@email.com"} value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && joinWaitlist()} />
-            <button className="btn-g" style={{ flexShrink: 0 }} onClick={joinWaitlist}>Join Waitlist</button>
-          </div>
-        )}
+
+          {/* Waitlist CTA */}
+          {waitlistDone ? (
+            <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.25)", borderRadius: 12, padding: "14px 18px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>🎉</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--green)", marginBottom: 3 }}>You're on the waitlist!</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>We'll email {waitlistEmail || user?.email} the moment Premium goes live.</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10, textAlign: "center" }}>
+                We're not charging yet — join the waitlist and be first to activate when we launch.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  className="fi"
+                  style={{ margin: 0, flex: 1, fontSize: 13 }}
+                  placeholder={user?.email || "your@email.com"}
+                  value={waitlistEmail}
+                  onChange={e => setWaitlistEmail(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && joinWaitlist()}
+                />
+                <button
+                  onClick={joinWaitlist}
+                  style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55)", border: "none", color: "#fff", borderRadius: 12, padding: "0 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                >
+                  Join Waitlist
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Coin Shop */}
