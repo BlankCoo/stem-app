@@ -1,3 +1,5 @@
+import { useState } from "react";
+import MuxPlayer from "@mux/mux-player-react";
 import { useApp } from "../AppContext";
 import { supabase } from "../supabase";
 
@@ -43,6 +45,8 @@ export default function DiscoverPage() {
     CAT_META, searchProfiles, searchClips, page, setShowGoLive, DEMO_STREAMS,
   } = useApp();
 
+  const [vodClip, setVodClip] = useState(null);
+
   // Sidebar channel list
   const sidebarLive = liveStreams.filter(s => myFollows.includes(s.user_id));
   const sidebarOffline = followedStreamers.filter(sp => !liveStreams.some(s => s.user_id === sp.id));
@@ -50,6 +54,23 @@ export default function DiscoverPage() {
   const showFollowing = user && (sidebarLive.length > 0 || sidebarOffline.length > 0);
 
   return (
+    <>
+    {/* Clip player modal (from search results) */}
+    {vodClip && (
+      <>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.88)", zIndex: 1000 }} onClick={() => setVodClip(null)} />
+        <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(720px,96vw)", zIndex: 1001, background: "var(--ink2)", borderRadius: 20, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,.9)" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vodClip.title}</div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {vodClip.profiles?.full_name || vodClip.profiles?.username || "viewer"}</div>
+            </div>
+            <button onClick={() => setVodClip(null)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>✕</button>
+          </div>
+          <MuxPlayer playbackId={vodClip.vod_playback_id} streamType="on-demand" style={{ width: "100%", display: "block" }} autoPlay />
+        </div>
+      </>
+    )}
     <div className="disc-root" style={{ paddingTop: 56 }}>
 
       {/* ── SIDEBAR ── */}
@@ -181,12 +202,14 @@ export default function DiscoverPage() {
                       <div key={sp.id} onClick={() => viewChannel(sp.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
                         onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
-                        <div style={{ width: 42, height: 42, borderRadius: 50, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, flexShrink: 0, position: "relative" }}>
-                          {ini}
+                        <div style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, position: "relative", overflow: "hidden", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800 }}>
+                          {sp.avatar_url
+                            ? <img src={sp.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            : ini}
                           {isLive && <span style={{ position: "absolute", bottom: 0, right: 0, width: 11, height: 11, background: "var(--red)", borderRadius: "50%", border: "2px solid var(--ink3)" }} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700 }}>{sp.full_name || sp.username}</div>
                           <div style={{ fontSize: 12, color: "var(--muted)" }}>@{sp.username}</div>
                         </div>
                         {isLive ? <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "var(--red)", borderRadius: 5, padding: "3px 8px" }}>🔴 LIVE</span> : <span style={{ fontSize: 12, color: "var(--muted)" }}>View →</span>}
@@ -203,15 +226,19 @@ export default function DiscoverPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {searchClips.map(clip => (
-                    <div key={clip.id} onClick={() => go("clips")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
+                    <div key={clip.id} onClick={() => clip.vod_playback_id ? setVodClip(clip) : go("clips")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
                       onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
-                      <div style={{ width: 38, height: 38, borderRadius: 8, background: "linear-gradient(135deg,rgba(124,58,237,.3),rgba(255,45,85,.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>✂</div>
+                      <div style={{ width: 38, height: 38, borderRadius: 8, background: "linear-gradient(135deg,rgba(124,58,237,.3),rgba(255,45,85,.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                        {clip.vod_playback_id ? "▶" : "✂"}
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
                         <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}{clip.score > 0 ? ` · +${clip.score}` : ""}</div>
                       </div>
-                      {clip.vod_playback_id && <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, flexShrink: 0 }}>▶ Watch</span>}
+                      <span style={{ fontSize: 10, fontWeight: 700, flexShrink: 0, color: clip.vod_playback_id ? "var(--purple)" : "var(--muted)" }}>
+                        {clip.vod_playback_id ? "▶ Watch" : "Clips →"}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -493,5 +520,6 @@ export default function DiscoverPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -1082,7 +1082,7 @@ export default function App() {
     if (!query.trim()) { setSearchProfiles([]); return; }
     const q = query.trim();
     const { data } = await supabase.from("profiles")
-      .select("id,full_name,username")
+      .select("id,full_name,username,avatar_url")
       .eq("role", "streamer")
       .or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
       .limit(5);
@@ -1094,7 +1094,7 @@ export default function App() {
     const { data } = await supabase
       .from('clips')
       .select('id,title,score,vod_playback_id,mux_stream_id,profiles(full_name,username)')
-      .ilike('title', `%%`)
+      .ilike('title', `%${query.trim()}%`)
       .order('score', { ascending: false })
       .limit(5);
     setSearchClips(data || []);
