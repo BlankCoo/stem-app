@@ -51,20 +51,15 @@ export default function WalletPage() {
       <div className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-hd">
           <span className="panel-title">🪙 Buy Coins</span>
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>via Flutterwave · NGN</span>
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: .5, color: "var(--orange)", background: "rgba(255,149,0,.12)", border: "1px solid rgba(255,149,0,.3)", borderRadius: 20, padding: "3px 10px" }}>COMING SOON</span>
         </div>
         <div style={{ padding: "14px 16px" }}>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
-            Top up instantly with card, bank transfer, or USSD. 1,000 coins = ₦1.50 value.
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+          {/* Grayed-out package preview */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 16, opacity: .4, pointerEvents: "none", userSelect: "none" }}>
             {COIN_PACKAGES.map(pkg => (
-              <div key={pkg.id} onClick={() => !buyingCoins && handleBuyCoins(pkg.id)}
-                style={{ background: pkg.tag ? "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))" : "var(--ink3)", border: pkg.tag ? "1px solid rgba(124,58,237,.35)" : "1px solid var(--line)", borderRadius: 14, padding: "14px 12px", cursor: buyingCoins ? "not-allowed" : "pointer", transition: "all .2s", position: "relative", textAlign: "center" }}
-                onMouseEnter={e => { if (!buyingCoins) e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>
+              <div key={pkg.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 12px", position: "relative", textAlign: "center" }}>
                 {pkg.tag && (
-                  <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap", letterSpacing: .4 }}>
+                  <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", background: "var(--ink4)", border: "1px solid var(--line)", color: "var(--muted)", fontSize: 9, fontWeight: 800, borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap" }}>
                     {pkg.tag}
                   </div>
                 )}
@@ -74,15 +69,40 @@ export default function WalletPage() {
                 <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 8 }}>
                   coins{pkg.bonus > 0 ? ` (+${pkg.bonus.toLocaleString()} bonus)` : ""}
                 </div>
-                <div style={{ background: buyingCoins === pkg.id ? "rgba(255,200,0,.15)" : "linear-gradient(135deg,rgba(255,200,0,.18),rgba(255,149,0,.12))", border: "1px solid rgba(255,200,0,.3)", borderRadius: 8, padding: "7px 0", fontSize: 13, fontWeight: 800, color: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  {buyingCoins === pkg.id ? <div className="spinner" style={{ borderTopColor: "var(--gold)", width: 14, height: 14 }} /> : pkg.price}
+                <div style={{ background: "rgba(255,200,0,.08)", border: "1px solid rgba(255,200,0,.2)", borderRadius: 8, padding: "7px 0", fontSize: 13, fontWeight: 800, color: "var(--gold)" }}>
+                  {pkg.price}
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: "var(--muted)", textAlign: "center" }}>
-            Secured by Flutterwave · Card, Bank Transfer, USSD supported
-          </div>
+
+          {/* Waitlist CTA */}
+          {waitlistDone ? (
+            <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.25)", borderRadius: 12, padding: "14px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--green)", marginBottom: 3 }}>🎉 You're on the list!</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>We'll email you at {waitlistEmail || user?.email} when coin purchasing goes live.</div>
+            </div>
+          ) : (
+            <div style={{ background: "rgba(255,149,0,.06)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Coin purchasing launching soon</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
+                Join the waitlist and we'll notify you the moment you can top up — via card, bank transfer, or USSD.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  className="fi"
+                  style={{ margin: 0, flex: 1, fontSize: 13 }}
+                  placeholder={user?.email || "your@email.com"}
+                  value={waitlistEmail}
+                  onChange={e => setWaitlistEmail(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && joinWaitlist()}
+                />
+                <button onClick={joinWaitlist} className="btn-g" style={{ flexShrink: 0 }}>
+                  Notify Me
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
