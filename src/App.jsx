@@ -1200,7 +1200,7 @@ export default function App() {
     if (clipTitle.trim().length > 100) { notify("Clip title too long (max 100 chars)"); return; }
     setSavingClip(true);
     const title = clipTitle.trim() || `Clip by ${profile?.full_name?.split(" ")[0] || "viewer"}`;
-    const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title });
+    const { error } = await supabase.from("clips").insert({ stream_id: stream.id, user_id: user.id, streamer_id: stream.user_id || null, title, mux_stream_id: stream.mux_stream_id || null, vod_playback_id: stream.mux_playback_id || null });
     if (!error) {
       const earned = Math.round(25 * (1 + getStreakBonus(streakDays) / 100));
       setShowClipModal(false);
@@ -1842,7 +1842,7 @@ export default function App() {
       }
       setAllClips(clips.map(c => ({
         ...c,
-        vod_playback_id: (c.streams && c.streams.mux_stream_id) ? (vodMap[c.streams.mux_stream_id] || null) : null,
+        vod_playback_id: c.vod_playback_id || ((c.streams && c.streams.mux_stream_id) ? (vodMap[c.streams.mux_stream_id] || null) : null),
         stream_category: (c.streams && c.streams.category) ? c.streams.category : (c.category || null),
       })));
     } else {
@@ -2707,6 +2707,7 @@ export default function App() {
       color: meta.color,
       bg: meta.bg,
       isRealStream: true,
+      mux_stream_id: s.mux_stream_id || null,
       mux_playback_id: s.mux_playback_id || null,
       thumbnail_url: s.thumbnail_url || null,
       started_at: s.started_at || null,
