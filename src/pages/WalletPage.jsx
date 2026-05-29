@@ -16,6 +16,7 @@ export default function WalletPage() {
     buyShopItem, notify, emailVerified,
     resendVerificationEmail,
     referralCode,
+    COIN_PACKAGES, handleBuyCoins, buyingCoins,
   } = useApp();
 
   return (
@@ -47,15 +48,42 @@ export default function WalletPage() {
       </div>
 
       {/* Buy Coins */}
-      <div style={{ background: "linear-gradient(135deg,rgba(255,200,0,.08),rgba(255,149,0,.05))", border: "1px solid rgba(255,200,0,.2)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ fontSize: 32 }}>🪙</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>Buy Coins</div>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>Top up your coin balance instantly. Purchase coins to gift streamers, place predictions, and subscribe.</div>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🪙 Buy Coins</span>
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>via Flutterwave · NGN</span>
         </div>
-        <button disabled style={{ background: "linear-gradient(135deg,rgba(255,200,0,.2),rgba(255,149,0,.15))", border: "1px solid rgba(255,200,0,.3)", color: "var(--gold)", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "not-allowed", flexShrink: 0, opacity: .8 }}>
-          Coming Soon
-        </button>
+        <div style={{ padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
+            Top up instantly with card, bank transfer, or USSD. 1,000 coins = ₦1.50 value.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+            {COIN_PACKAGES.map(pkg => (
+              <div key={pkg.id} onClick={() => !buyingCoins && handleBuyCoins(pkg.id)}
+                style={{ background: pkg.tag ? "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))" : "var(--ink3)", border: pkg.tag ? "1px solid rgba(124,58,237,.35)" : "1px solid var(--line)", borderRadius: 14, padding: "14px 12px", cursor: buyingCoins ? "not-allowed" : "pointer", transition: "all .2s", position: "relative", textAlign: "center" }}
+                onMouseEnter={e => { if (!buyingCoins) e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>
+                {pkg.tag && (
+                  <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: 10, padding: "2px 8px", whiteSpace: "nowrap", letterSpacing: .4 }}>
+                    {pkg.tag}
+                  </div>
+                )}
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: .5, color: "var(--gold)", marginBottom: 2 }}>
+                  {pkg.coins.toLocaleString()}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--muted)", marginBottom: 8 }}>
+                  coins{pkg.bonus > 0 ? ` (+${pkg.bonus.toLocaleString()} bonus)` : ""}
+                </div>
+                <div style={{ background: buyingCoins === pkg.id ? "rgba(255,200,0,.15)" : "linear-gradient(135deg,rgba(255,200,0,.18),rgba(255,149,0,.12))", border: "1px solid rgba(255,200,0,.3)", borderRadius: 8, padding: "7px 0", fontSize: 13, fontWeight: 800, color: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {buyingCoins === pkg.id ? <div className="spinner" style={{ borderTopColor: "var(--gold)", width: 14, height: 14 }} /> : pkg.price}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 11, color: "var(--muted)", textAlign: "center" }}>
+            Secured by Flutterwave · Card, Bank Transfer, USSD supported
+          </div>
+        </div>
       </div>
 
       {/* Viewer Tier Card */}

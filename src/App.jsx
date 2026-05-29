@@ -1218,30 +1218,67 @@ export default function App() {
 
   // â”€â”€ Withdrawals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const COIN_PACKAGES = [
-    { id: "starter", coins: 1000,  price: "$0.99",  label: "Starter",  bonus: 0 },
-    { id: "popular", coins: 5500,  price: "$4.49",  label: "Popular",  bonus: 500,  tag: "Best Value" },
-    { id: "value",   coins: 12000, price: "$7.99",  label: "Value",    bonus: 2000, tag: "20% Bonus" },
-    { id: "mega",    coins: 55000, price: "$29.99", label: "Mega",     bonus: 5000, tag: "Top Pick" },
+    { id: "starter", coins: 1000,  ngn: 1500,  price: "₦1,500",  label: "Starter",  bonus: 0 },
+    { id: "popular", coins: 5500,  ngn: 7000,  price: "₦7,000",  label: "Popular",  bonus: 500,  tag: "Best Value" },
+    { id: "value",   coins: 12000, ngn: 13000, price: "₦13,000", label: "Value",    bonus: 2000, tag: "20% Bonus" },
+    { id: "mega",    coins: 55000, ngn: 50000, price: "₦50,000", label: "Mega",     bonus: 5000, tag: "Top Pick" },
   ];
 
   const handleBuyCoins = async (packageId) => {
     if (!user) { go("auth"); return; }
+    const pkg = COIN_PACKAGES.find(p => p.id === packageId);
+    if (!pkg) return;
     setBuyingCoins(packageId);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ packageId }),
-      });
-      const data = await res.json();
-      if (!res.ok) { notify(data.error || "Could not start checkout"); return; }
-      window.location.href = data.url;
-    } catch {
-      notify("Network error — please try again");
-    } finally {
-      setBuyingCoins(false);
-    }
+
+    // Load Flutterwave inline script on demand
+    await new Promise((resolve) => {
+      if (window.FlutterwaveCheckout) { resolve(); return; }
+      const script = document.createElement("script");
+      script.src = "https://checkout.flutterwave.com/v3.js";
+      script.onload = resolve;
+      document.head.appendChild(script);
+    });
+
+    const txRef = `STEM-${user.id.slice(0,8)}-${Date.now()}`;
+
+    window.FlutterwaveCheckout({
+      public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
+      tx_ref: txRef,
+      amount: pkg.ngn,
+      currency: "NGN",
+      payment_options: "card,banktransfer,ussd",
+      customer: { email: user.email, name: profile?.full_name || user.email },
+      meta: { user_id: user.id, package_id: packageId },
+      customizations: {
+        title: "STEM Coins",
+        description: `Buy ${pkg.coins.toLocaleString()} coins for STEM`,
+        logo: `${window.location.origin}/favicon.svg`,
+      },
+      callback: async (data) => {
+        if (data.status === "successful") {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch("/api/flw-verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+              body: JSON.stringify({ transactionId: data.transaction_id, packageId }),
+            });
+            const result = await res.json();
+            if (res.ok) {
+              const nc = coinsRef.current + pkg.coins;
+              setCoins(nc); coinsRef.current = nc;
+              notify(result.message || `${pkg.coins.toLocaleString()} coins added!`);
+            } else {
+              notify(result.error || "Payment verified but coins could not be added — contact support");
+            }
+          } catch {
+            notify("Payment received — coins will be added shortly");
+          }
+        }
+        setBuyingCoins(false);
+      },
+      onclose: () => setBuyingCoins(false),
+    });
   };
 
   const fetchWithdrawHistory = async () => {
