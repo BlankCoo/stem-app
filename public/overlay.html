@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>STEM Alert Overlay</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: transparent;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap');
+
+  #alerts {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 10px;
+    width: min(560px, 90vw);
+    pointer-events: none;
+  }
+
+  .alert {
+    width: 100%;
+    border-radius: 18px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+    animation: alertIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .alert.out {
+    animation: alertOut 0.45s ease-in forwards;
+  }
+
+  .alert-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+    animation: iconPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+  }
+
+  .alert-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .alert-title {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .alert-sub {
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 2px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .alert-badge {
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+
+  /* Follow */
+  .alert-follow {
+    background: linear-gradient(135deg, rgba(124,58,237,0.88), rgba(168,85,247,0.78));
+    border: 1px solid rgba(196,150,255,0.4);
+  }
+  .alert-follow .alert-sub { color: #e0c6ff; }
+  .alert-follow .alert-badge { background: rgba(196,150,255,0.18); color: #e0c6ff; }
+
+  /* Gift */
+  .alert-gift {
+    background: linear-gradient(135deg, rgba(202,138,4,0.9), rgba(245,158,11,0.8));
+    border: 1px solid rgba(253,230,138,0.4);
+  }
+  .alert-gift .alert-sub { color: #fef3c7; }
+  .alert-gift .alert-badge { background: rgba(253,230,138,0.2); color: #fef3c7; }
+
+  /* Sub */
+  .alert-sub-type {
+    background: linear-gradient(135deg, rgba(5,150,105,0.9), rgba(16,185,129,0.8));
+    border: 1px solid rgba(110,231,183,0.4);
+  }
+  .alert-sub-type .alert-sub { color: #d1fae5; }
+  .alert-sub-type .alert-badge { background: rgba(110,231,183,0.2); color: #d1fae5; }
+
+  @keyframes alertIn {
+    0% { opacity: 0; transform: translateY(60px) scale(0.85); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes alertOut {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-20px) scale(0.92); }
+  }
+
+  @keyframes iconPop {
+    0% { transform: scale(0.5) rotate(-15deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+
+  #setup-msg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    font-family: monospace;
+    background: rgba(0,0,0,0.5);
+    padding: 20px 28px;
+    border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,0.2);
+    max-width: 400px;
+  }
+
+  #status-dot {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    transition: background 0.3s;
+  }
+  #status-dot.connected { background: #10b981; }
+</style>
+</head>
+<body>
+
+<div id="status-dot" title="Connection status"></div>
+<div id="alerts"></div>
+<div id="setup-msg" style="display:none"></div>
+
+<script>
+const SUPABASE_URL = 'https://qqlvruflljwfnxpqqysx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbHZydWZsbGp3Zm54cHFxeXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTU4NzUsImV4cCI6MjA4OTU5MTg3NX0.sP1Cu7Xp6EoiZb830g5sWhUPj6Cd3mVo-a5aHFWUJHA';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Get streamer ID from URL path: /overlay/STREAMER_ID
+const pathParts = window.location.pathname.split('/').filter(Boolean);
+const streamerId = pathParts[pathParts.length - 1] || new URLSearchParams(window.location.search).get('id');
+
+const statusDot = document.getElementById('status-dot');
+const alertsContainer = document.getElementById('alerts');
+const setupMsg = document.getElementById('setup-msg');
+
+if (!streamerId || streamerId === 'overlay.html') {
+  setupMsg.style.display = 'block';
+  setupMsg.innerHTML = `<strong>No streamer ID found</strong><br><br>
+    Add your user ID to the URL:<br>
+    <code style="color:#a78bfa">stemapp.online/overlay/YOUR_USER_ID</code>`;
+} else {
+  init(streamerId);
+}
+
+function showAlert(type, icon, title, subtitle, badge) {
+  const el = document.createElement('div');
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `
+    <div class="alert-icon">${icon}</div>
+    <div class="alert-content">
+      <div class="alert-title">${escHtml(title)}</div>
+      <div class="alert-sub">${escHtml(subtitle)}</div>
+    </div>
+    <div class="alert-badge">${escHtml(badge)}</div>
+  `;
+  alertsContainer.appendChild(el);
+
+  // Keep max 3 visible
+  while (alertsContainer.children.length > 3) {
+    alertsContainer.removeChild(alertsContainer.firstChild);
+  }
+
+  setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 500);
+  }, 4500);
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function init(id) {
+  // Load streamer name
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!profile) {
+    setupMsg.style.display = 'block';
+    setupMsg.innerHTML = `<strong>Streamer not found</strong><br><br>Check the user ID in your URL.`;
+    return;
+  }
+
+  // Subscribe: new followers
+  supabase
+    .channel('overlay-follows-' + id)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'follows',
+      filter: `following_id=eq.${id}`,
+    }, async (payload) => {
+      // Look up the follower name
+      const { data: follower } = await supabase
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', payload.new.follower_id)
+        .maybeSingle();
+      const name = follower?.full_name || follower?.username || 'Someone';
+      showAlert('follow', '❤️', `${name} followed!`, 'Welcome to the channel!', 'New Follower');
+    })
+    .subscribe((status) => {
+      statusDot.className = status === 'SUBSCRIBED' ? 'connected' : '';
+    });
+
+  // Subscribe: gifts + subs received by streamer
+  supabase
+    .channel('overlay-transactions-' + id)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'transactions',
+      filter: `user_id=eq.${id}`,
+    }, (payload) => {
+      const t = payload.new;
+      if (t.type === 'gift_received') {
+        // Description format: "Star from username"
+        const parts = (t.description || '').split(' from ');
+        const giftName = parts[0] || 'Gift';
+        const sender = parts[1] || 'Someone';
+        const coins = t.amount || 0;
+        showAlert(
+          'gift',
+          giftEmoji(giftName),
+          `${sender} sent a ${giftName}!`,
+          `${coins.toLocaleString()} coins — thank you!`,
+          'Gift'
+        );
+      } else if (t.type === 'sub_income') {
+        // Description format: "Tier 1 sub from username"
+        const match = (t.description || '').match(/from (.+)$/);
+        const sender = match ? match[1] : 'Someone';
+        showAlert(
+          'sub-type',
+          '⭐',
+          `${sender} subscribed!`,
+          'Thank you for the support!',
+          'New Sub'
+        );
+      }
+    })
+    .subscribe();
+
+  statusDot.title = `Connected — ${profile.full_name || profile.username}`;
+}
+
+function giftEmoji(name) {
+  const map = { 'Star': '🌟', 'Trophy': '🏆', 'Crown': '👑', 'Rocket': '🚀' };
+  return map[name] || '🎁';
+}
+</script>
+</body>
+</html>

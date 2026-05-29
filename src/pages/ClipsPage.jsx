@@ -36,6 +36,7 @@ export default function ClipsPage() {
               playbackId={vodClip.vod_playback_id}
               streamType="on-demand"
               style={{ width: "100%", display: "block" }}
+              startTime={vodClip.start_time_secs || 0}
               autoPlay
             />
           </div>

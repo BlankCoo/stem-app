@@ -40,7 +40,7 @@ export default function DiscoverPage() {
     discoverSort, setDiscoverSort, discTab, setDiscTab,
     upcomingSchedule, allClips, myClipVotes, voteClip,
     featuredPreds, user, mode, setAuthMode, notify,
-    CAT_META, searchProfiles, page, setShowGoLive, DEMO_STREAMS,
+    CAT_META, searchProfiles, searchClips, page, setShowGoLive, DEMO_STREAMS,
   } = useApp();
 
   // Sidebar channel list
@@ -196,13 +196,41 @@ export default function DiscoverPage() {
                 </div>
               </>
             )}
+            {searchClips.length > 0 && (
+              <>
+                <div className="d-section-hd" style={{ marginTop: 24 }}>
+                  <span className="d-section-title">Clips</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {searchClips.map(clip => (
+                    <div key={clip.id} onClick={() => go("clips")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, cursor: "pointer", transition: "border-color .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.4)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
+                      <div style={{ width: 38, height: 38, borderRadius: 8, background: "linear-gradient(135deg,rgba(124,58,237,.3),rgba(255,45,85,.2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>✂</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}{clip.score > 0 ? ` · +${clip.score}` : ""}</div>
+                      </div>
+                      {clip.vod_playback_id && <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, flexShrink: 0 }}>▶ Watch</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             <div className="d-section-hd" style={{ marginTop: 24 }}>
-              <span className="d-section-title">Streams{filteredStreams.length > 0 ? ` (${filteredStreams.length})` : ""}</span>
+              <span className="d-section-title">Live Streams{filteredStreams.length > 0 ? ` (${filteredStreams.length})` : ""}</span>
             </div>
             {filteredStreams.length > 0
               ? <div className="d-grid">{filteredStreams.map(s => <LiveCard key={s.id} s={s} />)}</div>
-              : <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div><div style={{ fontSize: 16, fontWeight: 600 }}>No results for "{search}"</div></div>
+              : <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div><div style={{ fontSize: 16, fontWeight: 600 }}>No live streams match "{search}"</div></div>
             }
+            {searchProfiles.length === 0 && searchClips.length === 0 && filteredStreams.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>No results for "{search}"</div>
+                <div style={{ fontSize: 13, marginTop: 6 }}>Try a different search term</div>
+              </div>
+            )}
           </div>
         )}
 

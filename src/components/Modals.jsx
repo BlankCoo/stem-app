@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useApp } from "../AppContext";
 
 export default function Modals() {
+  const [onboardStep, setOnboardStep] = useState(1);
   const {
     go, stream, user, profile, coins,
     streakDays, getStreakBonus,
@@ -21,6 +23,7 @@ export default function Modals() {
     showReportModal, setShowReportModal, reportType, reportTargetMeta,
     reportReason, setReportReason, submitReport, submittingReport,
     showWelcome, setShowWelcome,
+    emailVerified, resendVerificationEmail,
   } = useApp();
 
   return (
@@ -95,6 +98,23 @@ export default function Modals() {
             <div className="modal-title">💸 Withdraw Earnings</div>
             <div className="modal-sub">Request is reviewed manually — paid within 24 hours via PayPal or bank transfer.</div>
 
+            {/* Email verification gate */}
+            {!emailVerified && (
+              <div style={{ background: "rgba(255,149,0,.1)", border: "1px solid rgba(255,149,0,.35)", borderRadius: 14, padding: "16px 18px", marginBottom: 18, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📧</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--orange)", marginBottom: 6 }}>Email Not Verified</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", lineHeight: 1.55, marginBottom: 14 }}>
+                  You need to verify your email address before you can withdraw earnings. Check your inbox for the verification link.
+                </div>
+                <button
+                  onClick={resendVerificationEmail}
+                  style={{ background: "rgba(255,149,0,.18)", border: "1px solid rgba(255,149,0,.4)", color: "var(--orange)", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >
+                  Resend Verification Email
+                </button>
+              </div>
+            )}
+
             {/* Quick amounts */}
             <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8, display: "block" }}>Amount</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -139,10 +159,10 @@ export default function Modals() {
               <button onClick={() => setShowWithdrawModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
               <button
                 onClick={handleWithdraw}
-                disabled={processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins}
-                style={{ flex: 2, background: "linear-gradient(135deg,#00f5a0,#00c8a0)", color: "#000", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 800, cursor: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? "not-allowed" : "pointer", opacity: processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                disabled={!emailVerified || processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins}
+                style={{ flex: 2, background: "linear-gradient(135deg,#00f5a0,#00c8a0)", color: "#000", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 800, cursor: !emailVerified || processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? "not-allowed" : "pointer", opacity: !emailVerified || processingWithdraw || withdrawCoins < 20000 || withdrawCoins > coins ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
               >
-                {processingWithdraw ? <div className="spinner" /> : `Withdraw $${((withdrawCoins / 1000) * 0.98).toFixed(2)}`}
+                {processingWithdraw ? <div className="spinner" /> : !emailVerified ? "Email Required" : `Withdraw $${((withdrawCoins / 1000) * 0.98).toFixed(2)}`}
               </button>
             </div>
           </div>
@@ -387,48 +407,79 @@ export default function Modals() {
           </div>
         </div>
       )}
-      {/* WELCOME / ONBOARDING MODAL */}
-      {showWelcome && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }}>
-          <div style={{ background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 24, width: "100%", maxWidth: 440, overflow: "hidden", animation: "popIn .35s cubic-bezier(.34,1.56,.64,1)" }}>
-            {/* Header */}
-            <div style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55)", padding: "28px 24px 22px", textAlign: "center" }}>
-              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 34, letterSpacing: 3, color: "#fff", marginBottom: 6 }}>STEM</div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Welcome aboard! 🎉</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,.82)", lineHeight: 1.5 }}>You just joined the first platform that pays <strong>both streamers and viewers</strong>. Here's how it works.</div>
-            </div>
-            {/* Steps */}
-            <div style={{ padding: "18px 18px 6px", display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                ["📺", "Watch & Earn Coins", "Every minute you watch earns coins. Chat, follow streamers, and create clips for bonus coins."],
-                ["🪙", "Coins = Real Money", "1,000 coins = $1.00. Your balance grows every session — no tricks, no expiry."],
-                ["💸", "Withdraw Anytime", "Reach 20,000 coins ($20 minimum) and get paid via PayPal within 24 hours."],
-                ["🔗", "Invite Friends, Earn Together", "Share your referral link from Wallet — you and every friend you invite both earn 500 coins."],
-              ].map(([icon, title, desc]) => (
-                <div key={title} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "rgba(255,255,255,.04)", border: "1px solid var(--line)", borderRadius: 14, padding: "13px 15px" }}>
-                  <div style={{ fontSize: 26, flexShrink: 0, marginTop: 1 }}>{icon}</div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{title}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55 }}>{desc}</div>
-                  </div>
+      {/* WELCOME / ONBOARDING MODAL — 3-step */}
+      {showWelcome && (() => {
+        const steps = [
+          {
+            icon: "📺",
+            title: "Watch Streams, Earn Coins",
+            body: "Every minute you spend watching a live stream earns you coins automatically. Chat, follow streamers, and create clips for even more bonus coins.",
+            accent: "#7c3aed",
+          },
+          {
+            icon: "💸",
+            title: "Coins = Real Cash",
+            body: "1,000 coins = $1.00. Once you hit 20,000 coins ($20 minimum), you can withdraw directly to PayPal — paid within 24 hours.",
+            accent: "#00f5a0",
+          },
+          {
+            icon: "🔗",
+            title: "Invite Friends, Earn Together",
+            body: "Share your referral link from the Wallet page. You and every friend who joins both receive 500 bonus coins — no cap on referrals.",
+            accent: "#ffc800",
+          },
+        ];
+        const s = steps[onboardStep - 1];
+        const isLast = onboardStep === steps.length;
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }}>
+            <div style={{ background: "var(--ink2)", border: "1px solid var(--line2)", borderRadius: 24, width: "100%", maxWidth: 420, overflow: "hidden", animation: "popIn .35s cubic-bezier(.34,1.56,.64,1)" }}>
+              {/* Progress bar */}
+              <div style={{ height: 3, background: "var(--ink4)" }}>
+                <div style={{ height: "100%", background: `linear-gradient(90deg,var(--purple),var(--red))`, width: `${(onboardStep / steps.length) * 100}%`, transition: "width .35s ease" }} />
+              </div>
+
+              {/* Icon + step counter */}
+              <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
+                <div style={{ fontSize: 56, marginBottom: 12, filter: `drop-shadow(0 4px 16px ${s.accent}66)` }}>{s.icon}</div>
+                <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 20 }}>
+                  {steps.map((_, i) => (
+                    <div key={i} style={{ width: i === onboardStep - 1 ? 20 : 6, height: 6, borderRadius: 3, background: i === onboardStep - 1 ? "var(--purple)" : "var(--ink4)", transition: "all .25s ease" }} />
+                  ))}
                 </div>
-              ))}
-            </div>
-            {/* CTA */}
-            <div style={{ padding: "14px 18px 22px" }}>
-              <button
-                onClick={() => { localStorage.setItem("stem_onboarded", "1"); setShowWelcome(false); }}
-                style={{ width: "100%", background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 16, fontWeight: 800, cursor: "pointer", letterSpacing: .3 }}
-              >
-                Start Earning →
-              </button>
-              <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: "var(--muted)" }}>
-                You start with 0 coins — your first stream session changes that.
+                <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, marginBottom: 12, lineHeight: 1.1 }}>{s.title}</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,.72)", lineHeight: 1.65, marginBottom: 28, padding: "0 4px" }}>{s.body}</div>
+              </div>
+
+              {/* Navigation */}
+              <div style={{ padding: "0 28px 28px", display: "flex", gap: 10 }}>
+                {onboardStep > 1 && (
+                  <button
+                    onClick={() => setOnboardStep(v => v - 1)}
+                    style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 14, padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    ← Back
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (isLast) {
+                      localStorage.setItem("stem_onboarded", "1");
+                      setShowWelcome(false);
+                      setOnboardStep(1);
+                    } else {
+                      setOnboardStep(v => v + 1);
+                    }
+                  }}
+                  style={{ flex: onboardStep > 1 ? 2 : 1, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 14, padding: "13px 0", fontSize: 15, fontWeight: 800, cursor: "pointer", letterSpacing: .3 }}
+                >
+                  {isLast ? "Start Earning →" : `Next (${onboardStep}/${steps.length})`}
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

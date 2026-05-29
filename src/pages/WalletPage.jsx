@@ -13,7 +13,8 @@ export default function WalletPage() {
     dailyMissions, fetchDailyMissions, claimMissionBonus,
     achievements, fetchAchievements, ACHIEVEMENTS,
     waitlistEmail, setWaitlistEmail, waitlistDone, joinWaitlist,
-    buyShopItem, notify,
+    buyShopItem, notify, emailVerified,
+    resendVerificationEmail,
     referralCode,
   } = useApp();
 
@@ -105,8 +106,15 @@ export default function WalletPage() {
           <div className="wcard-l">Withdrawable Balance</div>
           <div className="wcard-v">${(coins / 1000).toFixed(2)}</div>
           <div className="wcard-sub">{coins.toLocaleString()} coins · {Math.max(0, 20000 - coins).toLocaleString()} more needed</div>
-          <button className="wbtn" disabled={coins < 20000 || (viewerTier !== "verified_earner" && viewerTier !== "elite")} onClick={() => coins >= 20000 && (viewerTier === "verified_earner" || viewerTier === "elite") && setShowWithdrawModal(true)}>
-            {viewerTier === "guest" || viewerTier === "active" ? "Unlock at Verified Earner" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
+          <button
+            className="wbtn"
+            disabled={!emailVerified || coins < 20000 || (viewerTier !== "verified_earner" && viewerTier !== "elite")}
+            onClick={() => {
+              if (!emailVerified) { resendVerificationEmail(); notify("Verification email sent — check your inbox"); return; }
+              if (coins >= 20000 && (viewerTier === "verified_earner" || viewerTier === "elite")) setShowWithdrawModal(true);
+            }}
+          >
+            {!emailVerified ? "Verify Email to Withdraw" : viewerTier === "guest" || viewerTier === "active" ? "Unlock at Verified Earner" : coins >= 20000 ? "Withdraw Now" : "Withdraw ($20 min)"}
           </button>
         </div>
         <div className="wcard y">

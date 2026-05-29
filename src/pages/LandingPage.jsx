@@ -37,18 +37,6 @@ export default function LandingPage() {
           <div style={{ marginBottom: 12 }}>
             <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => go("streamer")}>I am a Streamer →</button>
           </div>
-          <div className="hero-stats">
-            {[
-              [liveStreams.length > 0 ? liveStreams.length.toLocaleString() : "—", "Streams live"],
-              [landingStats.members > 0 ? landingStats.members.toLocaleString() : "—", "Members"],
-              [landingStats.totalEarned > 0 ? `$${(landingStats.totalEarned / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—", "Paid out"],
-            ].map(([v, l]) => (
-              <div key={l} className="hstat">
-                <div className="hstat-v">{v}</div>
-                <div className="hstat-l">{l}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

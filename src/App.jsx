@@ -566,6 +566,7 @@ export default function App() {
   const [discTab, setDiscTab] = useState("all");
   const [featuredPreds, setFeaturedPreds] = useState([]);
   const [searchProfiles, setSearchProfiles] = useState([]);
+  const [searchClips, setSearchClips] = useState([]);
   const [followedStreamers, setFollowedStreamers] = useState([]);
 
   // Streak
@@ -1086,6 +1087,17 @@ export default function App() {
       .or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
       .limit(5);
     setSearchProfiles(data || []);
+  };
+
+  const searchClipsQuery = async (query) => {
+    if (!query.trim()) { setSearchClips([]); return; }
+    const { data } = await supabase
+      .from('clips')
+      .select('id,title,score,vod_playback_id,mux_stream_id,profiles(full_name,username)')
+      .ilike('title', `%%`)
+      .order('score', { ascending: false })
+      .limit(5);
+    setSearchClips(data || []);
   };
 
   const fetchFollowedStreamers = async () => {
@@ -1842,13 +1854,13 @@ export default function App() {
   // â”€â”€ Past streams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const savePastStream = async () => {
     if (!user) return;
-    const { data: sd } = await supabase.from("streams").select("title,category,mux_stream_id,viewer_count").eq("user_id", user.id).single();
+    const { data: sd } = await supabase.from("streams").select("title,category,mux_stream_id,mux_playback_id,viewer_count").eq("user_id", user.id).single();
     if (sd) {
       // mux_playback_id starts null â€” the Mux webhook fills it in once the VOD is processed
       await supabase.from("past_streams").insert({
         user_id: user.id, streamer_name: profile?.full_name || profile?.username || "Streamer",
         title: sd.title, category: sd.category, mux_stream_id: sd.mux_stream_id,
-        mux_playback_id: null, peak_viewers: sd.viewer_count || 0,
+        mux_playback_id: sd.mux_playback_id || muxPlaybackId || null, peak_viewers: sd.viewer_count || 0,
       });
     }
   };
@@ -2190,9 +2202,12 @@ export default function App() {
     prevLiveIdsRef.current = currentIds;
   }, [liveStreams]);
 
-  // Streamer search debounce
+  // Search debounce
   useEffect(() => {
-    const t = setTimeout(() => searchStreamers(search), 280);
+    const t = setTimeout(() => {
+      searchStreamers(search);
+      searchClipsQuery(search);
+    }, 280);
     return () => clearTimeout(t);
   }, [search]);
 
@@ -2848,7 +2863,7 @@ export default function App() {
     cat, setCat, search, setSearch,
     allStreams, filteredStreams, formatDbStream,
     discoverSort, setDiscoverSort, discTab, setDiscTab,
-    upcomingSchedule, featuredPreds, searchProfiles,
+    upcomingSchedule, featuredPreds, searchProfiles, searchClips,
     // leaderboard
     leaderboard, topSupporters, loadingLb, lbTab, setLbTab, fetchLeaderboard,
     rankColor, rankEmoji,
