@@ -135,6 +135,33 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* OBS Alert Overlay */}
+      {user && (
+        <div style={{ background: "linear-gradient(135deg,rgba(77,159,255,.08),rgba(124,58,237,.06))", border: "1px solid rgba(77,159,255,.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 22 }}>📡</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>OBS Alert Overlay</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Add as a Browser Source in OBS to show follow, gift and sub alerts on stream.</div>
+            </div>
+          </div>
+          <div style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <code style={{ fontSize: 12, color: "var(--blue)", flex: 1, wordBreak: "break-all", fontFamily: "monospace" }}>
+              {window.location.origin}/overlay/{user.id}
+            </code>
+            <button
+              onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/overlay/${user.id}`); notify("Overlay URL copied!"); }}
+              style={{ background: "rgba(77,159,255,.18)", border: "1px solid rgba(77,159,255,.35)", color: "var(--blue)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+            >
+              Copy URL
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
+            <span style={{ fontWeight: 700, color: "rgba(255,255,255,.5)" }}>OBS setup:</span> Sources → + → Browser → paste URL → set 800×200 → check "Shutdown source when not visible" → OK
+          </div>
+        </div>
+      )}
+
       {/* KPIs — real data */}
       <div className="kpis" style={{ marginBottom: 16 }}>
         {[
