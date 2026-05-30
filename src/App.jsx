@@ -1468,9 +1468,21 @@ export default function App() {
     setLoadingAdmin(false);
   };
 
+
+  const sendWithdrawalNotification = async (withdrawalId, status) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      fetch('/api/withdrawal-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ withdrawalId, status }),
+      });
+    } catch {}
+  };
   const approveWithdrawal = async (w) => {
     await supabase.from("withdrawal_requests").update({ status: "paid" }).eq("id", w.id);
     setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "paid" } : x));
+    sendWithdrawalNotification(w.id, 'paid');
     notify("Withdrawal approved âœ“");
   };
 
@@ -1478,6 +1490,7 @@ export default function App() {
     await supabase.from("profiles").update({ coins: (w.profiles?.coins || 0) + w.amount_coins }).eq("id", w.user_id);
     await supabase.from("withdrawal_requests").update({ status: "rejected" }).eq("id", w.id);
     setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "rejected" } : x));
+    sendWithdrawalNotification(w.id, 'rejected');
     notify("Rejected â€” coins refunded");
   };
 
