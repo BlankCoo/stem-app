@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     }
 
     const followerIds = followers.map(f => f.follower_id);
-    const streamUrl = 'https://www.stemapp.online';
+    const streamUrl = `https://www.stemapp.online/?s=${streamer_id}`;
 
     // ── Push notifications (runs even when no emails) ──────────────
     let pushSent = 0;
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
       const chunk = emails.slice(i, i + 10);
       await Promise.all(chunk.map(email =>
         resend.emails.send({
-          from: 'STEM <notifications@stemapp.online>',
+          from: 'STEM <onboarding@resend.dev>',
           to: email,
           subject: `🔴 ${streamer_name} is live on STEM!`,
           html: `
@@ -111,8 +111,7 @@ export default async function handler(req, res) {
                 <a href="${streamUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#ff2d55);color:#fff;text-decoration:none;border-radius:8px;padding:12px 28px;font-size:14px;font-weight:700">Watch Now</a>
               </div>
               <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#606080;text-align:center">
-                You're receiving this because you follow ${streamer_name} on STEM.<br/>
-                <a href="${streamUrl}" style="color:#7c3aed">Manage notifications</a>
+                You're receiving this because you follow ${streamer_name} on STEM · <a href="${streamUrl}" style="color:#7c3aed">stemapp.online</a>
               </div>
             </div>
           `,
