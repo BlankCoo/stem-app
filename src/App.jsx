@@ -20,6 +20,7 @@ const ChannelPage    = lazy(() => import("./pages/ChannelPage"));
 const TermsPage      = lazy(() => import("./pages/TermsPage"));
 const PrivacyPage    = lazy(() => import("./pages/PrivacyPage"));
 const StreamerPage   = lazy(() => import("./pages/StreamerPage"));
+const VodPage        = lazy(() => import("./pages/VodPage"));
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
 
@@ -725,6 +726,8 @@ export default function App() {
   // Clips gallery
   const [allClips, setAllClips] = useState([]);
   const [loadingClips, setLoadingClips] = useState(false);
+  const [allVods, setAllVods] = useState([]);
+  const [loadingVods, setLoadingVods] = useState(false);
 
   // Past streams
   const [pastStreams, setPastStreams] = useState([]);
@@ -1859,6 +1862,19 @@ export default function App() {
   };
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+  // â”€â”€ VODs gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const fetchAllVods = async () => {
+    setLoadingVods(true);
+    const { data } = await supabase
+      .from(`past_streams`)
+      .select(`id,title,category,mux_playback_id,peak_viewers,created_at,streamer_name,user_id,profiles(full_name,username,avatar_url)`)
+      .not(`mux_playback_id`, `is`, null)
+      .order(`created_at`, { ascending: false })
+      .limit(60);
+    setAllVods(data || []);
+    setLoadingVods(false);
+  };
+
   // â”€â”€ Clips gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAllClips = async () => {
     setLoadingClips(true);
@@ -2327,6 +2343,7 @@ export default function App() {
       if (stream.isRealStream) unlockAchievement("first_stream");
     }
     if (page === "clips") { fetchAllClips(); fetchMyClipVotes(); }
+    if (page === "vod") fetchAllVods();
     if (page === "channel" && channelUser?.id) fetchPastStreams(channelUser.id);
   }, [page, user]);
 
@@ -2762,7 +2779,7 @@ export default function App() {
     return matchCat && matchSearch;
   });
 
-  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin", "streamer"].includes(page);
+  const isApp = ["disc", "stream", "wallet", "dash", "profile", "leaderboard", "channel", "vprofile", "clips", "admin", "streamer", "vod"].includes(page);
   const emailVerified = !!user?.email_confirmed_at;
 
   const resendVerificationEmail = async () => {
@@ -2928,6 +2945,7 @@ export default function App() {
     hypeProgress, hypeCelebrating,
     // clips
     allClips, loadingClips, myClipVotes, voteClip, streamClips,
+    allVods, loadingVods, fetchAllVods,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
     // push notifications
     pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
@@ -3032,6 +3050,7 @@ export default function App() {
       {page === "tos"      && <TermsPage />}
       {page === "privacy"  && <PrivacyPage />}
       {page === "streamer" && <StreamerPage />}
+      {page === "vod"      && <VodPage />}
     </Suspense>
 
     <Modals />

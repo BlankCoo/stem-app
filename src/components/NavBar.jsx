@@ -21,8 +21,8 @@ export default function NavBar() {
           <div className="nav-c" style={{ display: "flex" }}>
             {user ? (
               (mode === "viewer"
-                ? [["disc", "Home"], ["leaderboard", "Top"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Me"]]
-                : [["disc", "Home"], ["dash", "Dashboard"], ["wallet", "Wallet"], ["profile", "Me"]]
+                ? [["disc", "Home"], ["leaderboard", "Top"], ["vod", "Replays"], ["clips", "Clips"], ["wallet", "Wallet"], ["profile", "Me"]]
+                : [["disc", "Home"], ["dash", "Dashboard"], ["vod", "Replays"], ["wallet", "Wallet"], ["profile", "Me"]]
               ).map(([p, l]) => (
                 <button key={p} className={`nl ${page === p || (page === "stream" && p === "disc") ? "on" : ""}`} onClick={() => go(p)}>{l}</button>
               )).concat(user?.email === "blankcoojnr@gmail.com" ? [<button key="admin" className={`nl ${page === "admin" ? "on" : ""}`} style={{ color: "var(--red)" }} onClick={() => setPage("admin")}>Admin</button>] : [])

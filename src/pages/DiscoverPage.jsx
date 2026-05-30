@@ -79,8 +79,8 @@ export default function DiscoverPage() {
         {user && (
           <>
             {(mode === "viewer"
-              ? [["disc","🏠","Home"],["leaderboard","🏆","Top Earners"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
-              : [["disc","🏠","Home"],["dash","📊","Dashboard"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
+              ? [["disc","🏠","Home"],["leaderboard","🏆","Top Earners"],["vod","📺","Replays"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
+              : [["disc","🏠","Home"],["dash","📊","Dashboard"],["vod","📺","Replays"],["clips","✂️","Clips"],["wallet","🪙","Wallet"],["profile","👤","Profile"]]
             ).map(([p,ic,l]) => (
               <div key={p} className={`sb-nav-item ${page === p || (p==="disc" && page==="stream") ? "on" : ""}`} onClick={() => go(p)}>
                 <span style={{ fontSize: 16 }}>{ic}</span>
