@@ -42,7 +42,8 @@ export default function DiscoverPage() {
     discoverSort, setDiscoverSort, discTab, setDiscTab,
     upcomingSchedule, allClips, myClipVotes, voteClip,
     featuredPreds, user, mode, setAuthMode, notify,
-    CAT_META, searchProfiles, searchClips, page, setShowGoLive, DEMO_STREAMS,
+    CAT_META, searchProfiles, searchClips, page, setShowGoLive,
+    allStreamers, loadingStreamers,
   } = useApp();
 
   const [vodClip, setVodClip] = useState(null);
@@ -282,8 +283,67 @@ export default function DiscoverPage() {
         {/* ── HOME CONTENT (no search, no category filter) ── */}
         {!search && cat === "All" && (
           <>
-            {/* EMPTY STATE — no real streams live */}
-            {allStreams.length === 0 && (
+            {/* Tab bar: All / Channels */}
+            <div style={{ display: "flex", gap: 4, padding: "12px 24px 0", borderBottom: "1px solid var(--line)", marginBottom: 0 }}>
+              {[["all", "🔴 Live"], ["channels", "👥 Channels"]].map(([tab, label]) => (
+                <button key={tab} onClick={() => setDiscTab(tab)} style={{ background: "none", border: "none", borderBottom: discTab === tab ? "2px solid var(--red)" : "2px solid transparent", color: discTab === tab ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "8px 14px", cursor: "pointer", transition: "color .15s", whiteSpace: "nowrap" }}>
+                  {label}
+                </button>
+              ))}
+              {user && <button onClick={() => setDiscTab("following")} style={{ background: "none", border: "none", borderBottom: discTab === "following" ? "2px solid var(--red)" : "2px solid transparent", color: discTab === "following" ? "#fff" : "var(--muted)", fontSize: 13, fontWeight: 600, padding: "8px 14px", cursor: "pointer", transition: "color .15s", whiteSpace: "nowrap" }}>👤 Following</button>}
+            </div>
+            {/* ── CHANNELS TAB ── */}
+            {discTab === "channels" && (
+              <div className="d-section" style={{ paddingBottom: 40 }}>
+                {loadingStreamers ? (
+                  <div style={{ padding: 60, textAlign: "center" }}><div className="spinner" style={{ margin: "0 auto" }} /></div>
+                ) : allStreamers.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🎙</div>
+                    <div style={{ fontSize: 16, fontWeight: 600 }}>No streamers yet</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
+                    {allStreamers.map(s => {
+                      const isLive = liveStreams.some(ls => ls.user_id === s.id);
+                      const liveStream = liveStreams.find(ls => ls.user_id === s.id);
+                      const ini = s.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                      return (
+                        <div key={s.id} onClick={() => viewChannel(s.id)}
+                          style={{ background: "var(--ink3)", border: `1px solid ${isLive ? "rgba(255,45,85,.35)" : "var(--line)"}`, borderRadius: 14, padding: "16px", cursor: "pointer", transition: "all .2s", display: "flex", gap: 12, alignItems: "flex-start" }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = isLive ? "rgba(255,45,85,.6)" : "rgba(124,58,237,.4)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = isLive ? "rgba(255,45,85,.35)" : "var(--line)"; }}>
+                          <div style={{ width: 48, height: 48, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, overflow: "hidden", position: "relative" }}>
+                            {s.avatar_url ? <img src={s.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : ini}
+                            {isLive && <span style={{ position: "absolute", bottom: 0, right: 0, width: 13, height: 13, background: "var(--red)", borderRadius: "50%", border: "2px solid var(--ink3)", animation: "blink 1.6s infinite" }} />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.full_name}</div>
+                              {isLive && <span style={{ background: "var(--red)", color: "#fff", fontSize: 8, fontWeight: 800, borderRadius: 4, padding: "2px 6px", flexShrink: 0, letterSpacing: .4 }}>LIVE</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>@{s.username}</div>
+                            {isLive && liveStream && (
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,.7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{liveStream.title}</div>
+                            )}
+                            {s.bio && !isLive && (
+                              <div style={{ fontSize: 11, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{s.bio}</div>
+                            )}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 11, color: "var(--muted)" }}>👥 {(s.follower_count || 0).toLocaleString()}</span>
+                              {isLive && liveStream && <span style={{ fontSize: 11, color: "var(--muted)" }}>👁 {(liveStream.viewer_count || 0).toLocaleString()}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── LIVE / FOLLOWING TABS (existing content) ── */}
+            {discTab === "all" && allStreams.length === 0 && (
               <div style={{ padding: "56px 24px 40px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
                 <div style={{ fontSize: 60, marginBottom: 18, opacity: .75 }}>📡</div>
                 <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 30, letterSpacing: 1, marginBottom: 10 }}>No streams live right now</div>
@@ -313,7 +373,7 @@ export default function DiscoverPage() {
             )}
 
             {/* FEATURED HERO BANNER */}
-            {allStreams.length > 0 && (() => {
+            {discTab === "all" && allStreams.length > 0 && (() => {
               const hero = allStreams[0];
               return (
                 <div className="d-hero" onClick={() => go("stream", hero)}>
@@ -344,7 +404,7 @@ export default function DiscoverPage() {
             })()}
 
             {/* LIVE CHANNELS GRID */}
-            {allStreams.length > 1 && (
+            {discTab === "all" && allStreams.length > 1 && (
               <div className="d-section">
                 <div className="d-section-hd">
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -367,7 +427,7 @@ export default function DiscoverPage() {
             )}
 
             {/* UPCOMING STREAMS */}
-            {upcomingSchedule.length > 0 && (
+            {discTab === "all" && upcomingSchedule.length > 0 && (
               <div className="d-section">
                 <div className="d-section-hd">
                   <span className="d-section-title">📅 Upcoming Streams</span>
@@ -391,7 +451,7 @@ export default function DiscoverPage() {
             )}
 
             {/* TRENDING CLIPS & SHORTS */}
-            {allClips.length > 0 && (
+            {discTab === "all" && allClips.length > 0 && (
               <div className="d-section">
                 <div className="d-section-hd">
                   <span className="d-section-title">🎬 Trending Clips</span>
@@ -399,7 +459,7 @@ export default function DiscoverPage() {
                 </div>
                 <div className="clips-strip">
                   {allClips.slice(0, 12).map(clip => {
-                    const meta = DEMO_STREAMS.find(d => d.game === clip.game) || DEMO_STREAMS[Math.abs(clip.id?.charCodeAt(0) || 0) % DEMO_STREAMS.length] || DEMO_STREAMS[0];
+                    const meta = CAT_META[clip.stream_category || clip.category] || { emoji: "🎬", color: "#7c3aed", bg: "135deg,#1a0a2e,#2d1b69" };
                     return (
                       <div key={clip.id} className="csc" onClick={() => { supabase.from("clips").update({ view_count: (clip.view_count || 0) + 1 }).eq("id", clip.id); go("clips"); }}>
                         <div className="csc-thumb">
@@ -427,7 +487,7 @@ export default function DiscoverPage() {
             )}
 
             {/* TOP CATEGORIES */}
-            <div className="d-section">
+            {discTab === "all" && <div className="d-section">
               <div className="d-section-hd">
                 <span className="d-section-title">🎮 Top Categories</span>
               </div>
@@ -448,10 +508,10 @@ export default function DiscoverPage() {
                   );
                 })}
               </div>
-            </div>
+            </div>}
 
             {/* FEATURED PREDICTIONS */}
-            {featuredPreds.length > 0 && (
+            {discTab === "all" && featuredPreds.length > 0 && (
               <div className="d-section">
                 <div className="d-section-hd">
                   <span className="d-section-title">🔮 Featured Predictions</span>
@@ -485,7 +545,7 @@ export default function DiscoverPage() {
             )}
 
             {/* GUEST SIGN-UP CTA */}
-            {!user && (
+            {discTab === "all" && !user && (
               <div className="d-section" style={{ paddingBottom: 40 }}>
                 <div className="d-cta-bar">
                   <div style={{ flex: 1, minWidth: 200 }}>

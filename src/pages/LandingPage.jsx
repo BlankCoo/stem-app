@@ -1,5 +1,15 @@
 import { useApp } from "../AppContext";
 
+const CAT_COLORS = {
+  Gaming: { emoji: "🎮", bg: "135deg,#1a0a2e,#2d1b69", color: "#7c3aed" },
+  IRL: { emoji: "📸", bg: "135deg,#2e0a1a,#69141b", color: "#e94560" },
+  Music: { emoji: "🎵", bg: "135deg,#1e1a0a,#3a2e0d", color: "#f0c040" },
+  "Just Chatting": { emoji: "💬", bg: "135deg,#2e0a1e,#5a1442", color: "#ec4899" },
+  Sports: { emoji: "⚽", bg: "135deg,#0a1a2e,#0e3a5a", color: "#0ea5e9" },
+  Food: { emoji: "🍳", bg: "135deg,#0a1e10,#0d3a1a", color: "#22c55e" },
+};
+const DEFAULT_CAT = { emoji: "📺", bg: "135deg,#1a0a2e,#2d1b69", color: "#7c3aed" };
+
 const HOW_STEPS = [
   { n: "1", icon: "👤", title: "Create a free account", desc: "Sign up in 30 seconds — no credit card, no approval needed." },
   { n: "2", icon: "📺", title: "Watch live streams", desc: "Browse real live streams across Gaming, IRL, Music, Sports and more." },
@@ -15,7 +25,7 @@ const WHY_ITEMS = [
 ];
 
 export default function LandingPage() {
-  const { go, setAuthMode, setRole, liveStreams, landingStats } = useApp();
+  const { go, setAuthMode, setRole, liveStreams, landingStats, allVods, formatDbStream } = useApp();
 
   return (
     <div style={{ paddingTop: 56 }}>
@@ -39,6 +49,59 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* LIVE NOW / RECENT STREAMS */}
+      {(() => {
+        const live = liveStreams.slice(0, 6);
+        const recent = allVods.slice(0, 6);
+        const showLive = live.length > 0;
+        const showRecent = !showLive && recent.length > 0;
+        if (!showLive && !showRecent) return (
+          <div style={{ padding: "48px 24px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: .5 }}>📡</div>
+            <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: 1, marginBottom: 8 }}>No streams live right now</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,.5)", lineHeight: 1.6 }}>Check back soon — or sign up and follow streamers to get notified the moment they go live.</div>
+          </div>
+        );
+        return (
+          <div style={{ padding: "48px 24px 40px", maxWidth: 1100, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              {showLive && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--red)", color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 5, padding: "3px 10px", letterSpacing: .5 }}><span style={{ width: 5, height: 5, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite", display: "inline-block" }} />LIVE</span>}
+              <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, letterSpacing: .5 }}>{showLive ? "Streaming Now" : "Recent Streams"}</span>
+              <button onClick={() => go("disc")} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>See all →</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
+              {(showLive ? live : recent).map(s => {
+                const cat = showLive ? (s.category || "Just Chatting") : (s.category || "Just Chatting");
+                const meta = CAT_COLORS[cat] || DEFAULT_CAT;
+                const name = showLive ? (s.profiles?.full_name || s.streamer_name || "Streamer") : (s.profiles?.full_name || s.streamer_name || "Streamer");
+                const thumb = showLive ? s.thumbnail_url : (s.mux_playback_id ? `https://image.mux.com/${s.mux_playback_id}/thumbnail.png?width=640&height=360&time=10` : null);
+                return (
+                  <div key={s.id} onClick={() => showLive ? go("stream", formatDbStream(s)) : go("vod")}
+                    style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 14, overflow: "hidden", cursor: "pointer", transition: "all .2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,.5)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                    <div style={{ aspectRatio: "16/9", position: "relative", background: `linear-gradient(${meta.bg})`, overflow: "hidden" }}>
+                      {thumb && <img src={thumb} alt={s.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} />}
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%)" }} />
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, opacity: .12 }}>{meta.emoji}</div>
+                      {showLive
+                        ? <span style={{ position: "absolute", top: 8, left: 8, background: "var(--red)", color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: .4 }}>● LIVE</span>
+                        : <span style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,.7)", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>▶ REPLAY</span>
+                      }
+                      {showLive && s.viewer_count > 0 && <span style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>👁 {s.viewer_count.toLocaleString()}</span>}
+                    </div>
+                    <div style={{ padding: "10px 12px 12px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{s.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{name} · {cat}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* HOW IT WORKS */}
       <div style={{ padding: "56px 24px", maxWidth: 900, margin: "0 auto" }}>

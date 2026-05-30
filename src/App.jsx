@@ -728,6 +728,8 @@ export default function App() {
   const [loadingClips, setLoadingClips] = useState(false);
   const [allVods, setAllVods] = useState([]);
   const [loadingVods, setLoadingVods] = useState(false);
+  const [allStreamers, setAllStreamers] = useState([]);
+  const [loadingStreamers, setLoadingStreamers] = useState(false);
 
   // Past streams
   const [pastStreams, setPastStreams] = useState([]);
@@ -1862,6 +1864,19 @@ export default function App() {
   };
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+  // â”€â”€ Streamers directory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const fetchAllStreamers = async () => {
+    setLoadingStreamers(true);
+    const { data } = await supabase
+      .from(`profiles`)
+      .select(`id,full_name,username,avatar_url,follower_count,bio`)
+      .eq(`role`, `streamer`)
+      .order(`follower_count`, { ascending: false })
+      .limit(100);
+    setAllStreamers(data || []);
+    setLoadingStreamers(false);
+  };
+
   // â”€â”€ VODs gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchAllVods = async () => {
     setLoadingVods(true);
@@ -2331,7 +2346,7 @@ export default function App() {
     if (page === "leaderboard") fetchLeaderboard();
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") { fetchAdminWithdrawals(); fetchReports(); }
-    if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); }
+    if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); fetchAllStreamers(); }
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
@@ -2946,6 +2961,7 @@ export default function App() {
     // clips
     allClips, loadingClips, myClipVotes, voteClip, streamClips,
     allVods, loadingVods, fetchAllVods,
+    allStreamers, loadingStreamers, fetchAllStreamers,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
     // push notifications
     pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
