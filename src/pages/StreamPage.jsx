@@ -114,8 +114,10 @@ export default function StreamPage() {
             <div className="splayer-inner" style={{ background: `linear-gradient(${stream.bg})` }}>
               <div className="splayer-emoji">{stream.emoji}</div>
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                <span className="lpip" style={{ fontSize: 12, padding: "5px 14px" }}><span className="lpip-dot" />LIVE — {stream.viewers.toLocaleString()}</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>Earning coins while you watch</span>
+                {stream.isRealStream
+                  ? <span style={{ fontSize: 13, color: "rgba(255,255,255,.6)", background: "rgba(0,0,0,.4)", borderRadius: 8, padding: "6px 14px" }}>Stream starting — video loading…</span>
+                  : <span style={{ fontSize: 13, color: "rgba(255,255,255,.5)" }}>No stream selected</span>
+                }
               </div>
             </div>
           )}
@@ -197,12 +199,17 @@ export default function StreamPage() {
               </div>
             </div>
           ) : (
-            <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.10),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 14, padding: 16, marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ fontSize: 32 }}>🪙</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Earn coins while you watch</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Free account gets you +4 coins/hr, +10 per chat, real cash withdrawals.</div>
-                <button className="btn-g" style={{ padding: "8px 18px", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free — Start Earning</button>
+            <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.10),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.22)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
+                <div style={{ fontSize: 28 }}>🪙</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Create a free account to earn</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>Logged-in viewers earn <strong style={{ color: "var(--green)" }}>+4 coins/hr</strong> just for watching, <strong style={{ color: "var(--blue)" }}>+10 per chat</strong> message, and can withdraw real cash when they hit $20.</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-g" style={{ flex: 1, padding: "9px 0", fontSize: 13 }} onClick={() => { setAuthMode("signup"); go("auth"); }}>Sign Up Free</button>
+                <button className="btn-o" style={{ flex: 1, padding: "9px 0", fontSize: 13 }} onClick={() => { setAuthMode("login"); go("auth"); }}>Log In</button>
               </div>
             </div>
           )}
@@ -515,7 +522,7 @@ export default function StreamPage() {
                     {streamEmotes.length > 0 && (
                       <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                     )}
-                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
+                    <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Earn Active Viewer status to chat..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
                     <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
                   </div>
                 </>
@@ -584,15 +591,15 @@ export default function StreamPage() {
                 {streamEmotes.length > 0 && (
                   <button onClick={() => setShowEmotePicker(v => !v)} style={{ background: showEmotePicker ? "rgba(124,58,237,.2)" : "var(--ink4)", border: "1px solid var(--line2)", color: "#fff", borderRadius: 8, padding: "0 10px", fontSize: 16, cursor: "pointer", flexShrink: 0, height: 38 }} title="Emotes">😄</button>
                 )}
-                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Chat unlocks at Active Viewer status..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
+                <input className="chat-in" placeholder={isBannedFromChannel ? "You are banned from this chat" : viewerTier === "guest" ? "Earn Active Viewer status to chat..." : slowCooldown > 0 ? `Wait ${slowCooldown}s...` : streamEmotes.length ? "Chat or pick an emote..." : "Say something..."} value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"} />
                 <button className="chat-send" onClick={sendChat} disabled={slowCooldown > 0 || isBannedFromChannel || viewerTier === "guest"}>↑</button>
               </div>
             </>
           ) : (
-            <button onClick={() => setShowSignupPrompt(true)} style={{ width: "100%", background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(255,45,85,.08))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 10, padding: "11px 14px", color: "rgba(255,255,255,.7)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span>Join to chat and earn coins</span>
-              <span style={{ color: "var(--purple)", fontWeight: 700 }}>Sign up →</span>
-            </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => { setAuthMode("signup"); go("auth"); }} style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "10px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Sign Up to Chat & Earn</button>
+              <button onClick={() => { setAuthMode("login"); go("auth"); }} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 10, padding: "10px 0", fontSize: 13, cursor: "pointer" }}>Log In</button>
+            </div>
           )}
         </div>
       </div>
