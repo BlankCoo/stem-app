@@ -9,6 +9,7 @@ export default function NavBar() {
     notifications, liveStreams, formatDbStream, viewChannel,
     switchMode, setPage,
     pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
+    isStreaming, setShowGoLive,
   } = useApp();
 
   return (
@@ -130,34 +131,56 @@ export default function NavBar() {
         <div className="bottom-nav">
           <div className="bottom-nav-items">
             {user ? (
-              (mode === "viewer"
-                ? [["disc", "🏠", "Home"], ["leaderboard", "🏆", "Top"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-                : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
-              ).map(([p, icon, l]) => {
-                const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard");
-                return (
-                  <button key={p} className={`bn-item ${isOn ? "on" : ""}`} onClick={() => go(p)}>
+              <>
+                {/* Viewer nav: Home · Replays · Clips · Wallet · Me */}
+                {/* Streamer nav: Home · Dash · Go Live · Wallet · Me */}
+                {(mode === "viewer"
+                  ? [["disc", "🏠", "Home"], ["vod", "📺", "Replays"], ["clips", "✂️", "Clips"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
+                  : [["disc", "🏠", "Home"], ["dash", "📊", "Dash"], ["wallet", "🪙", "Wallet"], ["profile", "👤", "Me"]]
+                ).map(([p, icon, l]) => {
+                  const isOn = page === p || (page === "stream" && p === "disc") || (page === "vprofile" && p === "leaderboard") || (page === "vod" && p === "vod");
+                  return (
+                    <button key={p} className={`bn-item ${isOn ? "on" : ""}`} onClick={() => go(p)}>
+                      <div style={{ position: "relative", lineHeight: 1 }}>
+                        <span className="bn-icon">{icon}</span>
+                        {p === "disc" && unreadNotifs > 0 && (
+                          <span style={{ position: "absolute", top: -3, right: -5, background: "var(--red)", borderRadius: "50%", width: 8, height: 8, display: "block" }} />
+                        )}
+                        {p === "wallet" && coins >= 1000 && (
+                          <span style={{ position: "absolute", top: -6, right: -14, background: "var(--gold)", color: "#000", fontSize: 8, fontWeight: 800, borderRadius: 10, padding: "1px 5px", whiteSpace: "nowrap" }}>
+                            ${(coins / 1000).toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="bn-label">{l}</span>
+                    </button>
+                  );
+                })}
+                {/* Streamer Go Live button */}
+                {mode === "streamer" && (
+                  <button
+                    className="bn-item"
+                    onClick={() => isStreaming ? go("dash") : setShowGoLive(true)}
+                    style={{ color: isStreaming ? "var(--red)" : "var(--red)" }}
+                  >
                     <div style={{ position: "relative", lineHeight: 1 }}>
-                      <span className="bn-icon">{icon}</span>
-                      {/* Unread notification dot on Home */}
-                      {p === "disc" && unreadNotifs > 0 && (
-                        <span style={{ position: "absolute", top: -3, right: -5, background: "var(--red)", borderRadius: "50%", width: 8, height: 8, display: "block" }} />
-                      )}
-                      {/* Coin value badge on Wallet */}
-                      {p === "wallet" && coins >= 1000 && (
-                        <span style={{ position: "absolute", top: -6, right: -14, background: "var(--gold)", color: "#000", fontSize: 8, fontWeight: 800, borderRadius: 10, padding: "1px 5px", whiteSpace: "nowrap" }}>
-                          ${(coins / 1000).toFixed(0)}
-                        </span>
-                      )}
+                      <span className="bn-icon" style={{ fontSize: 18 }}>
+                        {isStreaming ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, background: "var(--red)", borderRadius: "50%", animation: "pulse 2s infinite" }}>
+                            <span style={{ width: 8, height: 8, background: "#fff", borderRadius: "50%" }} />
+                          </span>
+                        ) : "🔴"}
+                      </span>
                     </div>
-                    <span className="bn-label">{l}</span>
+                    <span className="bn-label" style={{ color: "var(--red)", fontWeight: 700 }}>{isStreaming ? "Live" : "Go Live"}</span>
                   </button>
-                );
-              }).concat(user?.email === "blankcoojnr@gmail.com" ? [
-                <button key="admin" className={`bn-item ${page === "admin" ? "on" : ""}`} onClick={() => setPage("admin")} style={{ color: page === "admin" ? "var(--red)" : "var(--muted)" }}>
-                  <span className="bn-icon">⚙️</span><span className="bn-label">Admin</span>
-                </button>
-              ] : [])
+                )}
+                {user?.email === "blankcoojnr@gmail.com" && (
+                  <button key="admin" className={`bn-item ${page === "admin" ? "on" : ""}`} onClick={() => setPage("admin")} style={{ color: page === "admin" ? "var(--red)" : "var(--muted)" }}>
+                    <span className="bn-icon">⚙️</span><span className="bn-label">Admin</span>
+                  </button>
+                )}
+              </>
             ) : (
               <>
                 <button className={`bn-item ${page === "disc" || page === "stream" ? "on" : ""}`} onClick={() => go("disc")}>

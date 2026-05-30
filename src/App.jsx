@@ -835,18 +835,28 @@ export default function App() {
     fetchLiveStreams();
     fetchFeaturedPredictions();
     fetchLandingStats();
-    let streamsDebounce = null;
-    const streamCh = supabase.channel("live-streams")
-      .on("postgres_changes", { event: "*", schema: "public", table: "streams" }, () => {
-        clearTimeout(streamsDebounce);
-        streamsDebounce = setTimeout(fetchLiveStreams, 3000);
+    // UPDATE = viewer count tick — patch in place, no refetch needed
+    // INSERT/DELETE = stream came live or ended — full refetch
+    const streamCh = supabase.channel('live-streams')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'streams' }, (payload) => {
+        const u = payload.new;
+        if (u?.id) {
+          setLiveStreams(prev => prev.map(s =>
+            s.id === u.id ? { ...s, viewer_count: u.viewer_count ?? s.viewer_count } : s
+          ));
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'streams' }, () => {
+        fetchLiveStreams();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'streams' }, () => {
+        fetchLiveStreams();
       })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(streamCh);
-      clearTimeout(streamsDebounce);
     };
   }, []);
 
@@ -1714,6 +1724,11 @@ export default function App() {
       notify("Push notifications are not supported in this browser.");
       return;
     }
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidKey) {
+      notify("Push notifications not configured yet — check back soon.");
+      return;
+    }
     setPushLoading(true);
     try {
       const permission = await Notification.requestPermission();
@@ -1723,7 +1738,7 @@ export default function App() {
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+          applicationServerKey: vapidKey,
         });
       }
       const { data: { session } } = await supabase.auth.getSession();
