@@ -2285,6 +2285,29 @@ export default function App() {
     prevLiveIdsRef.current = currentIds;
   }, [liveStreams]);
 
+  // Dynamic page title
+  useEffect(() => {
+    const titles = {
+      land: "STEM — Stream and Earn Money",
+      auth: "Sign Up or Log In — STEM",
+      disc: "Discover Streams — STEM",
+      stream: stream?.title ? `${stream.title} · ${stream.streamer || "STEM"}` : "Watch Live — STEM",
+      wallet: "My Wallet — STEM",
+      profile: "My Profile — STEM",
+      dash: "Creator Dashboard — STEM",
+      leaderboard: "Top Earners — STEM",
+      clips: "Clips — STEM",
+      vod: "Replays — STEM",
+      channel: channelUser?.full_name ? `${channelUser.full_name} — STEM` : "Channel — STEM",
+      vprofile: "Viewer Profile — STEM",
+      streamer: "Stream on STEM — Get Paid",
+      tos: "Terms of Service — STEM",
+      privacy: "Privacy Policy — STEM",
+      admin: "Admin — STEM",
+    };
+    document.title = titles[page] || "STEM — Stream and Earn Money";
+  }, [page, stream?.title, channelUser?.full_name]);
+
   // Search debounce
   useEffect(() => {
     const t = setTimeout(() => {

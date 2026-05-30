@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#080816"/>
+      <stop offset="100%" style="stop-color:#12122a"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="50%" style="stop-color:#ff2d55"/>
+      <stop offset="100%" style="stop-color:#ff9500"/>
+    </linearGradient>
+    <radialGradient id="orb1" cx="20%" cy="30%" r="40%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="80%" cy="70%" r="35%">
+      <stop offset="0%" style="stop-color:#ff2d55;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#ff2d55;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#orb1)"/>
+  <rect width="1200" height="630" fill="url(#orb2)"/>
+
+  <!-- Grid lines -->
+  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- STEM logo -->
+  <text x="100" y="200" font-family="Arial Black, Arial" font-weight="900" font-size="120" letter-spacing="8" fill="url(#title)">STEM</text>
+
+  <!-- Tagline -->
+  <text x="100" y="280" font-family="Arial, sans-serif" font-size="36" fill="rgba(255,255,255,0.85)" font-weight="300">Stream and Earn Money</text>
+
+  <!-- Sub tagline -->
+  <text x="100" y="340" font-family="Arial, sans-serif" font-size="24" fill="rgba(255,255,255,0.45)">The first platform to pay both streamers and viewers in real money.</text>
+
+  <!-- Stats pills -->
+  <rect x="100" y="390" width="220" height="52" rx="26" fill="rgba(0,245,160,0.12)" stroke="rgba(0,245,160,0.3)" stroke-width="1.5"/>
+  <text x="210" y="422" font-family="Arial, sans-serif" font-size="18" fill="#00f5a0" font-weight="700" text-anchor="middle">🪙 1,000 coins = $1</text>
+
+  <rect x="340" y="390" width="200" height="52" rx="26" fill="rgba(124,58,237,0.12)" stroke="rgba(124,58,237,0.3)" stroke-width="1.5"/>
+  <text x="440" y="422" font-family="Arial, sans-serif" font-size="18" fill="#7c3aed" font-weight="700" text-anchor="middle">💸 Cash out $20+</text>
+
+  <rect x="560" y="390" width="220" height="52" rx="26" fill="rgba(255,45,85,0.12)" stroke="rgba(255,45,85,0.3)" stroke-width="1.5"/>
+  <text x="670" y="422" font-family="Arial, sans-serif" font-size="18" fill="#ff2d55" font-weight="700" text-anchor="middle">📺 Earn while watching</text>
+
+  <!-- URL -->
+  <text x="100" y="560" font-family="Arial, sans-serif" font-size="22" fill="rgba(255,255,255,0.35)">stemapp.online</text>
+
+  <!-- Live dot decoration -->
+  <circle cx="1080" cy="200" r="12" fill="#ff2d55" opacity="0.8"/>
+  <circle cx="1080" cy="200" r="20" fill="none" stroke="#ff2d55" stroke-width="2" opacity="0.4"/>
+  <text x="1050" y="260" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,45,85,0.8)" font-weight="800" text-anchor="middle">LIVE</text>
+</svg>

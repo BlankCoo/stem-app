@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import { useApp } from "../AppContext";
 
 export default function AdminPage() {
@@ -7,12 +9,98 @@ export default function AdminPage() {
     reports, loadingReports, fetchReports, resolveReport,
   } = useApp();
 
+  const [stats, setStats] = useState(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [userResults, setUserResults] = useState([]);
+
+  useEffect(() => {
+    if (user?.email !== "blankcoojnr@gmail.com") return;
+    Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "streamer"),
+      supabase.from("streams").select("id", { count: "exact", head: true }).eq("status", "live"),
+      supabase.from("past_streams").select("id", { count: "exact", head: true }),
+      supabase.from("withdrawal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("withdrawal_requests").select("net_usd").eq("status", "paid"),
+      supabase.from("profiles").select("coins"),
+    ]).then(([users, streamers, live, past, pendingW, paid, allCoins]) => {
+      const totalPaid = (paid.data || []).reduce((s, r) => s + Number(r.net_usd || 0), 0);
+      const totalCoins = (allCoins.data || []).reduce((s, r) => s + (r.coins || 0), 0);
+      setStats({
+        users: users.count || 0,
+        streamers: streamers.count || 0,
+        liveNow: live.count || 0,
+        totalStreams: past.count || 0,
+        pendingWithdrawals: pendingW.count || 0,
+        totalPaidOut: totalPaid,
+        coinsInCirculation: totalCoins,
+      });
+    });
+  }, [user]);
+
+  const searchUsers = async (q) => {
+    if (!q.trim()) { setUserResults([]); return; }
+    const { data } = await supabase.from("profiles")
+      .select("id,full_name,username,email,role,coins,created_at")
+      .or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
+      .limit(8);
+    setUserResults(data || []);
+  };
+
   if (user?.email !== "blankcoojnr@gmail.com") return null;
 
   return (
     <div className="admin-page page">
       <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Admin Panel</div>
-      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24 }}>Manage withdrawal requests</div>
+      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 24 }}>Platform management</div>
+
+      {/* Platform Stats */}
+      {stats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
+          {[
+            ["👥", "Total Users", stats.users.toLocaleString()],
+            ["🎙", "Streamers", stats.streamers.toLocaleString()],
+            ["🔴", "Live Now", stats.liveNow.toLocaleString()],
+            ["📺", "Total Streams", stats.totalStreams.toLocaleString()],
+            ["⏳", "Pending Payouts", stats.pendingWithdrawals.toLocaleString(), stats.pendingWithdrawals > 0 ? "var(--orange)" : "var(--green)"],
+            ["💸", "Paid Out", `$${stats.totalPaidOut.toFixed(2)}`],
+            ["🪙", "Coins Circulating", `${(stats.coinsInCirculation / 1000).toFixed(0)}K`],
+          ].map(([icon, label, value, color]) => (
+            <div key={label} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, padding: "14px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, color: color || "#fff" }}>{value}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* User search */}
+      <div className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-hd"><span className="panel-title">🔍 User Lookup</span></div>
+        <div style={{ padding: "12px 16px" }}>
+          <input
+            className="fi"
+            style={{ margin: 0 }}
+            placeholder="Search by name or username…"
+            value={userSearch}
+            onChange={e => { setUserSearch(e.target.value); searchUsers(e.target.value); }}
+          />
+          {userResults.length > 0 && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              {userResults.map(u => (
+                <div key={u.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{u.full_name} <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 400 }}>@{u.username}</span></div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{u.role} · 🪙 {(u.coins || 0).toLocaleString()} · joined {new Date(u.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--muted)", flexShrink: 0 }}>{u.id.slice(0, 8)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
       <div className="panel">
         <div className="panel-hd">
           <span className="panel-title">💸 Withdrawal Requests</span>
