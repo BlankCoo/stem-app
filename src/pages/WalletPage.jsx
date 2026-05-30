@@ -19,12 +19,36 @@ export default function WalletPage() {
     COIN_PACKAGES, handleBuyCoins, buyingCoins,
   } = useApp();
 
+  const pendingWithdrawals = withdrawHistory.filter(w => w.status === "pending" || w.status === "processing");
+
   return (
     <div className="wallet-page page">
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>My Wallet</div>
         <div style={{ fontSize: 14, color: "var(--muted)" }}>Hey {firstName || "there"}! Your coins and earnings.</div>
       </div>
+
+      {/* Pending withdrawal alert */}
+      {pendingWithdrawals.length > 0 && (
+        <div style={{ background: "rgba(255,149,0,.08)", border: "1px solid rgba(255,149,0,.3)", borderRadius: 14, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 22, flexShrink: 0 }}>⏳</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--orange)", marginBottom: 2 }}>
+              {pendingWithdrawals.length === 1
+                ? `Withdrawal of $${Number(pendingWithdrawals[0].net_usd).toFixed(2)} in progress`
+                : `${pendingWithdrawals.length} withdrawals in progress`}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>
+              {pendingWithdrawals[0].status === "processing"
+                ? "Payment sent — should arrive in your PayPal within minutes."
+                : "Under review — you'll receive payment within 24 hours."}
+            </div>
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "var(--orange)", background: "rgba(255,149,0,.15)", border: "1px solid rgba(255,149,0,.3)", borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
+            {pendingWithdrawals[0].status === "processing" ? "PROCESSING" : "PENDING"}
+          </span>
+        </div>
+      )}
       {/* Streak card */}
       <div style={{ background: streakDays >= 3 ? "linear-gradient(135deg,rgba(255,149,0,.12),rgba(255,149,0,.04))" : "var(--card)", border: streakDays >= 3 ? "1px solid rgba(255,149,0,.25)" : "1px solid var(--line)", borderRadius: 16, padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{ fontSize: 36 }}>{streakDays >= 14 ? "🔥" : streakDays >= 7 ? "🔥" : streakDays >= 3 ? "🔥" : streakDays >= 1 ? "🌱" : "💤"}</div>
@@ -311,6 +335,57 @@ export default function WalletPage() {
         </div>
       </div>
 
+      {/* Withdrawal History — shown first when there are any requests */}
+      {withdrawHistory.length > 0 && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-hd">
+            <span className="panel-title">💸 Withdrawals</span>
+            <button onClick={fetchWithdrawHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+          </div>
+          <div>
+            {withdrawHistory.map((w, idx) => {
+              const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
+              const icon = { pending: "⏳", processing: "🔄", paid: "✅", rejected: "❌" };
+              const isLast = idx === withdrawHistory.length - 1;
+              return (
+                <div key={w.id} style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid var(--line)" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>{icon[w.status] || "💸"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>${Number(w.net_usd).toFixed(2)}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted)" }}>{w.amount_coins?.toLocaleString()} coins · {new Date(w.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: sc[w.status], background: `${sc[w.status]}18`, border: `1px solid ${sc[w.status]}44`, borderRadius: 20, padding: "2px 8px" }}>
+                          {w.status === "pending" ? "PENDING" : w.status === "processing" ? "PROCESSING" : w.status === "paid" ? "PAID ✓" : "REJECTED"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: w.status === "pending" || w.status === "rejected" ? 6 : 0 }}>
+                        → {w.paypal_email}
+                      </div>
+                      {w.status === "pending" && (
+                        <div style={{ fontSize: 11, color: "var(--orange)", background: "rgba(255,149,0,.08)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 8, padding: "5px 10px" }}>
+                          Under review — payment sent to your PayPal within 24 hours.
+                        </div>
+                      )}
+                      {w.status === "processing" && (
+                        <div style={{ fontSize: 11, color: "var(--blue)", background: "rgba(77,159,255,.08)", border: "1px solid rgba(77,159,255,.2)", borderRadius: 8, padding: "5px 10px" }}>
+                          Payment sent — should arrive in your PayPal within minutes.
+                        </div>
+                      )}
+                      {w.status === "rejected" && (
+                        <div style={{ fontSize: 11, color: "var(--red)", background: "rgba(255,45,85,.08)", border: "1px solid rgba(255,45,85,.2)", borderRadius: 8, padding: "5px 10px" }}>
+                          Rejected — your coins have been refunded. Email <a href="mailto:support@stemapp.online" style={{ color: "var(--red)", fontWeight: 700 }}>support@stemapp.online</a> if you have questions.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Transaction History */}
       <div className="panel">
         <div className="panel-hd">
@@ -338,39 +413,6 @@ export default function WalletPage() {
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{new Date(t.created_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: colors[t.type] || "var(--green)", flexShrink: 0 }}>{isOut ? "-" : "+"}{Math.abs(t.amount).toLocaleString()} 🪙</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Withdrawal History */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">💸 Withdrawal History</span>
-          <button onClick={fetchWithdrawHistory} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-        </div>
-        {withdrawHistory.length === 0 ? (
-          <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>💸</div>
-            No withdrawals yet — reach 20,000 coins ($20) to cash out.
-          </div>
-        ) : (
-          <div>
-            {withdrawHistory.map(w => {
-              const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
-              const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
-              return (
-                <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderBottom: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 20 }}>💸</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>${Number(w.net_usd).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>({w.amount_coins.toLocaleString()} coins)</span></div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{w.paypal_email} · {new Date(w.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sc[w.status] || "var(--muted)", background: `${sc[w.status] || "rgba(255,255,255,.1)"}18`, border: `1px solid ${sc[w.status] || "var(--line)"}44`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
-                    {sl[w.status] || w.status}
-                  </span>
                 </div>
               );
             })}
