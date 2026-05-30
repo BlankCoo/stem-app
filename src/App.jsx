@@ -2746,7 +2746,7 @@ export default function App() {
   const notify = (m) => { setToast(m); setTimeout(() => setToast(null), 2600); };
 
   // Pages that require an account
-  const PROTECTED = ["wallet", "dash", "profile", "leaderboard"];
+  const PROTECTED = ["wallet", "dash", "profile"];
 
   const go = (p, s = null) => {
     if (!user && PROTECTED.includes(p)) { setAuthMode("signup"); setPage("auth"); return; }

@@ -164,13 +164,17 @@ export default function NavBar() {
                   <span className="bn-icon">🏠</span>
                   <span className="bn-label">Home</span>
                 </button>
-                <button className="bn-item" onClick={() => { setAuthMode("login"); go("auth"); }}>
-                  <span className="bn-icon">👤</span>
-                  <span className="bn-label">Log In</span>
+                <button className={`bn-item ${page === "leaderboard" ? "on" : ""}`} onClick={() => go("leaderboard")}>
+                  <span className="bn-icon">🏆</span>
+                  <span className="bn-label">Top</span>
                 </button>
                 <button className="bn-item" onClick={() => { setAuthMode("signup"); go("auth"); }}>
                   <span className="bn-icon">✨</span>
                   <span className="bn-label">Sign Up</span>
+                </button>
+                <button className="bn-item" onClick={() => { setAuthMode("login"); go("auth"); }}>
+                  <span className="bn-icon">👤</span>
+                  <span className="bn-label">Log In</span>
                 </button>
               </>
             )}

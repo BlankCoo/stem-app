@@ -2,10 +2,9 @@ import { useApp } from "../AppContext";
 
 export default function LeaderboardPage() {
   const {
-    go, profile, coins, firstName, mode,
+    go, user, profile, coins, firstName, mode,
     leaderboard, topSupporters, loadingLb, lbTab, setLbTab,
     fetchLeaderboard, viewVProfile, rankColor, rankEmoji,
-    DEMO_STREAMS,
   } = useApp();
 
   return (
@@ -14,6 +13,16 @@ export default function LeaderboardPage() {
         <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 36, letterSpacing: 1, marginBottom: 4 }}>Leaderboard</div>
         <div style={{ fontSize: 14, color: "var(--muted)" }}>Top viewers on STEM</div>
       </div>
+      {!user && (
+        <div style={{ background: "linear-gradient(135deg,rgba(0,245,160,.07),rgba(0,245,160,.02))", border: "1px solid rgba(0,245,160,.18)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+          <div style={{ fontSize: 24 }}>🪙</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Want to appear on this list?</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Create a free account and earn coins by watching streams. 1,000 coins = $1.</div>
+          </div>
+          <button className="btn-g" style={{ flexShrink: 0 }} onClick={() => { go("auth"); }}>Sign Up Free</button>
+        </div>
+      )}
       {profile && (
         <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.08),rgba(255,45,85,.06))", border: "1px solid rgba(124,58,237,.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <div style={{ fontSize: 24 }}>📊</div>
@@ -22,7 +31,7 @@ export default function LeaderboardPage() {
             <div style={{ fontSize: 15, fontWeight: 700 }}>{firstName} — 🪙 {coins.toLocaleString()}</div>
             {profile.role === "streamer" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Streamers don't appear on the viewer leaderboard</div>}
           </div>
-          <button className="btn-g" onClick={() => go("stream", DEMO_STREAMS[0])}>Earn More</button>
+          <button className="btn-g" onClick={() => go("disc")}>Watch & Earn</button>
         </div>
       )}
       {/* Tab switcher */}
