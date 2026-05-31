@@ -718,6 +718,15 @@ export default function App() {
   // Sub tier
   const [subTier, setSubTier] = useState(0);
   const [showSubTierPicker, setShowSubTierPicker] = useState(false);
+  const [myRewards, setMyRewards] = useState([]);
+  const [channelRewards, setChannelRewards] = useState([]);
+  const [pendingRedemptions, setPendingRedemptions] = useState([]);
+  const [rewardForm, setRewardForm] = useState({ title: ``, description: ``, cost: 500 });
+  const [savingReward, setSavingReward] = useState(false);
+  const [showRewardForm, setShowRewardForm] = useState(false);
+  const [showGiftSubModal, setShowGiftSubModal] = useState(false);
+  const [giftSubUsername, setGiftSubUsername] = useState(``);
+  const [giftingSubTo, setGiftingSubTo] = useState(false);
   // Custom coin tip
   const [customTipAmt, setCustomTipAmt] = useState("");
   const [showTipInput, setShowTipInput] = useState(false);
@@ -1578,6 +1587,136 @@ export default function App() {
 
 
   // â”€â”€ Top gifters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Channel Rewards ──────────────────────────────────
+  const fetchMyRewards = async () => {
+    if (!user) return;
+    const { data } = await supabase.from(`channel_rewards`).select(`*`).eq(`user_id`, user.id).order(`cost`);
+    setMyRewards(data || []);
+  };
+
+  const fetchChannelRewards = async (streamerId) => {
+    if (!streamerId) return;
+    const { data } = await supabase.from(`channel_rewards`).select(`*`).eq(`user_id`, streamerId).eq(`enabled`, true).order(`cost`);
+    setChannelRewards(data || []);
+  };
+
+  const saveReward = async () => {
+    if (!rewardForm.title.trim()) { notify(`Enter a reward title`); return; }
+    if (Number(rewardForm.cost) < 100) { notify(`Minimum cost is 100 coins`); return; }
+    setSavingReward(true);
+    const { error } = await supabase.from(`channel_rewards`).insert({
+      user_id: user.id, title: rewardForm.title.trim(),
+      description: rewardForm.description.trim(), cost: Number(rewardForm.cost),
+    });
+    if (!error) {
+      notify(`Reward created!`);
+      setRewardForm({ title: ``, description: ``, cost: 500 });
+      setShowRewardForm(false);
+      fetchMyRewards();
+    } else notify(`Error saving reward`);
+    setSavingReward(false);
+  };
+
+  const deleteReward = async (rewardId) => {
+    await supabase.from(`channel_rewards`).delete().eq(`id`, rewardId);
+    setMyRewards(prev => prev.filter(r => r.id !== rewardId));
+    notify(`Reward deleted`);
+  };
+
+  const toggleReward = async (rewardId, enabled) => {
+    await supabase.from(`channel_rewards`).update({ enabled }).eq(`id`, rewardId);
+    setMyRewards(prev => prev.map(r => r.id === rewardId ? { ...r, enabled } : r));
+  };
+
+  const redeemReward = async (reward) => {
+    if (!requireAuth()) return;
+    if (coinsRef.current < reward.cost) { notify(`Need ${reward.cost.toLocaleString()} coins!`); return; }
+    const nc = coinsRef.current - reward.cost;
+    setCoins(nc); coinsRef.current = nc;
+    supabase.from(`profiles`).update({ coins: nc }).eq(`id`, user.id);
+    logTransaction(`reward_redemption`, -reward.cost, `Redeemed: ${reward.title}`);
+    await supabase.from(`reward_redemptions`).insert({
+      reward_id: reward.id, stream_id: stream?.id || null,
+      user_id: user.id, streamer_id: stream?.user_id || null,
+      reward_title: reward.title, reward_cost: reward.cost,
+      username: profile?.full_name?.split(` `)[0] || profile?.username || `viewer`,
+    });
+    if (stream?.id) {
+      const vname = profile?.full_name?.split(` `)[0] || profile?.username || `Someone`;
+      await supabase.from(`messages`).insert({
+        stream_id: stream.id, user_id: null, username: `StreamBot`,
+        content: `🎁 ${vname} redeemed "${reward.title}"!`,
+        color: `#7c3aed`, is_superchat: false, coins_spent: 0,
+      });
+    }
+    notify(`🎁 "${reward.title}" redeemed!`);
+  };
+
+  const fetchPendingRedemptions = async () => {
+    if (!user) return;
+    const { data } = await supabase.from(`reward_redemptions`)
+      .select(`*`).eq(`streamer_id`, user.id).eq(`status`, `pending`)
+      .order(`created_at`, { ascending: false }).limit(20);
+    setPendingRedemptions(data || []);
+  };
+
+  const fulfillRedemption = async (id) => {
+    await supabase.from(`reward_redemptions`).update({ status: `fulfilled` }).eq(`id`, id);
+    setPendingRedemptions(prev => prev.filter(r => r.id !== id));
+    notify(`Redemption fulfilled ✓`);
+  };
+
+  const cancelRedemption = async (id, userId, cost) => {
+    const { data: up } = await supabase.from(`profiles`).select(`coins`).eq(`id`, userId).single();
+    if (up) await supabase.from(`profiles`).update({ coins: (up.coins || 0) + cost }).eq(`id`, userId);
+    await supabase.from(`reward_redemptions`).update({ status: `cancelled` }).eq(`id`, id);
+    setPendingRedemptions(prev => prev.filter(r => r.id !== id));
+    notify(`Cancelled — coins refunded`);
+  };
+
+  // ── Gifted Subscriptions ──────────────────────────────
+  const handleGiftSub = async (tier = 1) => {
+    if (!requireAuth()) return;
+    if (!stream?.user_id || stream.user_id === user?.id) return;
+    if (!giftSubUsername.trim()) { notify(`Enter a username to gift to`); return; }
+    const { data: recipient } = await supabase.from(`profiles`)
+      .select(`id, full_name, username, coins`).ilike(`username`, giftSubUsername.trim()).maybeSingle();
+    if (!recipient) { notify(`User not found — check the username`); return; }
+    if (recipient.id === user.id) { notify(`Can't gift yourself!`); return; }
+    const t = SUB_TIERS.find(x => x.tier === tier) || SUB_TIERS[0];
+    if (coinsRef.current < t.cost) { notify(`Need ${t.cost.toLocaleString()} coins to gift a sub!`); return; }
+    setGiftingSubTo(true);
+    const nc = coinsRef.current - t.cost;
+    setCoins(nc); coinsRef.current = nc;
+    supabase.from(`profiles`).update({ coins: nc }).eq(`id`, user.id);
+    const streamerCut = Math.floor(t.cost * 0.7);
+    const { data: sp } = await supabase.from(`profiles`).select(`coins`).eq(`id`, stream.user_id).single();
+    if (sp) {
+      await supabase.from(`profiles`).update({ coins: (sp.coins || 0) + streamerCut }).eq(`id`, stream.user_id);
+      await supabase.from(`transactions`).insert({ user_id: stream.user_id, type: `sub_income`, amount: streamerCut, description: `Gifted sub from ${profile?.username || `viewer`}` });
+    }
+    await supabase.from(`subscriptions`).upsert({
+      subscriber_id: recipient.id, streamer_id: stream.user_id, tier,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      is_gifted: true, gifted_by: user.id,
+    }, { onConflict: `subscriber_id,streamer_id` });
+    logTransaction(`gift_sub`, -t.cost, `Gifted sub to ${recipient.username || recipient.full_name}`);
+    if (stream?.id) {
+      const gifterName = profile?.full_name?.split(` `)[0] || profile?.username || `Someone`;
+      const recipName = recipient.full_name?.split(` `)[0] || recipient.username || `viewer`;
+      await supabase.from(`messages`).insert({
+        stream_id: stream.id, user_id: null, username: `StreamBot`,
+        content: `🎁 ${gifterName} gifted a ${t.label} sub to ${recipName}! Welcome!`,
+        color: t.color, is_superchat: false, coins_spent: 0,
+      });
+    }
+    showStreamAlert(`🎁 ${profile?.full_name?.split(` `)[0] || `Someone`} gifted a sub!`, `🎁`, `to ${recipient.username || recipient.full_name}`);
+    notify(`🎁 Gifted sub to ${recipient.username || recipient.full_name}!`);
+    setGiftSubUsername(``);
+    setShowGiftSubModal(false);
+    setGiftingSubTo(false);
+  };
+
   const addGifter = (amount) => {
     if (!user) return;
     const name = profile?.full_name?.split(" ")[0] || profile?.username || "Anon";
@@ -2437,14 +2576,14 @@ export default function App() {
   // Page-load data fetching
   useEffect(() => {
     if (page === "leaderboard") fetchLeaderboard();
-    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); }
+    if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); fetchMyRewards(); fetchPendingRedemptions(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") { fetchAdminWithdrawals(); fetchReports(); }
     if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); fetchAllStreamers(); }
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
       if (stream.user_id) {
-        fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id);
+        fetchStreamEmotes(stream.user_id); checkSubscription(stream.user_id); fetchChannelRewards(stream.user_id);
         fetchBannedWords(stream.user_id);
       }
       setTopGifters({}); setActivePoll(null); setPollVoted(null); setActivePrediction(null); setPredEntries([]); setMyPredBet(null);
@@ -3078,6 +3217,11 @@ export default function App() {
     // subscribe
     isSubscribed, subscribing, setShowSubTierPicker, showSubTierPicker,
     handleSubscribe, SUB_TIERS,
+    myRewards, channelRewards, pendingRedemptions, rewardForm, setRewardForm,
+    savingReward, showRewardForm, setShowRewardForm,
+    saveReward, deleteReward, toggleReward, redeemReward,
+    fetchPendingRedemptions, fulfillRedemption, cancelRedemption,
+    showGiftSubModal, setShowGiftSubModal, giftSubUsername, setGiftSubUsername, giftingSubTo, handleGiftSub,
     // goal
     streamGoal, showGoalEditor, setShowGoalEditor,
     goalForm, setGoalForm, saveGoal, savingGoal, clearGoal,

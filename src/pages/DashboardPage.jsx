@@ -20,6 +20,9 @@ export default function DashboardPage() {
     uploadEmote, uploadingEmote, deleteEmote,
     bannedWords, newBannedWord, setNewBannedWord, addBannedWord, removeBannedWord,
     chatBans, unbanUser,
+    myRewards, rewardForm, setRewardForm, savingReward, showRewardForm, setShowRewardForm,
+    saveReward, deleteReward, toggleReward,
+    pendingRedemptions, fulfillRedemption, cancelRedemption, fetchPendingRedemptions,
     notify,
   } = useApp();
 
@@ -452,6 +455,78 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Channel Rewards */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🎟 Channel Rewards</span>
+          <button onClick={() => setShowRewardForm(v => !v)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {showRewardForm ? "Cancel" : "+ Add"}
+          </button>
+        </div>
+        {showRewardForm && (
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+            <input className="fi" style={{ margin: "0 0 8px" }} placeholder="Reward title (e.g. Play my song)" value={rewardForm.title} onChange={e => setRewardForm(f => ({ ...f, title: e.target.value }))} />
+            <input className="fi" style={{ margin: "0 0 8px" }} placeholder="Description (optional)" value={rewardForm.description} onChange={e => setRewardForm(f => ({ ...f, description: e.target.value }))} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 12, color: "var(--muted)", flexShrink: 0 }}>🪙 Cost:</span>
+              <input type="number" min={100} step={100} className="fi" style={{ margin: 0, flex: 1 }} value={rewardForm.cost} onChange={e => setRewardForm(f => ({ ...f, cost: e.target.value }))} />
+            </div>
+            <button onClick={saveReward} disabled={savingReward} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "9px 0", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%" }}>
+              {savingReward ? "Saving…" : "Save Reward"}
+            </button>
+          </div>
+        )}
+        {myRewards.length === 0 && !showRewardForm ? (
+          <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--muted)" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🎟</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No rewards yet</div>
+            <div style={{ fontSize: 12 }}>Create rewards viewers can redeem with their coins during your streams.</div>
+          </div>
+        ) : (
+          <div>
+            {myRewards.map(r => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>🪙 {r.cost.toLocaleString()} coins{r.description ? ` · ${r.description}` : ""}</div>
+                </div>
+                <button onClick={() => toggleReward(r.id, !r.enabled)} style={{ background: r.enabled ? "rgba(0,245,160,.12)" : "var(--ink4)", border: r.enabled ? "1px solid rgba(0,245,160,.3)" : "1px solid var(--line2)", color: r.enabled ? "var(--green)" : "var(--muted)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  {r.enabled ? "ON" : "OFF"}
+                </button>
+                <button onClick={() => deleteReward(r.id)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pending Redemptions */}
+      {pendingRedemptions.length > 0 && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div className="panel-hd">
+            <span className="panel-title">🎁 Pending Redemptions</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "var(--orange)", fontWeight: 700 }}>{pendingRedemptions.length}</span>
+              <button onClick={fetchPendingRedemptions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
+            </div>
+          </div>
+          <div>
+            {pendingRedemptions.map(r => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{r.reward_title}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {r.username || "viewer"} · 🪙 {r.reward_cost.toLocaleString()} · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => fulfillRedemption(r.id)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Done ✓</button>
+                  <button onClick={() => cancelRedemption(r.id, r.user_id, r.reward_cost)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Refund</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Chat Bans */}
       {chatBans.size > 0 && (

@@ -6,6 +6,8 @@ export default function Modals() {
   const {
     go, stream, user, profile, coins,
     liveStreams, handleRaid,
+    showGiftSubModal, setShowGiftSubModal, giftSubUsername, setGiftSubUsername, giftingSubTo, handleGiftSub,
+    chat,
     streakDays, getStreakBonus,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
     showScheduleModal, setShowScheduleModal, scheduleForm, setScheduleForm,
@@ -502,6 +504,40 @@ export default function Modals() {
           </div>
         );
       })()}
+
+      {/* GIFT SUB MODAL */}
+      {showGiftSubModal && (
+        <div className="modal-overlay" onClick={() => setShowGiftSubModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
+            <div className="modal-title">🎁 Gift a Subscription</div>
+            <div className="modal-sub" style={{ marginBottom: 16 }}>Cost: 1,000 coins — recipient gets 30 days subscribed to {stream?.streamer}</div>
+            <input
+              className="fi"
+              placeholder="Username to gift to…"
+              value={giftSubUsername}
+              onChange={e => setGiftSubUsername(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleGiftSub()}
+              style={{ marginBottom: 8 }}
+            />
+            <button
+              onClick={() => {
+                const candidates = [...new Set(
+                  chat.filter(m => m.uid && m.uid !== user?.id && m.uid !== stream?.user_id).map(m => m.a)
+                )];
+                if (candidates.length) setGiftSubUsername(candidates[Math.floor(Math.random() * candidates.length)]);
+                else notify("No other viewers in chat yet");
+              }}
+              style={{ width: "100%", background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 10, padding: "9px 0", fontSize: 13, cursor: "pointer", marginBottom: 14 }}
+            >
+              🎲 Random Viewer from Chat
+            </button>
+            <button onClick={() => handleGiftSub()} disabled={giftingSubTo || !giftSubUsername.trim()} className="btn-g" style={{ width: "100%", marginBottom: 8, opacity: !giftSubUsername.trim() ? .5 : 1 }}>
+              {giftingSubTo ? "Gifting…" : "Gift Sub 🎁"}
+            </button>
+            <button onClick={() => setShowGiftSubModal(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "9px 0", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
