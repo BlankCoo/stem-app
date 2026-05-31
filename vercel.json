@@ -5,8 +5,5 @@
   "rewrites": [
     { "source": "/overlay/:id", "destination": "/overlay.html" },
     { "source": "/((?!api/)(?!overlay\\.html).*)", "destination": "/index.html" }
-  ],
-  "crons": [
-    { "path": "/api/schedule-reminder", "schedule": "*/5 * * * *" }
   ]
 }
