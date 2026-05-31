@@ -21,7 +21,7 @@ export default function DashboardPage() {
     bannedWords, newBannedWord, setNewBannedWord, addBannedWord, removeBannedWord,
     chatBans, unbanUser,
     myRewards, rewardForm, setRewardForm, savingReward, showRewardForm, setShowRewardForm,
-    saveReward, deleteReward, toggleReward,
+    saveReward, deleteReward,
     pendingRedemptions, fulfillRedemption, cancelRedemption, fetchPendingRedemptions,
     notify,
   } = useApp();
@@ -467,7 +467,6 @@ export default function DashboardPage() {
         {showRewardForm && (
           <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
             <input className="fi" style={{ margin: "0 0 8px" }} placeholder="Reward title (e.g. Play my song)" value={rewardForm.title} onChange={e => setRewardForm(f => ({ ...f, title: e.target.value }))} />
-            <input className="fi" style={{ margin: "0 0 8px" }} placeholder="Description (optional)" value={rewardForm.description} onChange={e => setRewardForm(f => ({ ...f, description: e.target.value }))} />
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 12, color: "var(--muted)", flexShrink: 0 }}>🪙 Cost:</span>
               <input type="number" min={100} step={100} className="fi" style={{ margin: 0, flex: 1 }} value={rewardForm.cost} onChange={e => setRewardForm(f => ({ ...f, cost: e.target.value }))} />
@@ -489,11 +488,8 @@ export default function DashboardPage() {
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>🪙 {r.cost.toLocaleString()} coins{r.description ? ` · ${r.description}` : ""}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>🪙 {r.cost.toLocaleString()} coins</div>
                 </div>
-                <button onClick={() => toggleReward(r.id, !r.enabled)} style={{ background: r.enabled ? "rgba(0,245,160,.12)" : "var(--ink4)", border: r.enabled ? "1px solid rgba(0,245,160,.3)" : "1px solid var(--line2)", color: r.enabled ? "var(--green)" : "var(--muted)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                  {r.enabled ? "ON" : "OFF"}
-                </button>
                 <button onClick={() => deleteReward(r.id)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Delete</button>
               </div>
             ))}
@@ -516,11 +512,11 @@ export default function DashboardPage() {
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{r.reward_title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>by {r.username || "viewer"} · 🪙 {r.reward_cost.toLocaleString()} · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>viewer {r.viewer_id?.slice(0, 8)} · 🪙 {r.cost.toLocaleString()} · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                   <button onClick={() => fulfillRedemption(r.id)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Done ✓</button>
-                  <button onClick={() => cancelRedemption(r.id, r.user_id, r.reward_cost)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Refund</button>
+                  <button onClick={() => cancelRedemption(r.id, r.viewer_id, r.cost)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Refund</button>
                 </div>
               </div>
             ))}
