@@ -565,6 +565,7 @@ export default function App() {
   const [liveStreams, setLiveStreams] = useState([]);
   const [landingStats, setLandingStats] = useState({ members: 0, totalEarned: 0 });
   const [trendingClips, setTrendingClips] = useState([]);
+  const [recentPayouts, setRecentPayouts] = useState([]);
   const [discTab, setDiscTab] = useState("all");
   const [featuredPreds, setFeaturedPreds] = useState([]);
   const [searchProfiles, setSearchProfiles] = useState([]);
@@ -837,6 +838,7 @@ export default function App() {
     fetchFeaturedPredictions();
     fetchLandingStats();
     fetchTrendingClips();
+    fetchRecentPayouts();
     // UPDATE = viewer count tick — patch in place, no refetch needed
     // INSERT/DELETE = stream came live or ended — full refetch
     const streamCh = supabase.channel('live-streams')
@@ -1013,6 +1015,16 @@ export default function App() {
     setLandingStats({ members, totalEarned });
   };
 
+  const fetchRecentPayouts = async () => {
+    const { data } = await supabase
+      .from(`withdrawal_requests`)
+      .select(`net_usd, profiles(full_name, username)`)
+      .eq(`status`, `paid`)
+      .order(`updated_at`, { ascending: false })
+      .limit(6);
+    if (data) setRecentPayouts(data);
+  };
+
   const fetchTrendingClips = async () => {
     const { data } = await supabase
       .from(`clips`)
@@ -1083,6 +1095,13 @@ export default function App() {
     const { data } = await supabase.from("profiles").select("streak_days,last_streak_date").eq("id", user.id).single();
     if (!data) return;
     if (data.last_streak_date === today) { setStreakDays(data.streak_days || 0); return; }
+
+    // Daily login bonus: 50 coins on first login each day
+    const bonusCoins = coinsRef.current + 50;
+    setCoins(bonusCoins); coinsRef.current = bonusCoins;
+    supabase.from(`profiles`).update({ coins: bonusCoins }).eq(`id`, user.id);
+    supabase.from(`transactions`).insert({ user_id: user.id, type: `login_bonus`, amount: 50, description: `Daily login bonus` });
+    notify(`🎁 +50 coins daily login bonus!`);
 
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
     const yestStr = yest.toISOString().split("T")[0];
@@ -1920,7 +1939,7 @@ export default function App() {
     setLoadingStreamers(true);
     const { data } = await supabase
       .from(`profiles`)
-      .select(`id,full_name,username,avatar_url,follower_count,bio`)
+      .select(`id,full_name,username,avatar_url,follower_count,bio,created_at`)
       .eq(`role`, `streamer`)
       .order(`follower_count`, { ascending: false })
       .limit(100);
@@ -2804,6 +2823,21 @@ export default function App() {
     setStreamRecap({ durationMins, peak, adRevenue: recapAdRevenue, viewerEarnings: recapSess, topGifters: topGiftersList, title: stream?.title || "Stream" });
   };
 
+  const handleRaid = async (targetStream) => {
+    if (!user || !profile) return;
+    const raidName = profile.full_name || profile.username || `Streamer`;
+    await supabase.from(`messages`).insert({
+      stream_id: targetStream.id,
+      user_id: user.id,
+      username: raidName,
+      content: `🚀 RAID! ${raidName} is raiding this channel with their viewers! Welcome raiders! 🚀`,
+      color: `#ffc800`,
+      is_system: true,
+    });
+    notify(`Raiding ${targetStream.profiles?.full_name || targetStream.streamer_name || `channel`}!`);
+    go(`stream`, formatDbStream(targetStream));
+  };
+
   const switchMode = async (newMode) => {
     setMode(newMode);
     localStorage.setItem("stem_mode", newMode);
@@ -3003,7 +3037,7 @@ export default function App() {
     streamAlert, isStreamOwner, isStreaming,
     editingStreamInfo, setEditingStreamInfo, streamInfoDraft, setStreamInfoDraft, updateStreamInfo,
     // discover / search
-    liveStreams, landingStats, trendingClips, myFollows, setMyFollows, followedStreamers,
+    liveStreams, landingStats, trendingClips, recentPayouts, myFollows, setMyFollows, followedStreamers,
     cat, setCat, search, setSearch,
     allStreams, filteredStreams, formatDbStream,
     discoverSort, setDiscoverSort, discTab, setDiscTab,
@@ -3053,7 +3087,7 @@ export default function App() {
     // go live
     showGoLive, setShowGoLive, goLiveStep, setGoLiveStep,
     goLiveForm, setGoLiveForm, handleGoLive, savingGoLive,
-    muxStreamKey, handleEndStream, adRevenue,
+    muxStreamKey, handleEndStream, handleRaid, adRevenue,
     editingLiveInfo, setEditingLiveInfo, liveInfoForm, setLiveInfoForm,
     updateLiveInfo, savingLiveInfo,
     // dashboard

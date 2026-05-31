@@ -5,6 +5,7 @@ export default function Modals() {
   const [onboardStep, setOnboardStep] = useState(1);
   const {
     go, stream, user, profile, coins,
+    liveStreams, handleRaid,
     streakDays, getStreakBonus,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
     showScheduleModal, setShowScheduleModal, scheduleForm, setScheduleForm,
@@ -374,7 +375,28 @@ export default function Modals() {
                 ))}
               </div>
             )}
-            <button onClick={() => setStreamRecap(null)} className="btn-g" style={{ width: "100%" }}>Done</button>
+            <button onClick={() => setStreamRecap(null)} className="btn-g" style={{ width: "100%", marginBottom: 12 }}>Done</button>
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 10 }}>🚀 Raid a Channel</div>
+              {liveStreams.filter(s => s.user_id !== user?.id).length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "8px 0" }}>No other streams live to raid right now.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+                  {liveStreams.filter(s => s.user_id !== user?.id).slice(0, 5).map(s => (
+                    <button key={s.id} onClick={() => { handleRaid(s); setStreamRecap(null); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "8px 12px", cursor: "pointer", textAlign: "left", width: "100%", transition: "border-color .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.5)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "var(--line)"}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.profiles?.full_name || s.streamer_name || "Streamer"}</div>
+                        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>{s.category} · 👁 {(s.viewer_count || 0).toLocaleString()}</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple)", flexShrink: 0 }}>Raid →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -131,6 +131,41 @@ export default function StreamerPage() {
         </div>
       </section>
 
+      {/* Revenue comparison */}
+      <section style={{ marginBottom: 56 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4, textAlign: "center" }}>How STEM compares</h2>
+        <p style={{ fontSize: 14, color: "var(--muted)", textAlign: "center", marginBottom: 24 }}>The only platform where your audience earns too.</p>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
+            <thead>
+              <tr>
+                {["", "STEM", "Twitch", "Kick", "TikTok"].map((h, i) => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 ? "left" : "center", fontWeight: 700, fontSize: 11, color: "var(--muted)", borderBottom: "1px solid var(--line)", letterSpacing: .5, textTransform: "uppercase" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["Sub revenue cut", "70%", "50%", "95%", "~50%"],
+                ["Ad revenue share", "40%", "Variable", "Variable", "❌"],
+                ["Viewers earn?", "✅ Yes", "❌ No", "❌ No", "❌ No"],
+                ["Approval required?", "❌ None", "✅ Yes", "✅ Yes", "✅ Yes"],
+                ["Min. payout", "$20", "$100", "$100", "$50"],
+              ].map(([label, stem, twitch, kick, tiktok], ri) => (
+                <tr key={label} style={{ background: ri % 2 === 0 ? "rgba(255,255,255,.02)" : "transparent" }}>
+                  <td style={{ padding: "11px 12px", color: "var(--muted)", fontWeight: 600 }}>{label}</td>
+                  <td style={{ padding: "11px 12px", textAlign: "center", fontWeight: 700, color: "var(--green)", background: "rgba(0,245,160,.05)" }}>{stem}</td>
+                  <td style={{ padding: "11px 12px", textAlign: "center", color: "rgba(255,255,255,.55)" }}>{twitch}</td>
+                  <td style={{ padding: "11px 12px", textAlign: "center", color: "rgba(255,255,255,.55)" }}>{kick}</td>
+                  <td style={{ padding: "11px 12px", textAlign: "center", color: "rgba(255,255,255,.55)" }}>{tiktok}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8, textAlign: "center" }}>Rates approximate. STEM's viewer earnings are unique — no competitor pays their audience.</div>
+      </section>
+
       {/* Setup steps */}
       <section style={{ marginBottom: 56 }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4, textAlign: "center" }}>Live in 4 steps</h2>

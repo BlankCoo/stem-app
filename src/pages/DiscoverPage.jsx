@@ -450,6 +450,43 @@ export default function DiscoverPage() {
               </div>
             )}
 
+            {/* NEW TO STEM */}
+            {discTab === "all" && (() => {
+              const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+              const newStreamers = allStreamers.filter(s => s.created_at > cutoff).slice(0, 10);
+              if (!newStreamers.length) return null;
+              return (
+                <div className="d-section">
+                  <div className="d-section-hd">
+                    <span className="d-section-title">🆕 New to STEM</span>
+                    <button className="d-see-all" onClick={() => setDiscTab("channels")}>See all →</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
+                    {newStreamers.map(s => {
+                      const isLive = liveStreams.some(ls => ls.user_id === s.id);
+                      const ini = s.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                      const daysAgo = Math.floor((Date.now() - new Date(s.created_at)) / 86400000);
+                      return (
+                        <div key={s.id} onClick={() => viewChannel(s.id)}
+                          style={{ flexShrink: 0, width: 130, background: "var(--ink3)", border: `1px solid ${isLive ? "rgba(255,45,85,.35)" : "var(--line)"}`, borderRadius: 14, padding: "14px 10px", cursor: "pointer", textAlign: "center", transition: "all .2s" }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}>
+                          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "linear-gradient(135deg,var(--purple),var(--red))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, margin: "0 auto 8px", overflow: "hidden", position: "relative" }}>
+                            {s.avatar_url ? <img src={s.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : ini}
+                            {isLive && <span style={{ position: "absolute", bottom: 0, right: 0, width: 12, height: 12, background: "var(--red)", borderRadius: "50%", border: "2px solid var(--ink3)", animation: "blink 1.6s infinite" }} />}
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{s.full_name || s.username}</div>
+                          <div style={{ fontSize: 10, fontWeight: isLive ? 700 : 400, color: isLive ? "var(--red)" : "var(--muted)" }}>
+                            {isLive ? "🔴 LIVE" : daysAgo === 0 ? "Joined today" : `${daysAgo}d ago`}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* TRENDING CLIPS & SHORTS */}
             {discTab === "all" && allClips.length > 0 && (
               <div className="d-section">

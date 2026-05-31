@@ -25,7 +25,7 @@ const WHY_ITEMS = [
 ];
 
 export default function LandingPage() {
-  const { go, setAuthMode, setRole, liveStreams, landingStats, trendingClips, allVods, formatDbStream } = useApp();
+  const { go, setAuthMode, setRole, liveStreams, landingStats, trendingClips, recentPayouts, allVods, formatDbStream } = useApp();
 
   return (
     <div style={{ paddingTop: 56 }}>
@@ -49,6 +49,27 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* PROOF OF PAYMENT */}
+      {recentPayouts.length > 0 && (
+        <div style={{ background: "rgba(0,245,160,.04)", borderBottom: "1px solid rgba(0,245,160,.1)", padding: "10px 24px", overflow: "hidden" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "var(--green)", letterSpacing: .6, flexShrink: 0 }}>✅ REAL PAYOUTS</span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {recentPayouts.map((p, i) => {
+                const name = p.profiles?.full_name || p.profiles?.username || "Someone";
+                const parts = name.trim().split(" ");
+                const anon = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0];
+                return (
+                  <span key={i} style={{ fontSize: 12, color: "rgba(255,255,255,.75)", background: "rgba(0,245,160,.07)", border: "1px solid rgba(0,245,160,.15)", borderRadius: 20, padding: "3px 10px" }}>
+                    {anon} withdrew ${Number(p.net_usd).toFixed(0)}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* STATS BAR */}
       <div style={{ background: "var(--card)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: "16px 24px" }}>
