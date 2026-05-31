@@ -5,7 +5,7 @@ import { useApp } from "../AppContext";
 export default function AdminPage() {
   const {
     user, adminWithdrawals, loadingAdmin,
-    fetchAdminWithdrawals, approveWithdrawal, rejectWithdrawal,
+    fetchAdminWithdrawals, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
     reports, loadingReports, fetchReports, resolveReport,
   } = useApp();
 
@@ -117,7 +117,7 @@ export default function AdminPage() {
           <div>
             {adminWithdrawals.map(w => {
               const sc = { pending: "var(--orange)", processing: "var(--blue)", paid: "var(--green)", rejected: "var(--red)" };
-              const sl = { pending: "Pending", processing: "Processing", paid: "Paid ✓", rejected: "Rejected" };
+              const sl = { pending: "Pending", processing: "Processing — Awaiting PayPal", paid: "Paid ✓", rejected: "Rejected" };
               return (
                 <div key={w.id} style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
@@ -142,6 +142,9 @@ export default function AdminPage() {
                           <button onClick={() => approveWithdrawal(w)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Approve</button>
                           <button onClick={() => rejectWithdrawal(w)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reject</button>
                         </div>
+                      )}
+                      {w.status === "processing" && (
+                        <button onClick={() => markWithdrawalPaid(w)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark as Paid</button>
                       )}
                     </div>
                   </div>

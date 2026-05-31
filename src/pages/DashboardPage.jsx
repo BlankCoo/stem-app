@@ -15,7 +15,7 @@ export default function DashboardPage() {
     streamerTier, STREAMER_TIER_INFO,
     streamerAnalytics, loadingAnalytics, fetchStreamerAnalytics,
     CAT_META,
-    setShowScheduleModal, channelSchedule, upcomingSchedule,
+    setShowScheduleModal, channelSchedule, upcomingSchedule, deleteSchedule,
     myEmotes, emoteName, setEmoteName, emoteFileRef,
     uploadEmote, uploadingEmote, deleteEmote,
     bannedWords, newBannedWord, setNewBannedWord, addBannedWord, removeBannedWord,
@@ -354,6 +354,7 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{s.title}</div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{s.category} · {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
+                  <button onClick={() => deleteSchedule(s.id)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Delete</button>
                 </div>
               );
             })}

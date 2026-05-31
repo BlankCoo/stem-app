@@ -25,7 +25,7 @@ const WHY_ITEMS = [
 ];
 
 export default function LandingPage() {
-  const { go, setAuthMode, setRole, liveStreams, landingStats, allVods, formatDbStream } = useApp();
+  const { go, setAuthMode, setRole, liveStreams, landingStats, trendingClips, allVods, formatDbStream } = useApp();
 
   return (
     <div style={{ paddingTop: 56 }}>
@@ -47,6 +47,24 @@ export default function LandingPage() {
           <div style={{ marginBottom: 12 }}>
             <button className="btn-o" style={{ padding: "9px 20px", fontSize: 13, opacity: .7 }} onClick={() => go("streamer")}>I am a Streamer →</button>
           </div>
+        </div>
+      </div>
+
+      {/* STATS BAR */}
+      <div style={{ background: "var(--card)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: "16px 24px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 16 }}>
+          {[
+            ["👥", landingStats.members.toLocaleString(), "Members"],
+            ["🔴", liveStreams.length.toString(), "Live Now"],
+            ["💸", `$${(landingStats.totalEarned || 0).toFixed(0)}`, "Total Earned"],
+            ["🪙", "1,000 = $1", "Coin Rate"],
+          ].map(([icon, val, label]) => (
+            <div key={label} style={{ textAlign: "center", minWidth: 70 }}>
+              <div style={{ fontSize: 20, marginBottom: 2 }}>{icon}</div>
+              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, lineHeight: 1 }}>{val}</div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -102,6 +120,41 @@ export default function LandingPage() {
           </div>
         );
       })()}
+
+      {/* TRENDING CLIPS */}
+      {trendingClips.length > 0 && (
+        <div style={{ padding: "0 0 40px" }}>
+          <div style={{ padding: "0 24px", maxWidth: 1100, margin: "0 auto 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, letterSpacing: .5 }}>Trending Clips</span>
+              <button onClick={() => go("clips")} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer" }}>See all →</button>
+            </div>
+          </div>
+          <div style={{ paddingLeft: 24 }}>
+            <div className="clips-strip">
+              {trendingClips.map(c => (
+                <div key={c.id} onClick={() => go("clips")}
+                  style={{ flexShrink: 0, width: 200, background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,.5)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                  <div style={{ aspectRatio: "16/9", background: "var(--ink4)", position: "relative", overflow: "hidden" }}>
+                    <img src={`https://image.mux.com/${c.vod_playback_id}/thumbnail.png?width=400&height=225&time=5`} alt={c.title}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={e => { e.currentTarget.style.display = "none"; }} />
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 60%)" }} />
+                    <span style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,.7)", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>✂ CLIP</span>
+                    {(c.score || 0) > 0 && <span style={{ position: "absolute", top: 6, right: 6, background: "rgba(255,200,0,.12)", border: "1px solid rgba(255,200,0,.3)", color: "var(--gold)", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>▲ {c.score}</span>}
+                  </div>
+                  <div style={{ padding: "8px 10px 10px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{c.title}</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)" }}>{c.profiles?.full_name || c.profiles?.username || "Creator"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HOW IT WORKS */}
       <div style={{ padding: "56px 24px", maxWidth: 900, margin: "0 auto" }}>

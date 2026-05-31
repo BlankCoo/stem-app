@@ -564,6 +564,7 @@ export default function App() {
   // Real streams from Supabase
   const [liveStreams, setLiveStreams] = useState([]);
   const [landingStats, setLandingStats] = useState({ members: 0, totalEarned: 0 });
+  const [trendingClips, setTrendingClips] = useState([]);
   const [discTab, setDiscTab] = useState("all");
   const [featuredPreds, setFeaturedPreds] = useState([]);
   const [searchProfiles, setSearchProfiles] = useState([]);
@@ -835,6 +836,7 @@ export default function App() {
     fetchLiveStreams();
     fetchFeaturedPredictions();
     fetchLandingStats();
+    fetchTrendingClips();
     // UPDATE = viewer count tick — patch in place, no refetch needed
     // INSERT/DELETE = stream came live or ended — full refetch
     const streamCh = supabase.channel('live-streams')
@@ -1009,6 +1011,16 @@ export default function App() {
       ? earnedRes.data.reduce((sum, r) => sum + (r.total_earned || 0), 0)
       : 0;
     setLandingStats({ members, totalEarned });
+  };
+
+  const fetchTrendingClips = async () => {
+    const { data } = await supabase
+      .from(`clips`)
+      .select(`id, title, vod_playback_id, score, profiles(username, full_name), streams(category)`)
+      .not(`vod_playback_id`, `is`, null)
+      .order(`score`, { ascending: false })
+      .limit(10);
+    if (data) setTrendingClips(data);
   };
 
   const fetchFeaturedPredictions = async () => {
@@ -1201,6 +1213,11 @@ export default function App() {
     if (!error) { notify("Stream scheduled!"); setShowScheduleModal(false); setScheduleForm({ title: "", category: "Gaming", date: "", time: "" }); fetchUpcomingSchedule(); }
     else notify("Error saving schedule");
     setSavingSchedule(false);
+  };
+
+  const deleteSchedule = async (id) => {
+    await supabase.from(`stream_schedule`).delete().eq(`id`, id);
+    setUpcomingSchedule(prev => prev.filter(s => s.id !== id));
   };
 
   // --- CLIPS ---
@@ -1480,10 +1497,16 @@ export default function App() {
     } catch {}
   };
   const approveWithdrawal = async (w) => {
-    await supabase.from("withdrawal_requests").update({ status: "paid" }).eq("id", w.id);
-    setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: "paid" } : x));
-    sendWithdrawalNotification(w.id, 'paid');
-    notify("Withdrawal approved âœ“");
+    await supabase.from(`withdrawal_requests`).update({ status: `processing` }).eq(`id`, w.id);
+    setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: `processing` } : x));
+    notify(`Approved — send PayPal payment, then click Mark as Paid`);
+  };
+
+  const markWithdrawalPaid = async (w) => {
+    await supabase.from(`withdrawal_requests`).update({ status: `paid` }).eq(`id`, w.id);
+    setAdminWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: `paid` } : x));
+    sendWithdrawalNotification(w.id, `paid`);
+    notify(`Marked as paid ✔`);
   };
 
   const rejectWithdrawal = async (w) => {
@@ -2980,11 +3003,11 @@ export default function App() {
     streamAlert, isStreamOwner, isStreaming,
     editingStreamInfo, setEditingStreamInfo, streamInfoDraft, setStreamInfoDraft, updateStreamInfo,
     // discover / search
-    liveStreams, landingStats, myFollows, setMyFollows, followedStreamers,
+    liveStreams, landingStats, trendingClips, myFollows, setMyFollows, followedStreamers,
     cat, setCat, search, setSearch,
     allStreams, filteredStreams, formatDbStream,
     discoverSort, setDiscoverSort, discTab, setDiscTab,
-    upcomingSchedule, featuredPreds, searchProfiles, searchClips,
+    upcomingSchedule, deleteSchedule, featuredPreds, searchProfiles, searchClips,
     // leaderboard
     leaderboard, topSupporters, loadingLb, lbTab, setLbTab, fetchLeaderboard,
     rankColor, rankEmoji,
@@ -3074,7 +3097,7 @@ export default function App() {
     selectedVod, setSelectedVod, viewChannel,
     // admin
     adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
-    approveWithdrawal, rejectWithdrawal,
+    approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
     // reports
     reports, loadingReports, fetchReports, resolveReport,
     showReportModal, setShowReportModal,
