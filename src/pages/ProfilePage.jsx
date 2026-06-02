@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useApp } from "../AppContext";
+import { supabase } from "../supabase";
 
 export default function ProfilePage() {
   const {
@@ -10,6 +11,7 @@ export default function ProfilePage() {
     profileMsg, savingProfile,
     handleSaveProfile, handleLogout, switchMode,
     uploadAvatar, uploadingAvatar,
+    setProfile, notify,
   } = useApp();
 
   const fileRef = useRef(null);
@@ -87,6 +89,23 @@ export default function ProfilePage() {
               <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{profile?.role === "streamer" ? "Streamer" : "Viewer"} account</div>
             </div>
             <button onClick={() => switchMode(profile?.role === "streamer" ? "viewer" : "streamer")} style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--txt)", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>Switch</button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Go-Live Email Alerts</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Email me when streamers I follow go live</div>
+            </div>
+            <button
+              onClick={async () => {
+                const next = !(profile?.email_notifications ?? false);
+                await supabase.from("profiles").update({ email_notifications: next }).eq("id", user.id);
+                setProfile(p => ({ ...p, email_notifications: next }));
+                notify(next ? "Go-live emails enabled" : "Go-live emails disabled");
+              }}
+              style={{ background: (profile?.email_notifications) ? "rgba(0,245,160,.12)" : "var(--ink4)", border: (profile?.email_notifications) ? "1px solid rgba(0,245,160,.3)" : "1px solid var(--line2)", color: (profile?.email_notifications) ? "var(--green)" : "var(--muted)", borderRadius: 20, padding: "5px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .2s" }}
+            >
+              {(profile?.email_notifications) ? "ON" : "OFF"}
+            </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0" }}>
             <div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--red)" }}>Log Out</div><div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Sign out of your account</div></div>
