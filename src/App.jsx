@@ -521,6 +521,7 @@ export default function App() {
   const [chat, setChat] = useState([]);
   const [msg, setMsg] = useState("");
   const [following, setFollowing] = useState(false);
+  const [followSince, setFollowSince] = useState(null);
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -661,6 +662,8 @@ export default function App() {
   // Admin panel
   const [adminWithdrawals, setAdminWithdrawals] = useState([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
+  const [coinMultiplier, setCoinMultiplier] = useState(1);
+  const [activeEvent, setActiveEvent] = useState(null);
 
   // Streamer analytics
   const [streamerAnalytics, setStreamerAnalytics] = useState({
@@ -772,10 +775,12 @@ export default function App() {
   const emoteFileRef = useRef(null);
   const slowTimerRef = useRef(null);
   const peakViewersRef = useRef(0);
+  const coinMultiplierRef = useRef(1);
 
   // Keep refs in sync
   useEffect(() => { coinsRef.current = coins; }, [coins]);
   useEffect(() => { sessRef.current = sess; }, [sess]);
+  useEffect(() => { coinMultiplierRef.current = coinMultiplier; }, [coinMultiplier]);
 
   // Coin milestone celebrations + whale achievement
   useEffect(() => {
@@ -848,6 +853,7 @@ export default function App() {
     fetchLandingStats();
     fetchTrendingClips();
     fetchRecentPayouts();
+    fetchCoinEvent();
     // UPDATE = viewer count tick — patch in place, no refetch needed
     // INSERT/DELETE = stream came live or ended — full refetch
     const streamCh = supabase.channel('live-streams')
@@ -1084,14 +1090,15 @@ export default function App() {
   };
 
   const checkFollowing = async (streamObj) => {
-    if (!user || !streamObj?.isRealStream || !streamObj?.user_id) { setFollowing(false); return; }
+    if (!user || !streamObj?.isRealStream || !streamObj?.user_id) { setFollowing(false); setFollowSince(null); return; }
     const { data } = await supabase
       .from("follows")
-      .select("id")
+      .select("id,created_at")
       .eq("follower_id", user.id)
       .eq("following_id", streamObj.user_id)
       .maybeSingle();
     setFollowing(!!data);
+    setFollowSince(data?.created_at || null);
   };
 
   // Returns bonus % for a given streak length
@@ -1537,6 +1544,32 @@ export default function App() {
     notify(`Marked as paid ✔`);
   };
 
+
+  const fetchCoinEvent = async () => {
+    const { data } = await supabase.from(`platform_settings`).select(`*`).eq(`id`, 1).single();
+    if (!data) return;
+    const endsAt = data.event_ends_at;
+    if (endsAt && new Date(endsAt) < new Date()) {
+      await supabase.from(`platform_settings`).update({ coin_multiplier: 1, event_label: null, event_ends_at: null }).eq(`id`, 1);
+      setCoinMultiplier(1); setActiveEvent(null);
+    } else {
+      setCoinMultiplier(data.coin_multiplier || 1);
+      setActiveEvent(data.event_label ? { label: data.event_label, ends_at: endsAt } : null);
+    }
+  };
+
+  const setActiveCoinEvent = async (multiplier, label, hours) => {
+    const endsAt = hours ? new Date(Date.now() + hours * 3600000).toISOString() : null;
+    await supabase.from(`platform_settings`).update({ coin_multiplier: multiplier, event_label: label, event_ends_at: endsAt }).eq(`id`, 1);
+    setCoinMultiplier(multiplier); setActiveEvent({ label, ends_at: endsAt });
+    notify(`🎉 ${multiplier}x coin event started!`);
+  };
+
+  const clearCoinEvent = async () => {
+    await supabase.from(`platform_settings`).update({ coin_multiplier: 1, event_label: null, event_ends_at: null }).eq(`id`, 1);
+    setCoinMultiplier(1); setActiveEvent(null);
+    notify(`Coin event cleared`);
+  };
   const rejectWithdrawal = async (w) => {
     await supabase.from("profiles").update({ coins: (w.profiles?.coins || 0) + w.amount_coins }).eq("id", w.user_id);
     await supabase.from("withdrawal_requests").update({ status: "rejected" }).eq("id", w.id);
@@ -2265,6 +2298,7 @@ export default function App() {
         eliteAccumRef.current += 0.5;
         if (eliteAccumRef.current >= 1) { earn = 2; eliteAccumRef.current -= 1; }
       }
+    earn = Math.max(1, Math.round(earn * (coinMultiplierRef.current || 1)));
       setSess(s => s + earn);
       setCoins(c => c + earn);
     }, tickMs);
@@ -2721,13 +2755,15 @@ export default function App() {
             .eq("follower_id", user.id)
             .eq("following_id", stream.user_id);
           setFollowing(false);
-          notify("Unfollowed");
+          setFollowSince(null);
+          notify(`Unfollowed`);
         } else {
           const { error } = await supabase.from("follows").insert({
             follower_id: user.id, following_id: stream.user_id,
           });
           if (!error) {
             setFollowing(true);
+            setFollowSince(new Date().toISOString());
             const earned = Math.round(50 * (1 + getStreakBonus(streakDays) / 100));
             const nc = coinsRef.current + earned;
             setCoins(nc); coinsRef.current = nc;
@@ -2795,11 +2831,20 @@ export default function App() {
     if (subOnly && !isStreamOwner) { notify("Subscriber-only chat â€” subscribe to chat"); return; }
     if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat â€” follow this channel to chat"); return; }
     if (bannedWords.length > 0 && bannedWords.some(w => msg.toLowerCase().includes(w))) { notify("Your message was blocked by auto-mod"); return; }
-    const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100));
+    const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100) * (coinMultiplierRef.current || 1));
     const nc = coinsRef.current + earned;
     const tierEmoji = viewerTier !== "guest" ? (VIEWER_TIER_INFO[viewerTier]?.emoji || null) : null;
     const subBadge = isSubscribed ? (SUB_TIERS.find(t => t.tier === subTier)?.badge || null) : null;
-    const chatBadge = [subBadge, tierEmoji, profile?.badge].filter(Boolean).join(" ") || null;
+    const streamerBadge = isStreamOwner ? `🔴` : null;
+    const followBadge = followSince ? (() => {
+      const months = Math.floor((Date.now() - new Date(followSince)) / (30 * 24 * 60 * 60 * 1000));
+      if (months >= 12) return `👑`;
+      if (months >= 6) return `⚡`;
+      if (months >= 3) return `🔥`;
+      if (months >= 1) return `🌱`;
+      return null;
+    })() : null;
+    const chatBadge = [streamerBadge, subBadge, followBadge, tierEmoji, profile?.badge].filter(Boolean).join(` `) || null;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
@@ -3212,7 +3257,7 @@ export default function App() {
     // push notifications
     pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
     // follow
-    following, loadingFollow, handleFollow,
+    following, followSince, loadingFollow, handleFollow,
     // subscribe
     isSubscribed, subscribing, setShowSubTierPicker, showSubTierPicker,
     handleSubscribe, SUB_TIERS,
@@ -3275,6 +3320,7 @@ export default function App() {
     // admin
     adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
     approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
+    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent,
     // reports
     reports, loadingReports, fetchReports, resolveReport,
     showReportModal, setShowReportModal,

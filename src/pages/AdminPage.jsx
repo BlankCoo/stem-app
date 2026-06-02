@@ -6,6 +6,7 @@ export default function AdminPage() {
   const {
     user, adminWithdrawals, loadingAdmin,
     fetchAdminWithdrawals, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
+    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent,
     reports, loadingReports, fetchReports, resolveReport,
   } = useApp();
 
@@ -74,6 +75,51 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      {/* Coin Multiplier Event */}
+      <div className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-hd">
+          <span className="panel-title">🎉 Coin Multiplier Event</span>
+          {activeEvent && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", borderRadius: 20, padding: "3px 10px" }}>
+              LIVE: {activeEvent.label}
+            </span>
+          )}
+        </div>
+        <div style={{ padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
+            Current multiplier: <strong style={{ color: coinMultiplier > 1 ? "var(--gold)" : "#fff" }}>{coinMultiplier}x</strong>
+            {activeEvent?.ends_at && <span style={{ marginLeft: 8, opacity: .6 }}>· ends {new Date(activeEvent.ends_at).toLocaleString()}</span>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
+            {[["1x", 1], ["1.5x", 1.5], ["2x", 2], ["3x", 3]].map(([label, val]) => (
+              <button key={val} onClick={() => setActiveCoinEvent(val, `${label} Coins 🪙`, null)}
+                style={{ background: coinMultiplier === val ? "linear-gradient(135deg,var(--purple),var(--red))" : "var(--ink3)", border: coinMultiplier === val ? "none" : "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "10px 0", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 14 }}>
+            {[["24h", 24], ["48h", 48], ["Weekend (72h)", 72]].map(([label, hours]) => (
+              <button key={hours} onClick={() => setActiveCoinEvent(coinMultiplier, `${coinMultiplier}x Coins Weekend 🎉`, hours)}
+                style={{ background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 8, padding: "8px 0", fontSize: 12, cursor: "pointer" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="fi" style={{ margin: 0, flex: 1 }} placeholder="Custom event label…"
+              id="event-label-input"
+              defaultValue={activeEvent?.label || ""}
+            />
+            <button onClick={() => {
+              const label = document.getElementById("event-label-input").value.trim();
+              if (label) setActiveCoinEvent(coinMultiplier, label, null);
+            }} style={{ background: "rgba(124,58,237,.2)", border: "1px solid rgba(124,58,237,.4)", color: "var(--purple)", borderRadius: 8, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Set</button>
+            <button onClick={clearCoinEvent} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.3)", color: "var(--red)", borderRadius: 8, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Clear</button>
+          </div>
+        </div>
+      </div>
 
       {/* User search */}
       <div className="panel" style={{ marginBottom: 24 }}>
