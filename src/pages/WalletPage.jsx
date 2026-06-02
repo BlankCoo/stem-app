@@ -12,8 +12,7 @@ export default function WalletPage() {
     predHistory, loadingPredHistory, fetchPredHistory,
     dailyMissions, fetchDailyMissions, claimMissionBonus,
     achievements, fetchAchievements, ACHIEVEMENTS,
-    waitlistEmail, setWaitlistEmail, waitlistDone, joinWaitlist,
-    buyShopItem, notify, emailVerified,
+    notify, emailVerified,
     resendVerificationEmail,
     referralCode,
     COIN_PACKAGES, handleBuyCoins, buyingCoins,
@@ -100,33 +99,7 @@ export default function WalletPage() {
             ))}
           </div>
 
-          {/* Waitlist CTA */}
-          {waitlistDone ? (
-            <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.25)", borderRadius: 12, padding: "14px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--green)", marginBottom: 3 }}>🎉 You're on the list!</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>We'll email you at {waitlistEmail || user?.email} when coin purchasing goes live.</div>
-            </div>
-          ) : (
-            <div style={{ background: "rgba(255,149,0,.06)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Coin purchasing launching soon</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
-                Join the waitlist and we'll notify you the moment you can top up — via card, bank transfer, or USSD.
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  className="fi"
-                  style={{ margin: 0, flex: 1, fontSize: 13 }}
-                  placeholder={user?.email || "your@email.com"}
-                  value={waitlistEmail}
-                  onChange={e => setWaitlistEmail(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && joinWaitlist()}
-                />
-                <button onClick={joinWaitlist} className="btn-g" style={{ flexShrink: 0 }}>
-                  Notify Me
-                </button>
-              </div>
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", paddingTop: 4 }}>Coin purchasing coming soon — earn coins free by watching streams.</div>
         </div>
       </div>
 
@@ -202,106 +175,14 @@ export default function WalletPage() {
           <button className="wbtn" style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", opacity: .7, cursor: "default" }} disabled>Coming Soon</button>
         </div>
       </div>
-      {/* Premium Card */}
-      <div style={{ borderRadius: 20, overflow: "hidden", marginBottom: 20, border: "1px solid rgba(124,58,237,.4)", boxShadow: "0 8px 40px rgba(124,58,237,.18)" }}>
-        {/* Header */}
-        <div style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55,#ff9500)", padding: "24px 22px 20px", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, background: "rgba(255,255,255,.06)", borderRadius: "50%" }} />
-          <div style={{ position: "absolute", bottom: -20, left: 60, width: 80, height: 80, background: "rgba(255,255,255,.05)", borderRadius: "50%" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, position: "relative" }}>
-            <span style={{ fontSize: 28 }}>⚡</span>
-            <div>
-              <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 26, letterSpacing: 1, color: "#fff", lineHeight: 1 }}>STEM Premium</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)", fontWeight: 600, letterSpacing: .5 }}>Earn faster. Cash out sooner.</div>
-            </div>
-            <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 800, color: "#fff", background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 20, padding: "3px 10px", flexShrink: 0, letterSpacing: .5 }}>COMING SOON</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, position: "relative" }}>
-            <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 40, color: "#fff", letterSpacing: 1 }}>₦2,999</span>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,.7)", fontWeight: 600 }}>/month</span>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,.55)", marginLeft: 4 }}>via Flutterwave</span>
-          </div>
+      {/* Premium Coming Soon */}
+      <div style={{ background: "linear-gradient(135deg,rgba(124,58,237,.1),rgba(255,45,85,.07))", border: "1px solid rgba(124,58,237,.25)", borderRadius: 16, padding: "20px 22px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+        <span style={{ fontSize: 32 }}>⚡</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 22, letterSpacing: .5, marginBottom: 3 }}>STEM Premium</div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>2x earnings, priority withdrawals, ad-free — coming soon.</div>
         </div>
-
-        {/* Perks */}
-        <div style={{ background: "var(--ink2)", padding: "18px 22px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .8, color: "var(--muted)", textTransform: "uppercase", marginBottom: 12 }}>What you get</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-            {[
-              ["🚀", "2x Coin Earning Speed", "Every minute you watch earns twice as many coins — your balance doubles in the same time."],
-              ["⚡", "Premium Badge in Chat", "Gold ⚡ badge next to your name in every chat, visible to all streamers and viewers."],
-              ["💸", "Priority Withdrawals", "Your withdrawal requests jump the queue — processed within 1 hour, not 24."],
-              ["🚫", "Ad-Free Experience", "No ad interruptions during streams when ads launch on the platform."],
-              ["🎁", "Monthly Bonus Coins", "500 bonus coins credited to your wallet on the 1st of every month."],
-            ].map(([icon, title, desc]) => (
-              <div key={title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(124,58,237,.14)", border: "1px solid rgba(124,58,237,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Waitlist CTA */}
-          {waitlistDone ? (
-            <div style={{ background: "rgba(0,245,160,.08)", border: "1px solid rgba(0,245,160,.25)", borderRadius: 12, padding: "14px 18px", textAlign: "center" }}>
-              <div style={{ fontSize: 20, marginBottom: 6 }}>🎉</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--green)", marginBottom: 3 }}>You're on the waitlist!</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>We'll email {waitlistEmail || user?.email} the moment Premium goes live.</div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10, textAlign: "center" }}>
-                We're not charging yet — join the waitlist and be first to activate when we launch.
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  className="fi"
-                  style={{ margin: 0, flex: 1, fontSize: 13 }}
-                  placeholder={user?.email || "your@email.com"}
-                  value={waitlistEmail}
-                  onChange={e => setWaitlistEmail(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && joinWaitlist()}
-                />
-                <button
-                  onClick={joinWaitlist}
-                  style={{ background: "linear-gradient(135deg,#7c3aed,#ff2d55)", border: "none", color: "#fff", borderRadius: 12, padding: "0 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
-                >
-                  Join Waitlist
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Coin Shop */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="panel-hd"><span className="panel-title">🛍 Coin Shop</span></div>
-        <div style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>Spend your coins on profile upgrades and chat perks.</div>
-          {[
-            { icon: "🎨", name: "Neon Chat Color", desc: "Your chat messages glow in neon green", cost: 500, profileUpdate: { chat_color: "#00f5a0" }, owned: profile?.chat_color === "#00f5a0" },
-            { icon: "🔥", name: "Red Hot Color", desc: "Fiery red chat color", cost: 500, profileUpdate: { chat_color: "#ff6b35" }, owned: profile?.chat_color === "#ff6b35" },
-            { icon: "💜", name: "Purple Royale", desc: "Rich purple chat color", cost: 500, profileUpdate: { chat_color: "#a78bfa" }, owned: profile?.chat_color === "#a78bfa" },
-            { icon: "👑", name: "VIP Badge", desc: "Crown badge shown in chat next to your name", cost: 1000, profileUpdate: { badge: "👑" }, owned: profile?.badge === "👑" },
-            { icon: "🐋", name: "Whale Badge", desc: "Whale badge for big spenders", cost: 2000, profileUpdate: { badge: "🐋" }, owned: profile?.badge === "🐋" },
-            { icon: "⭐", name: "Star Badge", desc: "Gold star badge for loyal viewers", cost: 750, profileUpdate: { badge: "⭐" }, owned: profile?.badge === "⭐" },
-          ].map(item => (
-            <div key={item.name} className="shop-item">
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{item.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{item.name}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{item.desc}</div>
-              </div>
-              <button onClick={() => !item.owned && buyShopItem(item.name, item.cost, item.profileUpdate)} style={{ background: item.owned ? "rgba(0,245,160,.1)" : "linear-gradient(135deg,var(--purple),var(--red))", border: item.owned ? "1px solid rgba(0,245,160,.3)" : "none", color: item.owned ? "var(--green)" : "#fff", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: item.owned ? "default" : "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
-                {item.owned ? "Owned ✓" : `🪙 ${item.cost.toLocaleString()}`}
-              </button>
-            </div>
-          ))}
-        </div>
+        <span style={{ fontSize: 9, fontWeight: 800, color: "var(--purple)", background: "rgba(124,58,237,.15)", border: "1px solid rgba(124,58,237,.3)", borderRadius: 20, padding: "4px 10px", flexShrink: 0, letterSpacing: .5 }}>SOON</span>
       </div>
 
       {/* Referral */}

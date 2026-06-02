@@ -521,7 +521,6 @@ export default function App() {
   const [chat, setChat] = useState([]);
   const [msg, setMsg] = useState("");
   const [following, setFollowing] = useState(false);
-  const [followSince, setFollowSince] = useState(null);
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -1090,15 +1089,14 @@ export default function App() {
   };
 
   const checkFollowing = async (streamObj) => {
-    if (!user || !streamObj?.isRealStream || !streamObj?.user_id) { setFollowing(false); setFollowSince(null); return; }
+    if (!user || !streamObj?.isRealStream || !streamObj?.user_id) { setFollowing(false); return; }
     const { data } = await supabase
       .from("follows")
-      .select("id,created_at")
+      .select("id")
       .eq("follower_id", user.id)
       .eq("following_id", streamObj.user_id)
       .maybeSingle();
     setFollowing(!!data);
-    setFollowSince(data?.created_at || null);
   };
 
   // Returns bonus % for a given streak length
@@ -2755,7 +2753,6 @@ export default function App() {
             .eq("follower_id", user.id)
             .eq("following_id", stream.user_id);
           setFollowing(false);
-          setFollowSince(null);
           notify(`Unfollowed`);
         } else {
           const { error } = await supabase.from("follows").insert({
@@ -2763,7 +2760,6 @@ export default function App() {
           });
           if (!error) {
             setFollowing(true);
-            setFollowSince(new Date().toISOString());
             const earned = Math.round(50 * (1 + getStreakBonus(streakDays) / 100));
             const nc = coinsRef.current + earned;
             setCoins(nc); coinsRef.current = nc;
@@ -2830,21 +2826,13 @@ export default function App() {
     if (slowCooldown > 0) { notify(`Slow mode â€” wait ${slowCooldown}s`); return; }
     if (subOnly && !isStreamOwner) { notify("Subscriber-only chat â€” subscribe to chat"); return; }
     if (followerOnly && !isStreamOwner && !myFollows.includes(stream?.user_id)) { notify("Follower-only chat â€” follow this channel to chat"); return; }
-    if (bannedWords.length > 0 && bannedWords.some(w => msg.toLowerCase().includes(w))) { notify("Your message was blocked by auto-mod"); return; }
     const earned = Math.round(10 * (1 + getStreakBonus(streakDays) / 100) * (coinMultiplierRef.current || 1));
     const nc = coinsRef.current + earned;
     const tierEmoji = viewerTier !== "guest" ? (VIEWER_TIER_INFO[viewerTier]?.emoji || null) : null;
     const subBadge = isSubscribed ? (SUB_TIERS.find(t => t.tier === subTier)?.badge || null) : null;
     const streamerBadge = isStreamOwner ? `🔴` : null;
-    const followBadge = followSince ? (() => {
-      const months = Math.floor((Date.now() - new Date(followSince)) / (30 * 24 * 60 * 60 * 1000));
-      if (months >= 12) return `👑`;
-      if (months >= 6) return `⚡`;
-      if (months >= 3) return `🔥`;
-      if (months >= 1) return `🌱`;
-      return null;
-    })() : null;
-    const chatBadge = [streamerBadge, subBadge, followBadge, tierEmoji, profile?.badge].filter(Boolean).join(` `) || null;
+
+    const chatBadge = [streamerBadge, subBadge, tierEmoji, profile?.badge].filter(Boolean).join(` `) || null;
     await supabase.from("messages").insert({
       stream_id: stream.id, user_id: user.id,
       username: profile.full_name?.split(" ")[0] || profile.username || "User",
@@ -3257,7 +3245,7 @@ export default function App() {
     // push notifications
     pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
     // follow
-    following, followSince, loadingFollow, handleFollow,
+    following, loadingFollow, handleFollow,
     // subscribe
     isSubscribed, subscribing, setShowSubTierPicker, showSubTierPicker,
     handleSubscribe, SUB_TIERS,

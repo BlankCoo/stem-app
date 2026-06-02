@@ -8,7 +8,6 @@ export default function NavBar() {
     showNotifs, setShowNotifs, unreadNotifs, setUnreadNotifs,
     notifications, liveStreams, formatDbStream, viewChannel,
     switchMode, setPage,
-    pushEnabled, pushLoading, enablePushNotifications, disablePushNotifications,
     isStreaming, setShowGoLive,
   } = useApp();
 
@@ -109,17 +108,6 @@ export default function NavBar() {
                     <span style={{ fontSize: 11, color: "var(--purple)", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>Watch →</span>
                   </div>
                 ))}
-              </div>
-            )}
-            {"Notification" in window && (
-              <div style={{ padding: "12px 16px", borderTop: "1px solid var(--line)" }}>
-                <button
-                  onClick={pushEnabled ? disablePushNotifications : enablePushNotifications}
-                  disabled={pushLoading}
-                  style={{ width: "100%", background: pushEnabled ? "rgba(0,245,160,.08)" : "rgba(124,58,237,.12)", border: pushEnabled ? "1px solid rgba(0,245,160,.25)" : "1px solid rgba(124,58,237,.3)", color: pushEnabled ? "var(--green)" : "var(--purple)", borderRadius: 10, padding: "9px", fontSize: 12, fontWeight: 700, cursor: pushLoading ? "default" : "pointer" }}
-                >
-                  {pushLoading ? "…" : pushEnabled ? "🔔 Notifications On" : "🔕 Enable Notifications"}
-                </button>
               </div>
             )}
           </div>

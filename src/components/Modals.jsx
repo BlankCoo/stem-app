@@ -1,50 +1,11 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 
-function GiftSubModal({ stream, user, chat, handleGiftSub, giftingSubTo, setShowGiftSubModal, notify }) {
-  const [qty, setQty] = useState(1);
-  const cost = qty * 1000;
-  const chatViewerCount = new Set(
-    chat.filter(m => m.uid && m.uid !== user?.id && m.uid !== stream?.user_id).map(m => m.uid)
-  ).size;
-  return (
-    <div className="modal-overlay" onClick={() => setShowGiftSubModal(false)}>
-      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
-        <div className="modal-title">🎁 Gift Subscriptions</div>
-        <div className="modal-sub" style={{ marginBottom: 20 }}>
-          Gift subs to random viewers in {stream?.streamer}'s chat. Each gets 30 days subscribed.
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {[1, 5, 10].map(n => (
-            <button key={n} onClick={() => setQty(n)}
-              style={{ flex: 1, background: qty === n ? "linear-gradient(135deg,var(--purple),var(--red))" : "var(--ink3)", border: qty === n ? "none" : "1px solid var(--line2)", color: "#fff", borderRadius: 10, padding: "10px 0", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-              {n}
-            </button>
-          ))}
-        </div>
-        <div style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>Cost</span>
-          <span style={{ fontSize: 16, fontWeight: 800, color: "var(--gold)" }}>🪙 {cost.toLocaleString()} coins</span>
-        </div>
-        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 16, textAlign: "center" }}>
-          {chatViewerCount > 0 ? `${chatViewerCount} eligible viewer${chatViewerCount > 1 ? "s" : ""} in chat` : "No other viewers in chat yet"}
-        </div>
-        <button onClick={() => handleGiftSub(qty)} disabled={giftingSubTo || chatViewerCount === 0}
-          className="btn-g" style={{ width: "100%", marginBottom: 8, opacity: chatViewerCount === 0 ? .4 : 1 }}>
-          {giftingSubTo ? "Gifting…" : `🎁 Gift ${qty} Sub${qty > 1 ? "s" : ""} (${cost.toLocaleString()} 🪙)`}
-        </button>
-        <button onClick={() => setShowGiftSubModal(false)} style={{ width: "100%", background: "none", border: "1px solid var(--line)", color: "var(--muted)", borderRadius: 10, padding: "9px 0", fontSize: 13, cursor: "pointer" }}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
 export default function Modals() {
   const [onboardStep, setOnboardStep] = useState(1);
   const {
     go, stream, user, profile, coins,
     liveStreams, handleRaid,
-    showGiftSubModal, setShowGiftSubModal, giftingSubTo, handleGiftSub,
     chat,
     streakDays, getStreakBonus,
     showClipModal, setShowClipModal, clipTitle, setClipTitle, createClip, savingClip,
@@ -543,8 +504,6 @@ export default function Modals() {
         );
       })()}
 
-      {/* GIFT SUB MODAL */}
-      {showGiftSubModal && <GiftSubModal stream={stream} user={user} chat={chat} handleGiftSub={handleGiftSub} giftingSubTo={giftingSubTo} setShowGiftSubModal={setShowGiftSubModal} notify={notify} />}
     </>
   );
 }

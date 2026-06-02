@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 
 export default function ClipsPage() {
   const {
-    allClips, loadingClips, myClipVotes, voteClip,
+    allClips, loadingClips,
     notify, CAT_META,
   } = useApp();
 
@@ -88,11 +88,9 @@ export default function ClipsPage() {
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clip.title}</div>
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>by {clip.profiles?.full_name || clip.profiles?.username || "viewer"}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                      <button className={`vote-btn up${myClipVotes[clip.id] === 1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, 1)}>▲ {clip.score > 0 ? clip.score : 0}</button>
-                      <button className={`vote-btn dn${myClipVotes[clip.id] === -1 ? " on" : ""}`} onClick={e => voteClip(e, clip.id, -1)}>▼</button>
                       {hasVod
-                        ? <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700, marginLeft: "auto" }}>▶ Watch</span>
-                        : <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                        ? <span style={{ fontSize: 10, color: "var(--purple)", fontWeight: 700 }}>▶ Watch</span>
+                        : <span style={{ fontSize: 10, color: "var(--muted)" }}>{new Date(clip.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
                       }
                     </div>
                   </div>

@@ -15,7 +15,6 @@ export default function StreamPage() {
     go, stream, user, viewerCount, streamAlert,
     isStreamOwner, following, loadingFollow, handleFollow,
     notify, setShowClipModal, isSubscribed, subscribing, setShowSubTierPicker,
-    channelRewards, redeemReward, showGiftSubModal, setShowGiftSubModal,
     viewChannel, streakDays, getStreakBonus, sess, coins,
     topGifters, activePrediction, predEntries, predCountdown, myPredBet,
     predBetAmount, setPredBetAmount, predForm, setPredForm,
@@ -23,7 +22,6 @@ export default function StreamPage() {
     lockPrediction, resolvePrediction, cancelPrediction, toggleFeaturedPrediction,
     activePoll, pollVoted, votePoll, endPoll,
     pollForm, setPollForm, createPoll, showPollCreator, setShowPollCreator,
-    hypeProgress, hypeCelebrating,
     sendGift, showTipInput, setShowTipInput, customTipAmt, setCustomTipAmt, sendCustomTip,
     triggerGiftAnim, streamClips, streamGoal,
     chatRef, chatRef2,
@@ -39,7 +37,6 @@ export default function StreamPage() {
   const playerRef = useRef(null);
   const [streamQuality, setStreamQuality] = useState("auto");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [showRewards, setShowRewards] = useState(false);
 
   const applyQuality = (val) => {
     setStreamQuality(val);
@@ -160,14 +157,6 @@ export default function StreamPage() {
             {stream.user_id && stream.user_id !== user?.id && (
               <button className="abtn" style={{ background: isSubscribed ? "rgba(0,245,160,.12)" : "", border: isSubscribed ? "1px solid rgba(0,245,160,.3)" : "", color: isSubscribed ? "var(--green)" : "" }} onClick={() => isSubscribed ? null : setShowSubTierPicker(true)} disabled={subscribing || isSubscribed}>
                 {isSubscribed ? `⭐ Subscribed` : subscribing ? "…" : "⭐ Subscribe"}
-              </button>
-            )}
-            {stream.user_id && stream.user_id !== user?.id && user && (
-              <button className="abtn" onClick={() => setShowGiftSubModal(true)}>🎁 Gift Sub</button>
-            )}
-            {channelRewards.length > 0 && user && (
-              <button className="abtn" style={{ background: showRewards ? "rgba(124,58,237,.15)" : "", border: showRewards ? "1px solid rgba(124,58,237,.35)" : "", color: showRewards ? "var(--purple)" : "" }} onClick={() => setShowRewards(v => !v)}>
-                🎟 Rewards
               </button>
             )}
           </div>
@@ -418,22 +407,6 @@ export default function StreamPage() {
             </div>
           )}
 
-          {/* Hype Train */}
-          {hypeProgress > 0 && (
-            <div className="hype-wrap">
-              {hypeCelebrating ? (
-                <div className="hype-celebrate">🚂 HYPE TRAIN! Keep it going! 🔥</div>
-              ) : (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>🚂 Hype Train</span>
-                    <span style={{ fontSize: 11, color: "var(--muted)" }}>{hypeProgress}%</span>
-                  </div>
-                  <div className="hype-bar"><div className="hype-bar-fill" style={{ width: `${hypeProgress}%` }} /></div>
-                </>
-              )}
-            </div>
-          )}
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>Send a gift</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -457,27 +430,6 @@ export default function StreamPage() {
               ))}
             </div>
           </div>
-          {/* Channel Rewards */}
-          {showRewards && channelRewards.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 8 }}>🎟 Channel Rewards</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {channelRewards.map(r => (
-                  <div key={r.id} style={{ background: "var(--ink3)", border: "1px solid var(--line)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
-                      {r.description && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{r.description}</div>}
-                    </div>
-                    <button onClick={() => redeemReward(r)}
-                      style={{ background: "linear-gradient(135deg,rgba(124,58,237,.2),rgba(255,45,85,.15))", border: "1px solid rgba(124,58,237,.35)", color: "var(--purple)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
-                      🪙 {r.cost.toLocaleString()}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Clips */}
           {streamClips.length > 0 && (
             <div style={{ marginBottom: 14 }}>

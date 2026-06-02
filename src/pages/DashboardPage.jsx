@@ -18,11 +18,7 @@ export default function DashboardPage() {
     setShowScheduleModal, channelSchedule, upcomingSchedule, deleteSchedule,
     myEmotes, emoteName, setEmoteName, emoteFileRef,
     uploadEmote, uploadingEmote, deleteEmote,
-    bannedWords, newBannedWord, setNewBannedWord, addBannedWord, removeBannedWord,
     chatBans, unbanUser,
-    myRewards, rewardForm, setRewardForm, savingReward, showRewardForm, setShowRewardForm,
-    saveReward, deleteReward,
-    pendingRedemptions, fulfillRedemption, cancelRedemption, fetchPendingRedemptions,
     notify,
   } = useApp();
 
@@ -134,33 +130,6 @@ export default function DashboardPage() {
                 <span>{icon}</span>{label}
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* OBS Alert Overlay */}
-      {user && (
-        <div style={{ background: "linear-gradient(135deg,rgba(77,159,255,.08),rgba(124,58,237,.06))", border: "1px solid rgba(77,159,255,.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 22 }}>📡</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800 }}>OBS Alert Overlay</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Add as a Browser Source in OBS to show follow, gift and sub alerts on stream.</div>
-            </div>
-          </div>
-          <div style={{ background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <code style={{ fontSize: 12, color: "var(--blue)", flex: 1, wordBreak: "break-all", fontFamily: "monospace" }}>
-              {window.location.origin}/overlay/{user.id}
-            </code>
-            <button
-              onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/overlay/${user.id}`); notify("Overlay URL copied!"); }}
-              style={{ background: "rgba(77,159,255,.18)", border: "1px solid rgba(77,159,255,.35)", color: "var(--blue)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
-            >
-              Copy URL
-            </button>
-          </div>
-          <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.7 }}>
-            <span style={{ fontWeight: 700, color: "rgba(255,255,255,.5)" }}>OBS setup:</span> Sources → + → Browser → paste URL → set 800×200 → check "Shutdown source when not visible" → OK
           </div>
         </div>
       )}
@@ -429,100 +398,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-
-      {/* Auto-mod Word Filter */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🛡 Auto-mod Word Filter</span>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{bannedWords.length} words</span>
-        </div>
-        <div style={{ padding: "12px 16px" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input className="fi" style={{ margin: 0, flex: 1, fontSize: 13 }} placeholder="Add banned word…" value={newBannedWord} onChange={e => setNewBannedWord(e.target.value)} onKeyDown={e => e.key === "Enter" && addBannedWord()} />
-            <button onClick={addBannedWord} style={{ background: "var(--red)", border: "none", color: "#fff", borderRadius: 10, padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</button>
-          </div>
-          {bannedWords.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>No banned words. Messages containing added words will be auto-blocked.</div>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap" }}>
-              {bannedWords.map(w => (
-                <span key={w} className="word-chip">
-                  {w}
-                  <button onClick={() => removeBannedWord(w)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Channel Rewards */}
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="panel-hd">
-          <span className="panel-title">🎟 Channel Rewards</span>
-          <button onClick={() => setShowRewardForm(v => !v)} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            {showRewardForm ? "Cancel" : "+ Add"}
-          </button>
-        </div>
-        {showRewardForm && (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-            <input className="fi" style={{ margin: "0 0 8px" }} placeholder="Reward title (e.g. Play my song)" value={rewardForm.title} onChange={e => setRewardForm(f => ({ ...f, title: e.target.value }))} />
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 12, color: "var(--muted)", flexShrink: 0 }}>🪙 Cost:</span>
-              <input type="number" min={100} step={100} className="fi" style={{ margin: 0, flex: 1 }} value={rewardForm.cost} onChange={e => setRewardForm(f => ({ ...f, cost: e.target.value }))} />
-            </div>
-            <button onClick={saveReward} disabled={savingReward} style={{ background: "linear-gradient(135deg,var(--purple),var(--red))", border: "none", color: "#fff", borderRadius: 10, padding: "9px 0", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%" }}>
-              {savingReward ? "Saving…" : "Save Reward"}
-            </button>
-          </div>
-        )}
-        {myRewards.length === 0 && !showRewardForm ? (
-          <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--muted)" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🎟</div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No rewards yet</div>
-            <div style={{ fontSize: 12 }}>Create rewards viewers can redeem with their coins during your streams.</div>
-          </div>
-        ) : (
-          <div>
-            {myRewards.map(r => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>🪙 {r.cost.toLocaleString()} coins</div>
-                </div>
-                <button onClick={() => deleteReward(r.id)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "5px 10px", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Delete</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Pending Redemptions */}
-      {pendingRedemptions.length > 0 && (
-        <div className="panel" style={{ marginTop: 16 }}>
-          <div className="panel-hd">
-            <span className="panel-title">🎁 Pending Redemptions</span>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "var(--orange)", fontWeight: 700 }}>{pendingRedemptions.length}</span>
-              <button onClick={fetchPendingRedemptions} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12, cursor: "pointer" }}>Refresh</button>
-            </div>
-          </div>
-          <div>
-            {pendingRedemptions.map(r => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{r.reward_title}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>viewer {r.viewer_id?.slice(0, 8)} · 🪙 {r.cost.toLocaleString()} · {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => fulfillRedemption(r.id)} style={{ background: "rgba(0,245,160,.12)", border: "1px solid rgba(0,245,160,.3)", color: "var(--green)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Done ✓</button>
-                  <button onClick={() => cancelRedemption(r.id, r.viewer_id, r.cost)} style={{ background: "rgba(255,45,85,.1)", border: "1px solid rgba(255,45,85,.25)", color: "var(--red)", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Refund</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Chat Bans */}
       {chatBans.size > 0 && (
