@@ -2328,7 +2328,7 @@ export default function App() {
     return () => {
       clearInterval(syncT);
       const earned = sessRef.current;
-      supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", uid);
+      supabase.from("profiles").update({ coins: coinsRef.current, ...(earned > 0 && { total_earned: (profile?.total_earned || 0) + earned / 1000 }) }).eq("id", uid);
       if (earned > 0) supabase.from("transactions").insert({ user_id: uid, type: "watch", amount: earned, description: `Watched "${stream?.title || "a stream"}"` });
     };
   }, [page, user]);
@@ -3110,7 +3110,7 @@ export default function App() {
     const seasoned = days >= 7 && (p.coins || 0) > 500;
     if (days >= 90 && hw >= 100 && ref >= 1) return "elite";
     if (days >= 30 && (hw >= 20 || seasoned) && emailVerified && (sw >= 10 || seasoned)) return "verified_earner";
-    if (days >= 7 && (sw >= 5 || seasoned) && (hw >= 5 || seasoned)) return "active";
+    if (emailVerified) return "active";
     return "guest";
   };
 

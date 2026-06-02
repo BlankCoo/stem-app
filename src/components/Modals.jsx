@@ -173,7 +173,7 @@ export default function Modals() {
 
       {/* GO LIVE MODAL */}
       {showGoLive && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && goLiveStep === 1 && setShowGoLive(false)}>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowGoLive(false); setGoLiveStep(1); } }}>
           <div className="modal-box">
             {goLiveStep === 1 ? (<>
               <div className="modal-title">Go Live</div>

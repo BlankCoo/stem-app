@@ -603,8 +603,16 @@ export default function DiscoverPage() {
                 {myFollows.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nobody followed yet</div>
-                    <div style={{ fontSize: 13 }}>Go to any stream and hit Follow to build your feed.</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Follow some streamers to see their streams here</div>
+                    <div style={{ fontSize: 13, marginBottom: 20 }}>When the people you follow go live, they'll appear here.</div>
+                    <button className="btn-g" onClick={() => setDiscTab("all")} style={{ padding: "10px 24px", fontSize: 13 }}>Browse Streams</button>
+                  </div>
+                ) : liveStreams.filter(s => myFollows.includes(s.user_id)).length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--muted)" }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📡</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Nobody you follow is live right now</div>
+                    <div style={{ fontSize: 13, marginBottom: 20 }}>Check back soon, or discover new streamers to follow.</div>
+                    <button className="btn-o" onClick={() => setDiscTab("all")} style={{ padding: "9px 22px", fontSize: 13 }}>Browse All Streams</button>
                   </div>
                 ) : (
                   <div className="d-grid">

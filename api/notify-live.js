@@ -77,10 +77,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ sent: 0, push: pushSent });
     }
 
+    // Only email followers who have opted in to go-live notifications
+    const { data: optedInProfiles } = await sbAdmin
+      .from('profiles')
+      .select('id')
+      .in('id', followerIds)
+      .eq('email_notifications', true);
+
+    const optedInIds = (optedInProfiles || []).map(p => p.id);
+    if (!optedInIds.length) return res.status(200).json({ sent: 0, push: pushSent });
+
     const emails = [];
     const batchSize = 50;
-    for (let i = 0; i < followers.length; i += batchSize) {
-      const batch = followerIds.slice(i, i + batchSize);
+    for (let i = 0; i < optedInIds.length; i += batchSize) {
+      const batch = optedInIds.slice(i, i + batchSize);
       await Promise.all(batch.map(async (id) => {
         const { data } = await sbAdmin.auth.admin.getUserById(id);
         if (data?.user?.email) emails.push(data.user.email);

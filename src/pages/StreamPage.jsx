@@ -15,7 +15,8 @@ export default function StreamPage() {
     go, stream, user, viewerCount, streamAlert,
     isStreamOwner, following, loadingFollow, handleFollow,
     notify, setShowClipModal, isSubscribed, subscribing, setShowSubTierPicker,
-    viewChannel, streakDays, getStreakBonus, sess, coins,
+    viewChannel, streakDays, getStreakBonus, sess, coins, coinMultiplier, activeEvent,
+    resendVerificationEmail,
     topGifters, activePrediction, predEntries, predCountdown, myPredBet,
     predBetAmount, setPredBetAmount, predForm, setPredForm,
     placeBet, placingBet, createPrediction, setShowCreatePred, showCreatePred,
@@ -168,6 +169,24 @@ export default function StreamPage() {
           {user ? (
             <div className="earn-box">
               <div className="ebox-title">Session Earnings</div>
+              {/* Guest: email not verified */}
+              {viewerTier === "guest" && (
+                <div style={{ background: "rgba(255,149,0,.08)", border: "1px solid rgba(255,149,0,.25)", borderRadius: 10, padding: "12px 14px", marginBottom: 12, textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--orange)", marginBottom: 8 }}>✉️ Verify your email to unlock coin earning and chat</div>
+                  <button onClick={resendVerificationEmail} style={{ background: "rgba(255,149,0,.15)", border: "1px solid rgba(255,149,0,.3)", color: "var(--orange)", borderRadius: 8, padding: "6px 16px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Resend Verification Email</button>
+                </div>
+              )}
+              {/* Active multiplier event banner */}
+              {activeEvent && (
+                <div style={{ background: "rgba(255,200,0,.08)", border: "1px solid rgba(255,200,0,.25)", borderRadius: 8, padding: "7px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>🎉</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: "var(--gold)" }}>{coinMultiplier}x Coin Event</span>
+                    <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>{activeEvent.label}</span>
+                  </div>
+                  {activeEvent.ends_at && <span style={{ fontSize: 10, color: "var(--muted)" }}>ends {new Date(activeEvent.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                </div>
+              )}
               {/* Streak badge */}
               {streakDays >= 2 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,149,0,.1)", border: "1px solid rgba(255,149,0,.2)", borderRadius: 8, padding: "7px 10px", marginBottom: 10 }}>
@@ -184,9 +203,12 @@ export default function StreamPage() {
                 <div style={{ textAlign: "right" }}><div style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 24, color: "var(--gold)" }}>🪙 {coins.toLocaleString()}</div><div style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}>total balance</div></div>
               </div>
               <div className="ecells">
-                <div className="ecell"><div className="ecell-v" style={{ color: "var(--green)" }}>+4/hr</div><div className="ecell-l">Ad share</div></div>
                 <div className="ecell">
-                  <div className="ecell-v" style={{ color: "var(--gold)" }}>+{Math.round(10 * (1 + getStreakBonus(streakDays) / 100))}</div>
+                  <div className="ecell-v" style={{ color: coinMultiplier > 1 ? "var(--gold)" : "var(--green)" }}>+{4 * coinMultiplier}/hr</div>
+                  <div className="ecell-l" style={{ color: coinMultiplier > 1 ? "var(--gold)" : "" }}>{coinMultiplier > 1 ? `${coinMultiplier}x BOOST` : "Ad share"}</div>
+                </div>
+                <div className="ecell">
+                  <div className="ecell-v" style={{ color: "var(--gold)" }}>+{Math.round(10 * (1 + getStreakBonus(streakDays) / 100) * coinMultiplier)}</div>
                   <div className="ecell-l">Per chat</div>
                 </div>
                 <div className="ecell">
