@@ -112,7 +112,7 @@ export default function WalletPage() {
         const ref = profile?.referral_count || 0;
         const nextTiers = {
           guest: null,
-          active: [["Account age", days, 3, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 1, "hrs"], ["Streams watched", sw, 2]],
+          active: [["Account age", days, 5, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 2, "hrs"], ["Streams watched", sw, 2]],
           verified_earner: [["Account age", days, 90, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 100, "hrs"], ["Referrals", ref, 1]],
           elite: null,
         };

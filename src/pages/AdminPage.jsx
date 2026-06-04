@@ -6,7 +6,7 @@ export default function AdminPage() {
   const {
     user, adminWithdrawals, loadingAdmin,
     fetchAdminWithdrawals, approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
-    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent,
+    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent, unlockWithdrawal,
     reports, loadingReports, fetchReports, resolveReport,
   } = useApp();
 
@@ -42,7 +42,7 @@ export default function AdminPage() {
   const searchUsers = async (q) => {
     if (!q.trim()) { setUserResults([]); return; }
     const { data } = await supabase.from("profiles")
-      .select("id,full_name,username,email,role,coins,created_at")
+      .select("id,full_name,username,email,role,coins,created_at,withdrawal_unlocked")
       .or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
       .limit(8);
     setUserResults(data || []);
@@ -140,7 +140,19 @@ export default function AdminPage() {
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{u.full_name} <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 400 }}>@{u.username}</span></div>
                     <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{u.role} · 🪙 {(u.coins || 0).toLocaleString()} · joined {new Date(u.created_at).toLocaleDateString()}</div>
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--muted)", flexShrink: 0 }}>{u.id.slice(0, 8)}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    {u.withdrawal_unlocked ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", background: "rgba(0,245,160,.1)", border: "1px solid rgba(0,245,160,.25)", borderRadius: 20, padding: "3px 10px" }}>Withdraw ✓</span>
+                    ) : (
+                      <button onClick={async () => {
+                        await unlockWithdrawal(u.id);
+                        setUserResults(prev => prev.map(r => r.id === u.id ? { ...r, withdrawal_unlocked: true } : r));
+                      }} style={{ background: "rgba(77,159,255,.12)", border: "1px solid rgba(77,159,255,.3)", color: "var(--blue)", borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                        Unlock Withdraw
+                      </button>
+                    )}
+                    <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--muted)" }}>{u.id.slice(0, 8)}</div>
+                  </div>
                 </div>
               ))}
             </div>

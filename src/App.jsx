@@ -1568,6 +1568,11 @@ export default function App() {
     setCoinMultiplier(1); setActiveEvent(null);
     notify(`Coin event cleared`);
   };
+
+  const unlockWithdrawal = async (userId) => {
+    await supabase.from("profiles").update({ withdrawal_unlocked: true }).eq("id", userId);
+    notify("Withdrawal unlocked ✓");
+  };
   const rejectWithdrawal = async (w) => {
     await supabase.from("profiles").update({ coins: (w.profiles?.coins || 0) + w.amount_coins }).eq("id", w.user_id);
     await supabase.from("withdrawal_requests").update({ status: "rejected" }).eq("id", w.id);
@@ -3109,7 +3114,8 @@ export default function App() {
     // Grandfathering: users with coin history pre-dating the tier system get active status
     const seasoned = days >= 7 && (p.coins || 0) > 500;
     if (days >= 90 && hw >= 100 && ref >= 1) return "elite";
-    if (days >= 3 && (hw >= 1 || seasoned) && emailVerified && (sw >= 2 || seasoned)) return "verified_earner";
+    if (p.withdrawal_unlocked) return "verified_earner";
+    if (days >= 5 && (hw >= 2 || seasoned) && emailVerified && (sw >= 2 || seasoned)) return "verified_earner";
     if (emailVerified) return "active";
     return "guest";
   };
@@ -3308,7 +3314,7 @@ export default function App() {
     // admin
     adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
     approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
-    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent,
+    coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent, unlockWithdrawal,
     // reports
     reports, loadingReports, fetchReports, resolveReport,
     showReportModal, setShowReportModal,
