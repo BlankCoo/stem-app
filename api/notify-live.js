@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       const chunk = emails.slice(i, i + 10);
       await Promise.all(chunk.map(email =>
         resend.emails.send({
-          from: 'STEM <onboarding@resend.dev>',
+          from: 'STEM <noreply@stemapp.online>',
           to: email,
           subject: `🔴 ${streamer_name} is live on STEM!`,
           html: `

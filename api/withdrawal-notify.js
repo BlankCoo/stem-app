@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   const origin = 'https://www.stemapp.online';
 
   await resend.emails.send({
-    from: 'STEM <onboarding@resend.dev>',
+    from: 'STEM <noreply@stemapp.online>',
     to: email,
     subject: isPaid
       ? `✅ Your $${Number(w.net_usd).toFixed(2)} withdrawal has been paid!`
