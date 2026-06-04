@@ -3109,7 +3109,7 @@ export default function App() {
     // Grandfathering: users with coin history pre-dating the tier system get active status
     const seasoned = days >= 7 && (p.coins || 0) > 500;
     if (days >= 90 && hw >= 100 && ref >= 1) return "elite";
-    if (days >= 30 && (hw >= 20 || seasoned) && emailVerified && (sw >= 10 || seasoned)) return "verified_earner";
+    if (days >= 3 && (hw >= 1 || seasoned) && emailVerified && (sw >= 2 || seasoned)) return "verified_earner";
     if (emailVerified) return "active";
     return "guest";
   };

@@ -111,8 +111,8 @@ export default function WalletPage() {
         const sw = profile?.streams_watched || 0;
         const ref = profile?.referral_count || 0;
         const nextTiers = {
-          guest: [["Account age", days, 7, "days"], ["Streams watched", sw, 5], ["Watch time", parseFloat(hw.toFixed(1)), 5, "hrs"]],
-          active: [["Account age", days, 30, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 20, "hrs"], ["Streams watched", sw, 10]],
+          guest: null,
+          active: [["Account age", days, 3, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 1, "hrs"], ["Streams watched", sw, 2]],
           verified_earner: [["Account age", days, 90, "days"], ["Watch time", parseFloat(hw.toFixed(1)), 100, "hrs"], ["Referrals", ref, 1]],
           elite: null,
         };
@@ -120,28 +120,33 @@ export default function WalletPage() {
         const nextTi = ti.next ? VIEWER_TIER_INFO[ti.next] : null;
         return (
           <div style={{ background: "var(--card)", border: `1px solid ${ti.color}40`, borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: reqs ? 16 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: (reqs || viewerTier === "guest") ? 14 : 0 }}>
               <div style={{ fontSize: 28 }}>{ti.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: ti.color }}>{ti.label}</div>
                 <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  {viewerTier === "guest" && "Watch streams to unlock chat and coin earning"}
+                  {viewerTier === "guest" && "Verify your email to start earning coins and chatting"}
                   {viewerTier === "active" && "✓ Chat · ✓ Earn coins · ✓ Send gifts"}
                   {viewerTier === "verified_earner" && "✓ Withdrawals · ✓ Referrals · ✓ Streak bonuses"}
                   {viewerTier === "elite" && "✓ 2x coins · ✓ Elite badge · ✓ All features"}
                 </div>
               </div>
             </div>
+            {viewerTier === "guest" && (
+              <button onClick={() => { resendVerificationEmail(); notify("Verification email sent — check your inbox"); }}
+                style={{ width: "100%", background: "rgba(255,149,0,.12)", border: "1px solid rgba(255,149,0,.3)", color: "var(--orange)", borderRadius: 10, padding: "10px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                ✉️ Resend Verification Email
+              </button>
+            )}
             {reqs && nextTi && (
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>Progress to {nextTi.label} {nextTi.emoji}</div>
                 {reqs.map(([label, cur, tgt, unit]) => (
                   <TierBar key={label} label={`${label}${unit ? ` (${unit})` : ""}`} current={cur} target={tgt} color={ti.next === "elite" ? "var(--gold)" : ti.next === "verified_earner" ? "#0ea5e9" : "var(--green)"} />
                 ))}
-                {viewerTier === "active" && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Also requires email verified</div>}
               </div>
             )}
-            {!reqs && <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🏆 Maximum viewer tier reached!</div>}
+            {!reqs && viewerTier !== "guest" && <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700 }}>🏆 Maximum viewer tier reached!</div>}
           </div>
         );
       })()}
