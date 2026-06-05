@@ -21,6 +21,7 @@ const TermsPage      = lazy(() => import("./pages/TermsPage"));
 const PrivacyPage    = lazy(() => import("./pages/PrivacyPage"));
 const StreamerPage   = lazy(() => import("./pages/StreamerPage"));
 const VodPage        = lazy(() => import("./pages/VodPage"));
+const SpacePage        = lazy(() => import("./pages/SpacePage"));
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`;
 
@@ -766,6 +767,13 @@ export default function App() {
   const [reportReason, setReportReason] = useState("");
   const [submittingReport, setSubmittingReport] = useState(false);
 
+  // Spaces
+  const [liveSpaces, setLiveSpaces] = useState([]);
+  const [currentSpace, setCurrentSpace] = useState(null);
+  const [spaceToken, setSpaceToken] = useState(null);
+  const [spaceRole, setSpaceRole] = useState(null);
+  const [showStartSpaceModal, setShowStartSpaceModal] = useState(false);
+
   const chatRef = useRef(null);
   const chatRef2 = useRef(null);
   const coinsRef = useRef(0);
@@ -853,6 +861,7 @@ export default function App() {
     fetchTrendingClips();
     fetchRecentPayouts();
     fetchCoinEvent();
+    fetchLiveSpaces();
     // UPDATE = viewer count tick — patch in place, no refetch needed
     // INSERT/DELETE = stream came live or ended — full refetch
     const streamCh = supabase.channel('live-streams')
@@ -1543,7 +1552,71 @@ export default function App() {
   };
 
 
-  const fetchCoinEvent = async () => {
+  // ── SPACES ──────────────────────────────────────────────────────────────
+  const fetchLiveSpaces = async () => {
+    const { data } = await supabase.from("spaces").select("*, profiles(full_name,username,avatar_url)").eq("status", "live").order("started_at", { ascending: false });
+    setLiveSpaces(data || []);
+  };
+
+  const createSpace = async (title) => {
+    if (!user || !profile) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/daily-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ title, hostId: user.id, hostName: profile.full_name || profile.username }),
+    });
+    const result = await res.json();
+    if (!res.ok) { notify(result.error || "Failed to start Space"); return; }
+    setCurrentSpace(result.space);
+    setSpaceToken(result.token);
+    setSpaceRole("host");
+    setShowStartSpaceModal(false);
+    setLiveSpaces(prev => [result.space, ...prev]);
+    go("space");
+  };
+
+  const joinSpace = async (space) => {
+    if (!user || !profile) { setShowSignupPrompt(true); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/daily-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ roomName: space.room_name, userName: profile.full_name || profile.username, userId: user.id }),
+    });
+    const result = await res.json();
+    if (!res.ok) { notify(result.error || "Failed to join Space"); return; }
+    setCurrentSpace(space);
+    setSpaceToken(result.token);
+    setSpaceRole("listener");
+    // Track participant
+    await supabase.from("space_participants").upsert({ space_id: space.id, user_id: user.id, role: "listener" }, { onConflict: "space_id,user_id" });
+    go("space");
+  };
+
+  const leaveSpace = async () => {
+    if (!currentSpace || !user) return;
+    await supabase.from("space_participants").update({ left_at: new Date().toISOString() })
+      .eq("space_id", currentSpace.id).eq("user_id", user.id);
+    setCurrentSpace(null); setSpaceToken(null); setSpaceRole(null);
+    go("disc");
+  };
+
+  const endSpace = async () => {
+    if (!currentSpace) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch("/api/daily-room", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ roomName: currentSpace.room_name, spaceId: currentSpace.id }),
+    });
+    setLiveSpaces(prev => prev.filter(s => s.id !== currentSpace.id));
+    setCurrentSpace(null); setSpaceToken(null); setSpaceRole(null);
+    go("disc");
+    notify("Space ended");
+  };
+
+    const fetchCoinEvent = async () => {
     const { data } = await supabase.from(`platform_settings`).select(`*`).eq(`id`, 1).single();
     if (!data) return;
     const endsAt = data.event_ends_at;
@@ -2293,7 +2366,7 @@ export default function App() {
   // Coin earning â€” tick speed scales with streak; guests earn nothing; elite earns 1.5x via fractional accumulator
   const tickMs = streakDays >= 14 ? 450 : streakDays >= 7 ? 600 : streakDays >= 3 ? 720 : 900;
   useEffect(() => {
-    if (page !== "stream" || viewerTier === "guest") return;
+    if ((page !== "stream" && page !== "space") || viewerTier === "guest") return;
     eliteAccumRef.current = 0;
     const t = setInterval(() => {
       let earn = 1;
@@ -2325,7 +2398,7 @@ export default function App() {
 
   // Sync earned coins to Supabase every 15s while watching
   useEffect(() => {
-    if (page !== "stream" || !user) return;
+    if ((page !== "stream" && page !== "space") || !user) return;
     const uid = user.id;
     const syncT = setInterval(() => {
       supabase.from("profiles").update({ coins: coinsRef.current }).eq("id", uid);
@@ -2614,7 +2687,7 @@ export default function App() {
     if (page === "leaderboard") fetchLeaderboard();
     if (page === "dash" && user) { checkIsStreaming(user.id); fetchUpcomingSchedule(); fetchMyEmotes(); fetchTransactions(); fetchWithdrawHistory(); fetchStreamerAnalytics(); fetchMyRewards(); fetchPendingRedemptions(); }
     if (page === "admin" && user?.email === "blankcoojnr@gmail.com") { fetchAdminWithdrawals(); fetchReports(); }
-    if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); fetchAllStreamers(); }
+    if (page === "disc") { fetchUpcomingSchedule(); fetchAllClips(); fetchFeaturedPredictions(); fetchAllStreamers(); fetchLiveSpaces(); }
     if (page === "wallet" && user) { fetchTransactions(); fetchWithdrawHistory(); fetchPredHistory(); fetchDailyMissions(); fetchAchievements(); }
     if (page === "stream" && stream?.id) {
       fetchStreamClips(stream.id);
@@ -3311,7 +3384,11 @@ export default function App() {
     channelUser, channelIsLive, channelFollowers, setChannelFollowers,
     channelStreams, channelClips, channelSchedule, channelTab, setChannelTab,
     selectedVod, setSelectedVod, viewChannel,
-    // admin
+    // spaces
+    liveSpaces, currentSpace, spaceToken, spaceRole,
+    createSpace, joinSpace, leaveSpace, endSpace,
+    showStartSpaceModal, setShowStartSpaceModal,
+        // admin
     adminWithdrawals, loadingAdmin, fetchAdminWithdrawals,
     approveWithdrawal, rejectWithdrawal, markWithdrawalPaid,
     coinMultiplier, activeEvent, setActiveCoinEvent, clearCoinEvent, unlockWithdrawal,
@@ -3358,6 +3435,7 @@ export default function App() {
       {page === "privacy"  && <PrivacyPage />}
       {page === "streamer" && <StreamerPage />}
       {page === "vod"      && <VodPage />}
+      {page === "space"    && <SpacePage />}
     </Suspense>
 
     <Modals />

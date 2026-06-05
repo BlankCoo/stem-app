@@ -20,6 +20,7 @@ export default function DashboardPage() {
     uploadEmote, uploadingEmote, deleteEmote,
     chatBans, unbanUser,
     notify,
+    setShowStartSpaceModal,
   } = useApp();
 
   return (
@@ -124,7 +125,13 @@ export default function DashboardPage() {
             <span style={{ width: 10, height: 10, background: "#fff", borderRadius: "50%", animation: "blink 1.6s infinite" }} />
             Go Live Now
           </button>
-          <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+            <button onClick={() => setShowStartSpaceModal(true)}
+              style={{ background: "rgba(124,58,237,.15)", border: "1px solid rgba(124,58,237,.35)", color: "var(--purple)", borderRadius: 12, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
+              🎙 Start a Space <span style={{ fontSize: 10, opacity: .7 }}>audio only</span>
+            </button>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 14, flexWrap: "wrap" }}>
             {[["⚡", "Instant setup"], ["🪙", "Earn from stream 1"], ["📡", "Real RTMP via OBS"]].map(([icon, label]) => (
               <div key={label} style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", gap: 5 }}>
                 <span>{icon}</span>{label}

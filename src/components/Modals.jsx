@@ -26,6 +26,7 @@ export default function Modals() {
     reportReason, setReportReason, submitReport, submittingReport,
     showWelcome, setShowWelcome,
     emailVerified, resendVerificationEmail,
+    showStartSpaceModal, setShowStartSpaceModal, createSpace,
   } = useApp();
 
   return (
@@ -498,6 +499,37 @@ export default function Modals() {
                 >
                   {isLast ? "Start Earning →" : `Next (${onboardStep}/${steps.length})`}
                 </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* START SPACE MODAL */}
+      {showStartSpaceModal && (() => {
+        let spaceTitle = "";
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowStartSpaceModal(false)}>
+            <div className="modal-box" style={{ maxWidth: 400 }}>
+              <div className="modal-title">🎙 Start a Space</div>
+              <div className="modal-sub" style={{ marginBottom: 20 }}>Audio-only room — no OBS needed. Listeners join from their browser and earn coins while listening.</div>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6, display: "block" }}>Space Title</label>
+              <input
+                className="fi"
+                placeholder="e.g. Let's talk gaming, AMA with me..."
+                autoFocus
+                onChange={e => { spaceTitle = e.target.value; }}
+                onKeyDown={e => e.key === "Enter" && spaceTitle.trim() && createSpace(spaceTitle.trim())}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button onClick={() => setShowStartSpaceModal(false)} style={{ flex: 1, background: "var(--ink3)", border: "1px solid var(--line2)", color: "var(--muted)", borderRadius: 12, padding: 13, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => spaceTitle.trim() && createSpace(spaceTitle.trim())}
+                  style={{ flex: 2, background: "linear-gradient(135deg,var(--purple),var(--red))", color: "#fff", border: "none", borderRadius: 12, padding: 13, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <span>🎙</span> Start Space
+                </button>
+              </div>
+              <div style={{ marginTop: 14, fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
+                🎤 You'll be unmuted as host · 👥 Listeners can raise their hand to speak · 🪙 Everyone earns coins
               </div>
             </div>
           </div>

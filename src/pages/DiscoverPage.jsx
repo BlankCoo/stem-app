@@ -44,6 +44,7 @@ export default function DiscoverPage() {
     featuredPreds, user, mode, setAuthMode, notify,
     CAT_META, searchProfiles, searchClips, page, setShowGoLive,
     allStreamers, loadingStreamers,
+    liveSpaces, joinSpace, setShowStartSpaceModal,
   } = useApp();
 
   const [vodClip, setVodClip] = useState(null);
@@ -343,6 +344,41 @@ export default function DiscoverPage() {
             )}
 
             {/* ── LIVE / FOLLOWING TABS (existing content) ── */}
+            {/* ── SPACES ─────────────────────────────────────────────────────── */}
+            {discTab === "all" && liveSpaces.length > 0 && (
+              <div style={{ padding: "0 0 8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={{ fontFamily: "Bebas Neue,sans-serif", fontSize: 20, letterSpacing: .5 }}>🎙 Live Spaces</span>
+                  {user && mode === "streamer" && (
+                    <button onClick={() => setShowStartSpaceModal(true)}
+                      style={{ marginLeft: "auto", background: "rgba(124,58,237,.15)", border: "1px solid rgba(124,58,237,.35)", color: "var(--purple)", borderRadius: 20, padding: "4px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      + Start a Space
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {liveSpaces.map(s => (
+                    <div key={s.id} onClick={() => joinSpace(s)}
+                      style={{ background: "var(--ink2)", border: "1px solid rgba(124,58,237,.25)", borderRadius: 14, padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "border-color .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.5)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(124,58,237,.25)"}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,rgba(124,58,237,.3),rgba(255,45,85,.2))", border: "1px solid rgba(124,58,237,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🎙</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                          Hosted by {s.profiles?.full_name || s.profiles?.username || "Host"} · 👥 {s.listener_count || 0} listening
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flex_direction: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                        <span style={{ background: "rgba(124,58,237,.2)", border: "1px solid rgba(124,58,237,.4)", color: "var(--purple)", borderRadius: 20, fontSize: 9, fontWeight: 800, padding: "2px 8px", letterSpacing: .5 }}>🎙 SPACE</span>
+                        <span style={{ fontSize: 12, color: "var(--purple)", fontWeight: 700 }}>Join →</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {discTab === "all" && allStreams.length === 0 && (
               <div style={{ padding: "56px 24px 40px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
                 <div style={{ fontSize: 60, marginBottom: 18, opacity: .75 }}>📡</div>
@@ -354,7 +390,10 @@ export default function DiscoverPage() {
                 </div>
                 <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                   {mode === "streamer" && user && (
-                    <button className="btn-g" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => setShowGoLive(true)}>🔴 Go Live Now</button>
+                    <>
+                      <button className="btn-g" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => setShowGoLive(true)}>🔴 Go Live Now</button>
+                      <button className="btn-o" style={{ padding: "11px 24px", fontSize: 14 }} onClick={() => setShowStartSpaceModal(true)}>🎙 Start a Space</button>
+                    </>
                   )}
                   {mode === "viewer" && user && (
                     <>
